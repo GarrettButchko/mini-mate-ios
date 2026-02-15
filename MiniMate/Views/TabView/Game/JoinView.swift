@@ -34,7 +34,7 @@ struct JoinView: View {
         ZStack{
             
             mainContent
-                .contentMargins(.top, 100)
+                .contentMargins(.top, 70)
                 .contentMargins(.bottom, 70)
             
             VStack {
@@ -53,7 +53,7 @@ struct JoinView: View {
                 .background(
                     LinearGradient(
                         gradient: Gradient(colors: [
-                            Color.bg.opacity(1),
+                            (viewModel.inGame ? Color.sub.opacity(1) : Color.bg.opacity(1)),
                             Color.clear
                         ]),
                         startPoint: .top,
@@ -62,7 +62,9 @@ struct JoinView: View {
                     .ignoresSafeArea(edges: .top)
                 )
                 
+                
                 Spacer()
+                
                 
                 Group{
                     if viewModel.inGame {
@@ -101,10 +103,10 @@ struct JoinView: View {
                             .padding(.vertical, 14)
                             .background(
                                 RoundedRectangle(cornerRadius: 25)
-                                    .fill(Color.blue.opacity(viewModel.gameCode.isEmpty ? 0.5 : 1))
+                                    .fill(Color.blue)
+                                    .padding(.horizontal)
                             )
-                            .padding(.horizontal)
-                            .opacity(viewModel.gameCode.isEmpty ? 0.5 : 1)
+                            .opacity(viewModel.gameCode.count != 6 ? 0.5 : 1)
                             .safeAreaPadding(.bottom, 10)
                             
                         }
@@ -115,7 +117,7 @@ struct JoinView: View {
                 .background(
                     LinearGradient(
                         gradient: Gradient(colors: [
-                            Color.bg.opacity(1),
+                            (viewModel.inGame ? Color.sub.opacity(1) : Color.bg.opacity(1)),
                             Color.clear
                         ]),
                         startPoint: .bottom,
@@ -136,7 +138,9 @@ struct JoinView: View {
         .onChange(of: viewModel.gameModel.gameValue.dismissed) {
             viewModel.gameDidDismiss($1)
         }
-        .background(.bg)
+        .background(
+            Color.bg.ignoresSafeArea()
+        )
     }
     
     // MARK: - Sections
@@ -149,50 +153,61 @@ struct JoinView: View {
             }
         }
     }
-
+    
     // MARK: - Join Game View
     @ViewBuilder
     private var joinGameCard: some View {
-        VStack {
-            Spacer()
-            
-            VStack(spacing: 24) {
-                // Header
-                VStack(spacing: 8) {
-                    Text("Enter Game Code")
-                        .font(.system(.title2, design: .rounded))
-                        .fontWeight(.bold)
+        
+        
+        GeometryReader { geometry in
+            ScrollView{
+                VStack(spacing: 16) {
+                    VStack(spacing: 24) {
+                        // Header
+                        VStack(spacing: 8) {
+                            Text("Enter Game Code")
+                                .font(.system(.title2, design: .rounded))
+                                .fontWeight(.bold)
+                            
+                            Text("Ask the host for the 6-digit code")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        // Input & Scanner
+                        VStack(spacing: 20) {
+                            gameCodeTextField
+                            actionDivider
+                            scanButton
+                        }
+                        
+                        
+                    }
+                    .padding(.vertical, 32)
+                    .padding(.horizontal, 20) // standardized inner padding
+                    .background {
+                        RoundedRectangle(cornerRadius: 25, style: .continuous)
+                            .fill(.sub)
+                            .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
+                    }
                     
-                    Text("Ask the host for the 6-digit code")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    
+                    if !viewModel.message.isEmpty {
+                        Text(viewModel.message)
+                            .font(.footnote)
+                            .foregroundStyle(.red.opacity(0.8))
+                            .transition(.blurReplace)
+                            .multilineTextAlignment(.center)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(.red.opacity(0.2))
+                            )
+                    }
                 }
-                
-                // Input & Scanner
-                VStack(spacing: 20) {
-                    gameCodeTextField
-                    actionDivider
-                    scanButton
-                }
-                
-                if !viewModel.message.isEmpty {
-                    Text(viewModel.message)
-                        .font(.footnote)
-                        .foregroundStyle(.red.opacity(0.8))
-                        .transition(.blurReplace)
-                }
+                .frame(minHeight: geometry.size.height, alignment: .center)
             }
-            .padding(.vertical, 32)
-            .padding(.horizontal, 24)
-            .background {
-                RoundedRectangle(cornerRadius: 25, style: .continuous)
-                    .fill(.sub)
-                    .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 25)
-            
-            Spacer()
         }
     }
 
@@ -207,11 +222,7 @@ struct JoinView: View {
             .padding(.vertical, 16)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(white: 1, opacity: 0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                    )
+                    .fill(.subTwo)
             )
             .frame(width: 240)
             .onChange(of: viewModel.gameCode) { _, newValue in

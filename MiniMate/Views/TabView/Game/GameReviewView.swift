@@ -32,11 +32,12 @@ struct GameReviewView: View {
     }
     
     var body: some View {
-        VStack {
+        VStack(spacing: 16) {
             headerView
                 .padding(.top)
-            BarChartView(data: viewModel.averageStrokes(), title: "Average Strokes", paddingReview: true, cornerRadius: 25, backgroundType: .ultraThin)
+            BarChartView(data: viewModel.averageStrokes(), title: "Average Strokes", paddingReview: true, cornerRadius: 25, backgroundType: .custom(.sub))
                 .frame(height: 140)
+                .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
             scoreGridView
             footerView
         }
@@ -89,7 +90,6 @@ struct GameReviewView: View {
             RoundedRectangle(cornerRadius: 25)
                 .subVsColor(makeColor: viewModel.course?.scoreCardColor)
         }
-        .padding(.vertical, 10)
         .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
     }
     

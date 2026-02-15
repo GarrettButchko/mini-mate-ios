@@ -189,6 +189,7 @@ struct MainView: View {
     
     private func actionButtonsSection(course: Course?) -> some View {
         VStack {
+            
             TitleView(colors: course?.courseColors)
                 .frame(height: 150)
             
@@ -597,7 +598,7 @@ struct MainView: View {
                             )
                             .padding()
                             .frame(height: cardHeight)
-                            .background(colorScheme == .light ? AnyShapeStyle(Color.white) : AnyShapeStyle(.ultraThinMaterial))
+                            .background(.subTwo)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                         
@@ -610,7 +611,7 @@ struct MainView: View {
                         )
                     }
                     
-                    BarChartView(data: analyzer?.usersHolesOfLatestGame ?? [], title: "Recap of Game")
+                    BarChartView(data: analyzer?.usersHolesOfLatestGame ?? [], title: "Recap of Game", backgroundType: .custom(.subTwo))
                         .frame(height: 150)
                 }
                 .padding(.bottom)
@@ -627,18 +628,7 @@ struct MainView: View {
             ))
             
         } else {
-            // Elegant fallback if no games exist
-            VStack(spacing: 16) {
-                Image("logoOpp")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 50, height: 50)
-                    .grayscale(1.0)
-                    .opacity(0.5)
-
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 40)
+            LogoDefault()
         }
     }
     

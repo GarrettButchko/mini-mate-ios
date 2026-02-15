@@ -31,6 +31,7 @@ final class GameViewModel: ObservableObject, Observable {
     private var lastUpdated: Date = Date()
     
     private var hasLoaded: Bool = false
+    private var isDismissing: Bool = false  // Flag to prevent re-attaching listeners during cleanup
     
     private var liveGameRepo = LiveGameRepository()
     private var courseRepo = CourseRepository()
@@ -88,10 +89,10 @@ final class GameViewModel: ObservableObject, Observable {
     
     // Public Actions
     func resetGame() {
-        setGame(Game())
+        setGame(Game(), listen: false)
     }
     
-    func setGame(_ newGame: Game) {
+    func setGame(_ newGame: Game, listen: Bool = true) {
         objectWillChange.send()
         // Tear down any existing listener
         stopListening()
@@ -119,8 +120,8 @@ final class GameViewModel: ObservableObject, Observable {
             game.players.append(remotePlayer)
         }
         
-        // Restart updates if needed
-        if onlineGame {
+        // Restart updates if needed (but NOT if we're in the middle of dismissing)
+        if listen && onlineGame && !isDismissing {
             listenForUpdates()
         }
     }
@@ -180,7 +181,6 @@ final class GameViewModel: ObservableObject, Observable {
     }
     
     func listenForUpdates() {
-        guard onlineGame else { return }
         guard let ref = gameRef() else {
             print("Invalid game.id or not online — skipping Firebase call")
             return
@@ -287,15 +287,6 @@ final class GameViewModel: ObservableObject, Observable {
         }
         listenerHandles.append(removeHandle)
         listenerRefs.append(playersRef)
-    }
-    
-    func deleteFromFirebaseGamesArr(){
-        guard onlineGame else { return }
-        liveGameRepo.deleteGame(id: game.id) { result in
-            if result {
-                print("Deleted Game id: " + self.game.id + " From Firebase")
-            }
-        }
     }
     
     // MARK: - Helpers
@@ -412,7 +403,7 @@ final class GameViewModel: ObservableObject, Observable {
         pushUpdate()
     }
     
-    func joinGame(id: String, userId: String, completion: @escaping (Bool) -> Void) {
+    func joinGame(id: String, userId: String, completion: @escaping (Bool, String?) -> Void) {
         guard onlineGame else { return }
         resetGame()
         resetCourse()
@@ -425,9 +416,24 @@ final class GameViewModel: ObservableObject, Observable {
                 self.setGame(game)
                 self.addUser()
                 self.listenForUpdates()
-                completion(true)
+                completion(true, nil)
             } else {
-                completion(false)
+                if let game = game {
+                    if game.dismissed == true {
+                        completion(false, "This game has been dismissed by the host.")
+                    } else if game.started == true {
+                        completion(false, "This game has already started.")
+                    } else if game.completed == true {
+                        completion(false, "This game has already been completed.")
+                    } else if game.players.contains(where: { $0.userId == userId }) {
+                        completion(false, "You are already in this game. Use a different account to join")
+                    } else {
+                        completion(false, "Error")
+                    }
+                } else {
+                    completion(false, "Game not found. Please check the code and try again.")
+                }
+                
             }
         }
     }
@@ -457,6 +463,9 @@ final class GameViewModel: ObservableObject, Observable {
     // MARK: Game State
     
     func createGame(online: Bool = false, guestData: GuestData? = nil) {
+        // Update onlineGame flag FIRST before any resetGame() call
+        onlineGame = online
+        
         if let guestData = guestData {
             guard !game.live else { return }
             
@@ -464,7 +473,6 @@ final class GameViewModel: ObservableObject, Observable {
             resetGame()
             
             game.live = true
-            onlineGame = online
             game.id = generateGameCode()
             
             game.hostUserId = guestData.id
@@ -485,7 +493,6 @@ final class GameViewModel: ObservableObject, Observable {
             resetGame()
             
             game.live = true
-            onlineGame = online
             game.id = generateGameCode()
             
             game.hostUserId = authModel.userModel!.googleId
@@ -499,7 +506,9 @@ final class GameViewModel: ObservableObject, Observable {
             
             addUser()
             pushUpdate()
-            listenForUpdates()
+            if online {
+                listenForUpdates()
+            }
         }
     }
     
@@ -520,14 +529,32 @@ final class GameViewModel: ObservableObject, Observable {
     
     func dismissGame() {
         guard !game.dismissed else { return }
+        
+        // Set flag to prevent re-attaching listeners during cleanup
+        isDismissing = true
+        
         objectWillChange.send()
         stopListening()         // tear down any existing listener
         game.dismissed = true
-        pushUpdate()            // push the “dismissed” flag
-        deleteFromFirebaseGamesArr()
+        pushUpdate()            // push the "dismissed" flag
+        
+        // Save the game ID before resetting
+        let gameIdToDelete = game.id
         
         hasLoaded = false
         resetGame()             // now creates a new Game with id == ""
+        
+        // Delete from Firebase after resetting with saved ID
+        if !gameIdToDelete.isEmpty && onlineGame {
+            liveGameRepo.deleteGame(id: gameIdToDelete) { result in
+                if result {
+                    print("Deleted Game id: \(gameIdToDelete) From Firebase")
+                }
+            }
+        }
+        
+        // Reset the flag after cleanup
+        isDismissing = false
     }
     
     /// Deep-clone the game you just finished, persist it locally & remotely, then reset.

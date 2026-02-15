@@ -11,6 +11,7 @@ enum BackgroundType {
     case clear
     case adaptive
     case ultraThin
+    case custom(Color)
 }
 
 struct BarChartView: View {
@@ -36,7 +37,7 @@ struct BarChartView: View {
         let yMax = maxStroke + 2
         let yAxisLines = yMax / 3
         let xDomain: ClosedRange<Int> = data.isEmpty ? 0...1 : 1...data.count
-        let _: AnyShapeStyle = {
+        let bg: AnyShapeStyle = {
             switch backgroundType {
             case .clear:
                 return AnyShapeStyle(.clear)
@@ -46,6 +47,8 @@ struct BarChartView: View {
                 return colorScheme == .light
                     ? AnyShapeStyle(Color.white)
                     : AnyShapeStyle(.ultraThinMaterial)
+            case .custom(let color):
+                return AnyShapeStyle(color)
             }
         }()
         return Chart {
@@ -109,7 +112,7 @@ struct BarChartView: View {
         .padding(.trailing, paddingReview ? 12 : 15)
         .background(
             RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(.subTwo)
+                .fill(bg)
         )
     }
 }

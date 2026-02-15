@@ -124,14 +124,14 @@ struct HostView: View {
         .onAppear {
             VM.setUp(gameModel: gameModel, handler: locationHandler)
         }
+        .onDisappear {
+            if !gameModel.gameValue.started && !gameModel.gameValue.dismissed && showHost == false {
+                gameModel.dismissGame()
+            }
+        }
         .contentShape(Rectangle())
         .onTapGesture {
             VM.resetTimer(gameModel)
-        }
-        .onChange(of: showHost) { _, newValue in
-            if !newValue && !gameModel.started {
-                gameModel.dismissGame()
-            }
         }
         .alert("Add Local Player?", isPresented: $VM.showAddPlayerAlert) {
             

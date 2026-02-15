@@ -178,10 +178,7 @@ struct StatsView: View {
                                     }
                                     .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
                             }
-                            Image("logoOpp")
-                                .resizable()
-                                .frame(width: 50, height: 50)
-                                .padding(.bottom, 16)
+                            LogoDefault(topPadding: 0)
                         } else {
                             ProgressView()
                         }
@@ -289,10 +286,7 @@ struct StatsView: View {
                 }
             } else {
                 // Placeholder while analyzer initializes
-                Image("logoOpp")
-                    .resizable()
-                    .frame(width: 50, height: 50)
-                    .padding()
+                LogoDefault()
             }
         }
     }
@@ -377,7 +371,7 @@ struct GameGridView: View {
             }
             
             // Bar Chart
-            BarChartView(data: averageStrokes(), title: "Average Strokes")
+            BarChartView(data: averageStrokes(), title: "Average Strokes", backgroundType: .custom(.subTwo))
             
             
         }
