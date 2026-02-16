@@ -68,7 +68,8 @@ struct CourseButtonView: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 25)
-                    .fill(.ultraThinMaterial)
+                    .fill(.sub)
+                    .cardShadow()
             )
         }
     }

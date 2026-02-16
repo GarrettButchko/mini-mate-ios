@@ -22,7 +22,7 @@ struct MainView: View {
     
     var body: some View {
         VStack{
-            HStack(alignment: .center){
+            HStack(alignment: .center, spacing: 16) {
                 Button {
                     viewManager.navigateToCourseList()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -35,7 +35,6 @@ struct MainView: View {
                         .foregroundStyle(.blue)
                         .frame(width: 20, height: 20)
                 }
-                .padding(.horizontal, 8)
                     
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Course Dashboard For,")
@@ -79,6 +78,7 @@ struct MainView: View {
                     )
                 }
             }
+            .padding([.horizontal, .top])
             
             TitleView(colors: viewModel.selectedCourse?.courseColors, isManager: true)
                 .frame(height: 150)
@@ -131,11 +131,13 @@ struct MainView: View {
                 .background(content: {
                     RoundedRectangle(cornerRadius: 25)
                         .ifAvailableGlassEffect()
+                        
                 })
+                .padding(.horizontal)
             }
+            .contentMargins(.horizontal, 16)
             Spacer()
         }
-        .padding()
     }
     
     func mainViewButton(title: String, icon: String? = nil, color: Color, action: @escaping () -> Void) -> some View {

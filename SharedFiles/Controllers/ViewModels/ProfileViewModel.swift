@@ -11,6 +11,20 @@ import AuthenticationServices
 import SwiftUI
 import Combine
 
+enum DeleteAlertType: Identifiable {
+    case google
+    case apple
+    case email
+    
+    var id: Int {
+        switch self {
+        case .google: return 0
+        case .apple:  return 1
+        case .email:  return 2
+        }
+    }
+}
+
 @MainActor
 final class ProfileViewModel: ObservableObject {
     

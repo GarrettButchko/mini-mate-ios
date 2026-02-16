@@ -26,7 +26,7 @@ struct ContentView: View {
                 case .welcome:
                     WelcomeView(viewManager: viewManager, welcomeText: "Mini Mate Manager", gradientColors: [.managerBlue, .managerGreen])
                 case .signIn:
-                    SignInView(authModel: authModel, viewManager: viewManager, gradientColors: [.managerBlue, .managerGreen])
+                    SignInView(gradientColors: [.managerBlue, .managerGreen])
                 }
             }
         }

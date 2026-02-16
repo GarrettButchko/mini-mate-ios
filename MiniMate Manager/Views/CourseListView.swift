@@ -26,14 +26,15 @@ struct CourseListView: View {
         Group{
             if viewModel.hasCourse {
                 multiCourse
+                    .contentMargins(.horizontal, 16)
                     .transition(.opacity)
             } else {
                 firstCourse
+                    .padding()
                     .transition(.opacity)
             }
         }
         .animation(.bouncy, value: viewModel.hasCourse)
-        .padding()
         .onReceive(viewModel.timer) { _ in
             viewModel.tick()
         }
@@ -73,6 +74,7 @@ struct CourseListView: View {
                 }
             }
         }
+        .background(.bg)
     }
     
     var multiCourse: some View{
@@ -128,6 +130,7 @@ struct CourseListView: View {
                     )
                 }
             }
+            .padding([.horizontal, .top], 16)
             
             if viewModel.loadingCourse {
                 VStack{
@@ -137,28 +140,29 @@ struct CourseListView: View {
                 }
             } else {
                 ScrollView{
-                    VStack(spacing: 12){
-                        Rectangle()
-                            .frame(height: 10)
-                            .foregroundStyle(.clear)
-                        
+                    VStack(spacing: 16){
                         if let message = viewModel.message {
                             VStack(spacing: 6) {
-                                Text(message)
-                                    .font(.headline)
-                                    .foregroundStyle(.primary)
-                                
                                 if viewModel.timeRemaining > 0 {
+                                    Text(message)
+                                        .font(.headline)
+                                        .foregroundStyle(.blue)
+                                    
                                     Text("Try again in \(max(0, Int(ceil(viewModel.timeRemaining)))) seconds")
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
+                                } else {
+                                    Text(message)
+                                        .font(.headline)
+                                        .foregroundStyle(.red)
                                 }
                             }
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(
                                 RoundedRectangle(cornerRadius: 25)
-                                    .fill(.ultraThinMaterial)
+                                    .fill(viewModel.timeRemaining > 0 ? .blue.opacity(0.2) : .red.opacity(0.2))
+                                    .cardShadow()
                             )
                         }
                         
@@ -202,9 +206,13 @@ struct CourseListView: View {
                 .font(.subheadline.weight(.semibold))
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(RoundedRectangle(cornerRadius: 18).fill(.ultraThinMaterial))
+                .background{
+                    RoundedRectangle(cornerRadius: 18).fill(.sub)
+                        .cardShadow()
+                }
                 .foregroundStyle(.mainOpp)
             }
+            .padding([.horizontal, .bottom])
         }
     }
     
@@ -251,7 +259,7 @@ struct CourseListView: View {
                     Text("Add your first course")
                         .font(.largeTitle.bold())
                     
-                    Text("Mini Mate Manager lets you customize your scorecard, run leaderboards/tournaments, and view course analytics.")
+                    Text("Mini Manager lets you customize your scorecard, run leaderboards/tournaments, and view course analytics.")
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -260,15 +268,32 @@ struct CourseListView: View {
                 
                 VStack(alignment: .leading, spacing: 30) {
                     Label("Customize your scorecard look", systemImage: "paintpalette.fill")
+                        .foregroundStyle(.red)
                     Label("Collect emails + see analytics", systemImage: "chart.bar.fill")
+                        .foregroundStyle(.green)
                     Label("Leaderboards and tournaments", systemImage: "trophy.fill")
+                        .foregroundStyle(.blue)
                     Label("Run promos with your own in-app ad", systemImage: "megaphone.fill")
-                    Label("And More!", systemImage: "plus")
+                        .foregroundStyle(.orange)
                 }
                 .font(.headline)
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 25).fill(.ultraThinMaterial))
+                .background{
+                    RoundedRectangle(cornerRadius: 25).fill(.sub)
+                        .cardShadow()
+                }
+                
+                
+                Label("And More!", systemImage: "plus")
+                    .font(.headline)
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background{
+                        RoundedRectangle(cornerRadius: 25).fill(.sub)
+                            .cardShadow()
+                    }
+                
                 
                 Spacer()
                 
@@ -292,8 +317,9 @@ struct CourseListView: View {
                         .font(.subheadline.weight(.semibold))
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(RoundedRectangle(cornerRadius: 18).fill(.ultraThinMaterial))
+                        .background(RoundedRectangle(cornerRadius: 18).fill(.sub))
                         .foregroundStyle(.mainOpp)
+                        .cardShadow()
                     }
                 }
                 .padding(.top, 6)
@@ -328,7 +354,10 @@ struct CourseListView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(RoundedRectangle(cornerRadius: 25).fill(.ultraThinMaterial))
+                    .background{
+                        RoundedRectangle(cornerRadius: 25).fill(.sub)
+                            .cardShadow()
+                    }
                 }
             }
         }

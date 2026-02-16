@@ -17,6 +17,7 @@ struct Course: Codable, Identifiable, Equatable {
     var scoreCardColorDT: String?
     var courseColorsDT: [String]? = []
     
+    var customPar: Bool = false
     var pars: [Int]?
     
     var socialLinks: [String: String]?

@@ -65,7 +65,7 @@
 			);
 			target = 213F26F52D4D639100579FAE /* MiniMate */;
 		};
-		21E19BC52EE4B254005C1193 /* Exceptions for "MiniMate" folder in "MiniMate Manager" target */ = {
+		215B38922F42AF1F0007677F /* Exceptions for "SharedFiles" folder in "MiniMate Manager" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Controllers/Auth/AppleReauthCoordinator.swift,
@@ -93,6 +93,7 @@
 				DataModels/PlayerDTO.swift,
 				DataModels/UserDTO.swift,
 				DataModels/UserModel.swift,
+				Misc/CardShadowModifier.swift,
 				Misc/CharacterLimitModifier.swift,
 				Misc/Functions/PasswordGenerator.swift,
 				Misc/Functions/ProfanityFilter.swift,
@@ -100,17 +101,26 @@
 				Misc/PhotoPicker.swift,
 				Misc/ScannerCornerShape.swift,
 				Misc/SynchronizedScrollViews.swift,
+				Misc/Views/BarChartView.swift,
 				Misc/Views/NumberPickerView.swift,
 				Misc/Views/PhotoIconView.swift,
 				Misc/Views/SearchBarView.swift,
 				Misc/Views/UserInfoRow.swift,
 				Protocals/AppNavigationManaging.swift,
 				"Shared-Assets.xcassets",
+				Views/Game/GameInfoView.swift,
+				Views/Game/GameReviewView.swift,
 				Views/PreViews/EmailPasswordView.swift,
 				Views/PreViews/SignInView.swift,
 				Views/PreViews/WelcomeView.swift,
-				Views/TabView/MainView/TitleView.swift,
-				Views/TabView/Stats/GameInfoView.swift,
+				Views/TitleView.swift,
+			);
+			target = 21E19BB12EE4A3CE005C1193 /* MiniMate Manager */;
+		};
+		215B389D2F42B09F0007677F /* Exceptions for "MiniMate" folder in "MiniMate Manager" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Views/TabView/MainView/ProfileView.swift,
 			);
 			target = 21E19BB12EE4A3CE005C1193 /* MiniMate Manager */;
 		};
@@ -121,9 +131,17 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				211D233B2D55707100558873 /* Exceptions for "MiniMate" folder in "MiniMate" target */,
-				21E19BC52EE4B254005C1193 /* Exceptions for "MiniMate" folder in "MiniMate Manager" target */,
+				215B389D2F42B09F0007677F /* Exceptions for "MiniMate" folder in "MiniMate Manager" target */,
 			);
 			path = MiniMate;
+			sourceTree = "<group>";
+		};
+		215B38902F42AF050007677F /* SharedFiles */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				215B38922F42AF1F0007677F /* Exceptions for "SharedFiles" folder in "MiniMate Manager" target */,
+			);
+			path = SharedFiles;
 			sourceTree = "<group>";
 		};
 		21E19BB32EE4A3CE005C1193 /* MiniMate Manager */ = {
@@ -181,6 +199,7 @@
 		213F26ED2D4D639100579FAE = {
 			isa = PBXGroup;
 			children = (
+				215B38902F42AF050007677F /* SharedFiles */,
 				213F26F82D4D639100579FAE /* MiniMate */,
 				21E19BB32EE4A3CE005C1193 /* MiniMate Manager */,
 				21033FFF2DBC4D5100F78FBF /* Frameworks */,
@@ -216,6 +235,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				213F26F82D4D639100579FAE /* MiniMate */,
+				215B38902F42AF050007677F /* SharedFiles */,
 			);
 			name = MiniMate;
 			packageProductDependencies = (

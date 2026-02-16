@@ -8,19 +8,7 @@ import FirebaseAuth
 import AuthenticationServices
 import SwiftData
 
-enum DeleteAlertType: Identifiable {
-    case google
-    case apple
-    case email
-    
-    var id: Int {
-        switch self {
-        case .google: return 0
-        case .apple:  return 1
-        case .email:  return 2
-        }
-    }
-}
+
 
 struct ProfileView: View {
     @Environment(\.modelContext) private var context
