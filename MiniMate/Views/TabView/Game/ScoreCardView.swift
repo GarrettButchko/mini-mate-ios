@@ -122,7 +122,7 @@ struct ScoreCardView: View {
                 .subVsColor(makeColor: gameModel.getCourse()?.scoreCardColor)
         }
         .padding(.vertical)
-        .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
+        .cardShadow()
     }
     
     

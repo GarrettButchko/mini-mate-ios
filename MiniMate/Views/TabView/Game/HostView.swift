@@ -46,7 +46,7 @@ struct HostView: View {
             
             VStack{
                 
-                HStack(spacing: 10){
+                HStack(alignment: .center, spacing: 10){
                     
                     if isGuest {
                         Button {
@@ -59,11 +59,9 @@ struct HostView: View {
                                 .foregroundStyle(.blue)
                                 .frame(width: 20, height: 20)
                         }
-                        .padding(.horizontal, 8)
                     } else {
                         Color.clear
                             .frame(width: 20, height: 20)
-                            .padding(.horizontal, 8)
                     }
                     
                     Spacer()
@@ -72,17 +70,14 @@ struct HostView: View {
                         .font(.title)
                         .fontWeight(.bold)
                         .padding(.horizontal)
-                        .padding(.vertical, 8)
-                        .padding(.top, 20)
                     
                     Spacer()
                     
                     Color.clear
                         .frame(width: 20, height: 20)
-                        .padding(.horizontal, 8)
                 }
-                
-                .padding(.bottom)
+                .padding(.horizontal, 8)
+                .padding(.top, isGuest ? 12 : 28)
                 .background(
                     LinearGradient(
                         gradient: Gradient(colors: [
@@ -99,26 +94,21 @@ struct HostView: View {
                 
                 Spacer()
                 
-                Group{
-                    startGameSection
-                    
-                    if isGuest {
-                        Color.clear
-                            .frame(width: 20, height: 30)
-                    }
-                }
-                .padding(.top)
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.sub.opacity(1),
-                            Color.clear
-                        ]),
-                        startPoint: .bottom,
-                        endPoint: .top
+                
+                startGameSection
+                    .padding(.top)
+                    .padding(.bottom, isGuest ? 40 : 0)
+                    .background(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.sub.opacity(1),
+                                Color.clear
+                            ]),
+                            startPoint: .bottom,
+                            endPoint: .top
+                        )
+                        .ignoresSafeArea(edges: .bottom)
                     )
-                    .ignoresSafeArea(edges: .bottom)
-                )
             }
         }
         .onAppear {

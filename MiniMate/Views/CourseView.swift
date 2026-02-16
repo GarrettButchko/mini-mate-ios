@@ -48,11 +48,12 @@ struct CourseView: View {
                                     RoundedRectangle(cornerRadius: 25)
                                         .ifAvailableGlassEffect()
                                 })
+                                .cardShadow()
                             
                             Spacer()
                             
                             LocationButton(cameraPosition: $courseViewModel.position, isUpperHalf: $courseViewModel.isUpperHalf, selectedResult: locationHandler.bindingForSelectedItem(), locationHandler: locationHandler)
-                                .shadow(color: Color.black.opacity(0.1), radius: 10)
+                                .cardShadow()
                         }
                         
                         Spacer()
@@ -61,32 +62,23 @@ struct CourseView: View {
                         if !courseViewModel.isUpperHalf {
                             searchButton
                         } else {
-                            
-                            VStack{
+                            VStack {
                                 if locationHandler.selectedItem != nil {
                                     resultView
-                                        .padding([.horizontal, .top])
-                                        .background(content: {
-                                            RoundedRectangle(cornerRadius: 25)
-                                                .ifAvailableGlassEffect()
-                                        })
-                                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                                        .clipShape(RoundedRectangle(cornerRadius: 25))
+                                        .transition(.move(edge: .trailing).combined(with: .opacity))
                                 } else {
                                     searchResultsView
-                                        
-                                        .background(content: {
-                                            RoundedRectangle(cornerRadius: 25)
-                                                .ifAvailableGlassEffect()
-                                        })
-                                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                                        .clipShape(RoundedRectangle(cornerRadius: 25))
+                                        .transition(.move(edge: .leading).combined(with: .opacity))
                                 }
                             }
+                            .background {
+                                RoundedRectangle(cornerRadius: 25)
+                                    .ifAvailableGlassEffect()
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 25))
+                            .cardShadow()
                             .frame(height: geometry.size.height * 0.4)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
-                            
-                            
                         }
                     }
                     .padding(.horizontal)
@@ -167,32 +159,12 @@ struct CourseView: View {
             }
         }
         .frame(height: 50)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-        .shadow(radius: 10)
+        .transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .blurReplace()))
+        .cardShadow()
     }
     
     var searchResultsView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Courses")
-                    .font(.title3).fontWeight(.bold)
-                    .foregroundStyle(.mainOpp)
-                Spacer()
-                Button {
-                    courseViewModel.cancel(locationHandler: locationHandler)
-                } label: {
-                    
-                    Text("Cancel")
-                        .frame(width: 70, height: 30)
-                        .background(.blue)
-                        .foregroundStyle(.white)
-                        .clipShape(Capsule())
-                        .shadow(color: Color.black.opacity(0.1), radius: 5)
-                    
-                }
-            }
-            .padding([.top, .horizontal])
-            
+        ZStack {
             ScrollView {
                 VStack(alignment: .leading) {
                     if let userCoord = locationHandler.userLocation {
@@ -214,228 +186,58 @@ struct CourseView: View {
                     .frame(height: 4)
             }
             .contentMargins(.horizontal, 16)
-            .contentMargins(.vertical, 8)
+            .contentMargins(.top, 54)
             .scrollContentBackground(.hidden)
             .background(Color.clear)
-        }
-    }
-    
-    var resultView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(locationHandler.selectedItem?.name ?? "")
-                    .font(.title3).fontWeight(.bold)
-                    .foregroundStyle(.mainOpp)
-                Spacer()
-                Button {
-                    withAnimation {
-                        locationHandler.setSelectedItem(nil)
-                    }
-                } label: {
-                    ZStack {
-                        
-                        Text("Back")
+            
+            VStack{
+                HStack {
+                    Text("Courses")
+                        .font(.title3).fontWeight(.bold)
+                        .foregroundStyle(.mainOpp)
+                    Spacer()
+                    Button {
+                        courseViewModel.cancel(locationHandler: locationHandler)
+                    } label: {
+                        Text("Cancel")
                             .frame(width: 70, height: 30)
                             .background(.blue)
                             .foregroundStyle(.white)
                             .clipShape(Capsule())
-                            .shadow(color: Color.black.opacity(0.1), radius: 5)
-                        
-                        
                     }
                 }
+                .padding()
+                .padding(.bottom, 16)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.courseSub.opacity(0.7),
+                            Color.clear
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .ignoresSafeArea(edges: .top)
+                )
+                Spacer()
             }
             
+            
+            
+        }
+        .cardShadow()
+    }
+    
+    var resultView: some View {
+        ZStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Button(action: {
-                        courseViewModel.getDirections(locationHandler: locationHandler)
-                    }) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 15)
-                                .fill(Color.blue)
-                            VStack {
-                                Image(systemName: "arrow.turn.up.right")
-                                    .foregroundColor(.white)
-                                Text("Get Directions")
-                                    .foregroundColor(.white)
-                                    .fontWeight(.bold)
-                            }
-                            .padding()
-                        }
-                    }
-                    .onChange(of: locationHandler.bindingForSelectedItem().wrappedValue) { _ , newItem in
-                        courseViewModel.updateSupportedLocation(for: newItem)
-                    }
-                    
-                    if courseViewModel.nameExists[locationHandler.bindingForSelectedItem().wrappedValue?.name ?? ""] ?? false {
-                        HStack(alignment: .top, spacing: 12) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.purple.opacity(0.2))
-                                    .frame(width: 36, height: 36)
-                                Image("logoOpp")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 18, height: 18)
-                            }
-
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Supported Location")
-                                    .font(.headline)
-                                
-                                if let name = locationHandler.bindingForSelectedItem().wrappedValue?.name {
-                                    Text("\(name) has official MiniMate data (par + more).")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        .padding(14)
-                        .background(.ultraThinMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.purple.opacity(0.5), lineWidth: 2)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                    }
-                    
-                    
-                    
-                    // MARK: - Contact Info
-                    
-                    
-                    Group{
-                        switch viewModel.result {
-                        case .loading:
-                            HStack {
-                                Spacer()
-                                ProgressView("Loading Look Around...")
-                                Spacer()
-                            }
-                            .frame(height: 100)
-                            
-                        case .found:
-                            LookAroundPreview(scene: $viewModel.scene)
-                                .frame(height: 200) // Keep height consistent
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .shadow(color: .black.opacity(0.1), radius: 10)
-                            
-                        case .error(let message):
-                            Text(message)
-                                .padding()
-                                .background(colorScheme == .light
-                                            ? AnyShapeStyle(Color.white)
-                                            : AnyShapeStyle(.ultraThinMaterial))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        case .noSceneFound:
-                            EmptyView()
-                        case .idle:
-                            EmptyView()
-                        }
-                    }
-                    
-                    
-                    HStack {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "phone.fill")
-                                Text("Contact")
-                                    .font(.headline)
-                            }
-                            
-                            if let selected = locationHandler.bindingForSelectedItem().wrappedValue {
-                                if let phone = selected.phoneNumber,
-                                   let phoneURL = URL(string: "tel://\(phone.filter { $0.isNumber })") {
-                                    Link(destination: phoneURL) {
-                                        HStack{
-                                            Spacer()
-                                            Label("Call \(phone)", systemImage: "phone")
-                                                .font(.callout)
-                                                .foregroundColor(.white)
-                                            Spacer()
-                                        }
-                                        .padding(.horizontal)
-                                        .padding(.vertical, 6)
-                                        .background(Color.green)
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    }
-                                }
-                                
-                                if let url = selected.url {
-                                    Link(destination: url) {
-                                        HStack{
-                                            Spacer()
-                                            Label("Visit Website", systemImage: "safari")
-                                                .font(.callout)
-                                                .foregroundColor(.white)
-                                            Spacer()
-                                        }
-                                        .padding(.horizontal)
-                                        .padding(.vertical, 6)
-                                        .background(Color.blue)
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    }
-                                }
-                            }
-                        }
-                        .shadow(color: Color.black.opacity(0.1), radius: 10)
-                        Spacer()
-                    }
-                    .padding()
-                    .background(colorScheme == .light
-                                ? AnyShapeStyle(Color.white)
-                                : AnyShapeStyle(.ultraThinMaterial))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    
-                    
-                    // MARK: - Location Info
-                    
-                    HStack{
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "mappin")
-                                Text("Location")
-                                    .font(.headline)
-                            }
-                            if let name = locationHandler.bindingForSelectedItem().wrappedValue?.name {
-                                Text(name)
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                            }
-                            if let selectedResult = locationHandler.bindingForSelectedItem().wrappedValue {
-                                Text(locationHandler.getPostalAddress(from: selectedResult))
-                                    .font(.callout)
-                            }
-                        }
-                        Spacer()
-                    }
-                    .padding()
-                    .background(colorScheme == .light
-                                ? AnyShapeStyle(Color.white)
-                                : AnyShapeStyle(.ultraThinMaterial))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    
-                    Button {
-                        // later: open URL
-                    } label: {
-                        HStack {
-                            Image(systemName: "safari.fill")
-                            Text("This your Course? Click to Claim!")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                        }
-                        .font(.subheadline.weight(.semibold))
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .foregroundStyle(.mainOpp)
-                    }
-                    .background(colorScheme == .light
-                                ? AnyShapeStyle(Color.white)
-                                : AnyShapeStyle(.ultraThinMaterial))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    
+                    directionsButton
+                    supportedLocationCard
+                    lookAroundSection
+                    contactInfoCard
+                    locationInfoCard
+                    claimCourseButton
                 }
                 .onAppear {
                     if let selected = locationHandler.selectedItem {
@@ -447,13 +249,257 @@ struct CourseView: View {
                         viewModel.fetchScene(for: newItem)
                     }
                 }
-                
-                Rectangle()
-                    .fill(.clear)
-                    .frame(height: 8)
             }
+            .contentMargins([.horizontal, .bottom], 16)
+            .contentMargins(.top, 62)
             .scrollContentBackground(.hidden)
             .background(Color.clear)
+            
+            VStack{
+                resultViewHeader
+                    .padding()
+                    .padding(.bottom, 16)
+                    .background(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.courseSub.opacity(0.7),
+                                Color.clear
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .ignoresSafeArea(edges: .top)
+                    )
+                Spacer()
+            }
+        }
+    }
+    
+    private var resultViewHeader: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Button {
+                withAnimation {
+                    locationHandler.setSelectedItem(nil)
+                }
+            } label: {
+                Image(systemName: "arrow.left")
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 14)
+                    .background {
+                        RoundedRectangle(cornerRadius: 25)
+                            .fill(Color.blue)
+                    }
+                    .foregroundStyle(.white)
+            }
+            
+            MarqueeText(
+                text: locationHandler.selectedItem?.name ?? "",
+                font: UIFont.preferredFont(forTextStyle: .title3),
+                leftFade: 16,
+                rightFade: 16,
+                startDelay: 2, // recommend 1–2 seconds for a subtle Apple-like pause
+                alignment: .center
+            )
+            .foregroundStyle(.mainOpp)
+            .font(.title3).fontWeight(.bold)
+            .padding(.horizontal)
+            
+            Image(systemName: "arrow.left")
+                .padding(.vertical, 8)
+                .padding(.horizontal, 14)
+                .background {
+                    RoundedRectangle(cornerRadius: 25)
+                        .fill(Color.blue)
+                }
+                .opacity(0.0)
+        }
+    }
+    
+    private var directionsButton: some View {
+        Button(action: {
+            courseViewModel.getDirections(locationHandler: locationHandler)
+        }) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 15)
+                    .fill(Color.blue)
+                VStack {
+                    Image(systemName: "arrow.turn.up.right")
+                        .foregroundColor(.white)
+                    Text("Get Directions")
+                        .foregroundColor(.white)
+                        .fontWeight(.bold)
+                }
+                .padding()
+            }
+        }
+        .onChange(of: locationHandler.bindingForSelectedItem().wrappedValue) { _ , newItem in
+            courseViewModel.updateSupportedLocation(for: newItem)
+        }
+    }
+    
+    private var supportedLocationCard: some View {
+        Group {
+            if courseViewModel.nameExists[locationHandler.bindingForSelectedItem().wrappedValue?.name ?? ""] ?? false {
+                HStack(alignment: .top, spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.purple.opacity(0.2))
+                            .frame(width: 36, height: 36)
+                        Image("logoOpp")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 18, height: 18)
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Supported Location")
+                            .font(.headline)
+                        
+                        if let name = locationHandler.bindingForSelectedItem().wrappedValue?.name {
+                            Text("\(name) has official MiniMate data (par + more).")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(14)
+                .background(.sub.opacity(0.5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.purple.opacity(0.5), lineWidth: 2)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                
+            }
+        }
+    }
+    
+    private var lookAroundSection: some View {
+        Group {
+            switch viewModel.result {
+            case .loading:
+                HStack {
+                    Spacer()
+                    ProgressView("Loading Look Around...")
+                    Spacer()
+                }
+                .frame(height: 100)
+                
+            case .found:
+                LookAroundPreview(scene: $viewModel.scene)
+                    .frame(height: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .cardShadow()
+                
+            case .error(let message):
+                Text(message)
+                    .padding()
+                    .background(.sub)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            case .noSceneFound:
+                EmptyView()
+            case .idle:
+                EmptyView()
+            }
+        }
+    }
+    
+    private var contactInfoCard: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "phone.fill")
+                    Text("Contact")
+                        .font(.headline)
+                }
+                
+                if let selected = locationHandler.bindingForSelectedItem().wrappedValue {
+                    if let phone = selected.phoneNumber,
+                       let phoneURL = URL(string: "tel://\(phone.filter { $0.isNumber })") {
+                        Link(destination: phoneURL) {
+                            HStack {
+                                Spacer()
+                                Label("Call \(phone)", systemImage: "phone")
+                                    .font(.callout)
+                                    .foregroundColor(.white)
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+                            .padding(.vertical, 6)
+                            .background(Color.green)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                    
+                    if let url = selected.url {
+                        Link(destination: url) {
+                            HStack {
+                                Spacer()
+                                Label("Visit Website", systemImage: "safari")
+                                    .font(.callout)
+                                    .foregroundColor(.white)
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+                            .padding(.vertical, 6)
+                            .background(Color.blue)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                }
+            }
+            .shadow(color: Color.black.opacity(0.1), radius: 10)
+            Spacer()
+        }
+        .padding()
+        .background(.sub)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .cardShadow()
+    }
+    
+    private var locationInfoCard: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Image(systemName: "mappin")
+                    Text("Location")
+                        .font(.headline)
+                }
+                if let name = locationHandler.bindingForSelectedItem().wrappedValue?.name {
+                    Text(name)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
+                if let selectedResult = locationHandler.bindingForSelectedItem().wrappedValue {
+                    Text(locationHandler.getPostalAddress(from: selectedResult))
+                        .font(.callout)
+                }
+            }
+            Spacer()
+        }
+        .padding()
+        .background(.sub)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .cardShadow()
+    }
+    
+    private var claimCourseButton: some View {
+        Button {
+            // later: open URL
+        } label: {
+            HStack {
+                Image(systemName: "safari.fill")
+                Text("This your Course? Click to Claim!")
+                Spacer()
+                Image(systemName: "chevron.right")
+            }
+            .font(.subheadline.weight(.semibold))
+            .padding()
+            .frame(maxWidth: .infinity)
+            .foregroundStyle(.mainOpp)
+            .background(.sub)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .cardShadow()
         }
     }
 }

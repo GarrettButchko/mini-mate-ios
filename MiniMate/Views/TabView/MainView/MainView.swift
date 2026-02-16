@@ -47,7 +47,7 @@ struct MainView: View {
     @State private var analyzerTask: Task<Void, Never>? = nil
     @State private var showLastGameStats = false
     @State private var buttonsViewHeight: CGFloat = 0
-
+    
     private var userGameIDs: [String] {
         authModel.userModel?.gameIDs ?? []
     }
@@ -55,20 +55,19 @@ struct MainView: View {
     var body: some View {
         let course = gameModel.getCourse()
         
-        ZStack {
-            VStack(spacing: 24) {
-                topBar
-                    .padding(.horizontal)
-                
-                ZStack {
-                    scrollContent(course: course)
-                    actionButtonsSection(course: course)
-                }
+        VStack{
+            topBar
+                .padding(.horizontal)
+            
+            ZStack {
+                scrollContent(course: course)
+                actionButtonsSection(course: course)
+                    
             }
             .padding(.top)
             .contentMargins(.horizontal, 16)
+            .ignoresSafeArea(.keyboard)
         }
-        .ignoresSafeArea(.keyboard)
         .task {
             updateFilteredGames()
             if NetworkChecker.shared.isConnected {
@@ -91,35 +90,41 @@ struct MainView: View {
     // MARK: - Main Sections
     private var topBar: some View {
         let course = gameModel.getCourse()
-        return HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Welcome back,")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                
-                Text(authModel.userModel?.name ?? "User")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                if let courseLogo = course?.logo {
-                    Divider()
+        return VStack(spacing: 16) {
+            
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Welcome back,")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     
-                    AsyncImage(url: URL(string: courseLogo)) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } placeholder: {
-                        Text("Error")
+                    Text(authModel.userModel?.name ?? "User")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    if let courseLogo = course?.logo {
+                        Divider()
+                        
+                        AsyncImage(url: URL(string: courseLogo)) { image in
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        } placeholder: {
+                            Text("Error")
+                        }
+                        .frame(width: 40, height: 40)
+                        .clipShape(Circle())
+                        .id(URL(string: courseLogo))
                     }
-                    .frame(width: 40, height: 40)
-                    .clipShape(Circle())
-                    .id(URL(string: courseLogo))
                 }
+                
+                Spacer()
+                
+                profilePhotoButton
             }
             
-            Spacer()
-            
-            profilePhotoButton
+            TitleView(colors: course?.courseColors)
+                .frame(height: 150)
         }
     }
     
@@ -159,30 +164,24 @@ struct MainView: View {
     private func scrollContent(course: Course?) -> some View {
         Group {
             if authModel.userModel != nil {
-                VStack {
-                    Rectangle()
-                        .fill(Color.clear)
-                        .frame(height: 175) // added 25 for space at top of button views
-                    
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            if NetworkChecker.shared.isConnected {
-                                locationButtons(course: course)
-                                    .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
-                            }
-                            
-                            proStopper
-                                .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
-                            ad
-                                .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
-                            lastGameStats
-                                
+                ScrollView {
+                    VStack(spacing: 16) {
+                        if NetworkChecker.shared.isConnected {
+                            locationButtons(course: course)
+                                .cardShadow()
                         }
-                        .padding(.top, 16)
+                        
+                        proStopper
+                            .cardShadow()
+                        ad
+                            .cardShadow()
+                        lastGameStats
+                        
                     }
-                    .contentMargins(.top, buttonsViewHeight - 25) // subtract 25 to allow some overlap for aesthetic
-                    .scrollIndicators(.hidden)
+                    .padding(.top, 16)
                 }
+                .contentMargins(.top, buttonsViewHeight) // subtract 25 to allow some overlap for aesthetic
+                .scrollIndicators(.hidden)
             }
         }
     }
@@ -190,8 +189,7 @@ struct MainView: View {
     private func actionButtonsSection(course: Course?) -> some View {
         VStack {
             
-            TitleView(colors: course?.courseColors)
-                .frame(height: 150)
+            
             
             VStack {
                 headerControls
@@ -209,19 +207,23 @@ struct MainView: View {
             }
             .clipped()
             .padding(.horizontal)
-            .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
+            .cardShadow()
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.bg.opacity(1),
+                        Color.clear
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea(edges: .top)
+            )
             
             Spacer()
             
             proBuyButton
         }
-        .background(
-            GeometryReader { geometry in
-                Color.clear
-                    .preference(key: HeightPreferenceKey.self, value: geometry.size.height)
-            }
-        )
-        
     }
     
     private var headerControls: some View {
@@ -412,7 +414,7 @@ struct MainView: View {
                             RoundedRectangle(cornerRadius: 25)
                                 .ifAvailableGlassEffect(strokeWidth: 0, opacity: 0.7, makeColor: .purple)
                         }
-                        .shadow(radius: 10)
+                        .cardShadow(radius: 10, y: 0)
                     }
                     .sheet(isPresented: $showDonation) {
                         ProView(showSheet: $showDonation)
@@ -422,14 +424,14 @@ struct MainView: View {
             }
         }
     }
-
+    
     private func updateFilteredGames() {
         let ids = Set(userGameIDs)
         let newGames = allGames.filter { ids.contains($0.id) }
         filteredGames = newGames
         refreshAnalyzer(with: newGames)
     }
-
+    
     private func refreshAnalyzer(with games: [Game]) {
         analyzerTask?.cancel()
         guard let user = authModel.userModel else {
@@ -464,14 +466,14 @@ struct MainView: View {
                                 Text(item)
                                     .foregroundStyle(.secondary)
                                     .truncationMode(.tail)
-                                    .transition(.move(edge: .top).combined(with: .opacity))
+                                    .transition(.move(edge: .top).combined(with: .opacity).combined(with: .blurReplace))
                                 Spacer()
                             }
                         } else {
                             HStack{
                                 Text("No Location")
                                     .foregroundStyle(.secondary)
-                                    .transition(.move(edge: .top).combined(with: .opacity))
+                                    .transition(.move(edge: .top).combined(with: .opacity).combined(with: .blurReplace))
                                 Spacer()
                             }
                         }
@@ -494,7 +496,7 @@ struct MainView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 20))
                         }
                         .buttonStyle(.plain)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        .transition(.move(edge: .trailing).combined(with: .opacity).combined(with: .blurReplace))
                     } else {
                         // Retry Button
                         Button(action: {
@@ -511,7 +513,7 @@ struct MainView: View {
                                 .clipShape(Circle())
                         }
                         .buttonStyle(.plain)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        .transition(.move(edge: .trailing).combined(with: .opacity).combined(with: .blurReplace))
                         
                         
                         // Exit Button
@@ -528,7 +530,7 @@ struct MainView: View {
                                 .clipShape(Circle())
                         }
                         .buttonStyle(.plain)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        .transition(.move(edge: .trailing).combined(with: .opacity).combined(with: .blurReplace))
                     }
                 }
                 .padding()
@@ -537,6 +539,7 @@ struct MainView: View {
                         .subVsColor(makeColor: gameModel.getCourse()?.scoreCardColor)
                 }
                 .compositingGroup()
+                .clipped()
             }
         }
     }
@@ -628,7 +631,7 @@ struct MainView: View {
             ))
             
         } else {
-            LogoDefault()
+            LogoDefault(topPadding: 0)
         }
     }
     

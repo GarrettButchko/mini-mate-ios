@@ -15,6 +15,10 @@ struct JoinView: View {
     
     @StateObject private var viewModel: JoinViewModel
     
+    @State private var viewContentHeight: CGFloat = 0
+    
+    @State private var contentMargins: CGFloat = 70
+    
     init(
         authModel: AuthViewModel,
         viewManager: ViewManager,
@@ -34,8 +38,8 @@ struct JoinView: View {
         ZStack{
             
             mainContent
-                .contentMargins(.top, 70)
-                .contentMargins(.bottom, 70)
+                .contentMargins(.top, contentMargins)
+                .contentMargins(.bottom, contentMargins)
             
             VStack {
                 HStack {
@@ -138,9 +142,16 @@ struct JoinView: View {
         .onChange(of: viewModel.gameModel.gameValue.dismissed) {
             viewModel.gameDidDismiss($1)
         }
-        .background(
-            Color.bg.ignoresSafeArea()
-        )
+        .background{
+            GeometryReader { proxy in
+                Color.bg.ignoresSafeArea()
+                    .task(id: proxy.size) {
+                        withAnimation{
+                            viewContentHeight = proxy.size.height - contentMargins - contentMargins// Capture the size and monitor changes
+                        }
+                    }
+            }
+        }
     }
     
     // MARK: - Sections
@@ -157,57 +168,53 @@ struct JoinView: View {
     // MARK: - Join Game View
     @ViewBuilder
     private var joinGameCard: some View {
-        
-        
-        GeometryReader { geometry in
-            ScrollView{
-                VStack(spacing: 16) {
-                    VStack(spacing: 24) {
-                        // Header
-                        VStack(spacing: 8) {
-                            Text("Enter Game Code")
-                                .font(.system(.title2, design: .rounded))
-                                .fontWeight(.bold)
-                            
-                            Text("Ask the host for the 6-digit code")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
+        ScrollView{
+            VStack(spacing: 16) {
+                VStack(spacing: 24) {
+                    // Header
+                    VStack(spacing: 8) {
+                        Text("Enter Game Code")
+                            .font(.system(.title2, design: .rounded))
+                            .fontWeight(.bold)
                         
-                        // Input & Scanner
-                        VStack(spacing: 20) {
-                            gameCodeTextField
-                            actionDivider
-                            scanButton
-                        }
-                        
-                        
+                        Text("Ask the host for the 6-digit code")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
+                    
+                    // Input & Scanner
+                    VStack(spacing: 20) {
+                        gameCodeTextField
+                        actionDivider
+                        scanButton
+                    }
+                    
+                    
+                }
                     .padding(.vertical, 32)
                     .padding(.horizontal, 20) // standardized inner padding
                     .background {
                         RoundedRectangle(cornerRadius: 25, style: .continuous)
                             .fill(.sub)
-                            .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
+                            .cardShadow()
                     }
-                    
-                    
-                    if !viewModel.message.isEmpty {
-                        Text(viewModel.message)
-                            .font(.footnote)
-                            .foregroundStyle(.red.opacity(0.8))
-                            .transition(.blurReplace)
-                            .multilineTextAlignment(.center)
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(.red.opacity(0.2))
-                            )
-                    }
+                
+                
+                if !viewModel.message.isEmpty {
+                    Text(viewModel.message)
+                        .font(.footnote)
+                        .foregroundStyle(.red.opacity(0.8))
+                        .transition(.blurReplace)
+                        .multilineTextAlignment(.center)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.red.opacity(0.2))
+                        )
                 }
-                .frame(minHeight: geometry.size.height, alignment: .center)
             }
+            .frame(minHeight: viewContentHeight, alignment: .center)
         }
     }
 

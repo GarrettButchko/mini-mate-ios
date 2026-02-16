@@ -89,7 +89,7 @@ struct ProView: View {
                     .padding()
                     .background(Color.yellow)
                     .cornerRadius(12)
-                    .shadow(color: Color.yellow, radius: 5)
+                    .cardShadow(color: Color.yellow, radius: 5, y: 0)
             }
             .padding(.horizontal)
             

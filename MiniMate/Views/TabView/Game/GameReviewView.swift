@@ -37,7 +37,7 @@ struct GameReviewView: View {
                 .padding(.top)
             BarChartView(data: viewModel.averageStrokes(), title: "Average Strokes", paddingReview: true, cornerRadius: 25, backgroundType: .custom(.sub))
                 .frame(height: 140)
-                .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
+                .cardShadow()
             scoreGridView
             footerView
         }
@@ -90,7 +90,7 @@ struct GameReviewView: View {
             RoundedRectangle(cornerRadius: 25)
                 .subVsColor(makeColor: viewModel.course?.scoreCardColor)
         }
-        .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
+        .cardShadow()
     }
     
     /// Player Row

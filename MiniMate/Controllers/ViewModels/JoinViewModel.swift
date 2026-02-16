@@ -44,7 +44,9 @@ final class JoinViewModel: ObservableObject {
                 }
             } else {
                 if let error {
-                    self.message = error
+                    withAnimation{
+                        self.message = error
+                    }
                 }
             }
         }

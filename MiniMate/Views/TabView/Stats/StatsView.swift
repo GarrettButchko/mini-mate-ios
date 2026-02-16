@@ -176,7 +176,7 @@ struct StatsView: View {
                                         GameReviewView(game: game, showBackToStatsButton: true, gameReview: $gameReview)
                                             .presentationDragIndicator(.visible)
                                     }
-                                    .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
+                                    .cardShadow()
                             }
                             LogoDefault(topPadding: 0)
                         } else {
@@ -205,7 +205,7 @@ struct StatsView: View {
             .contentMargins(.top, 70)
             
             
-            VStack(spacing: 0){
+            VStack{
                 HStack{
                     SearchBarView(searchText: $viewModel.searchText)
                     
@@ -229,7 +229,19 @@ struct StatsView: View {
                         }
                     }
                 }
-                .shadow(color: Color.black.opacity(0.1), radius: 10, y: 5)
+                .cardShadow()
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.bg.opacity(1),
+                            Color.clear
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .ignoresSafeArea(edges: .top)
+                )
+                
                 Spacer()
             }
         }
