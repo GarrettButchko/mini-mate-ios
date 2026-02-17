@@ -57,7 +57,3 @@ Notes:
 ## License & Contact
 
 This project is maintained privately. For questions or access, contact the maintainer.
-
----
-
-If you'd like, I can also: add a short development checklist, include example env files, or update the `functions/package.json` scripts. Which would you like next?
