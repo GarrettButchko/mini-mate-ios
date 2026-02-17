@@ -87,20 +87,32 @@ struct MainView: View {
         }
     }
     
+    @State private var titleHeight: CGFloat = 0
+    
     // MARK: - Main Sections
     private var topBar: some View {
         let course = gameModel.getCourse()
         return VStack(spacing: 16) {
             
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Welcome back,")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    
-                    Text(authModel.userModel?.name ?? "User")
-                        .font(.title2)
-                        .fontWeight(.semibold)
+                HStack{
+                    VStack(alignment: .leading, spacing: 2){
+                        Text("Welcome back,")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        
+                        Text(authModel.userModel?.name ?? "User")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                    }
+                    .background {
+                        GeometryReader { proxy in
+                            Color.clear
+                                .task(id: proxy.size) {
+                                    titleHeight = proxy.size.height // Capture the size and monitor changes
+                                }
+                        }
+                    }
                     
                     if let courseLogo = course?.logo {
                         Divider()
@@ -108,15 +120,15 @@ struct MainView: View {
                         AsyncImage(url: URL(string: courseLogo)) { image in
                             image
                                 .resizable()
-                                .scaledToFill()
+                                .scaledToFit()
                         } placeholder: {
-                            Text("Error")
+                            ProgressView()
                         }
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
                         .id(URL(string: courseLogo))
                     }
                 }
+                .frame(maxHeight: titleHeight)
+                
                 
                 Spacer()
                 
@@ -199,7 +211,7 @@ struct MainView: View {
             .background(){
                 GeometryReader { proxy in
                     RoundedRectangle(cornerRadius: 25)
-                        .ifAvailableGlassEffect(opacity: 0.6, makeColor: course?.scoreCardColor) // Create a transparent view matching the parent's size
+                        .ifAvailableGlassEffect(strokeWidth: 0, opacity: 0.5, makeColor: course?.scoreCardColor) // Create a transparent view matching the parent's size
                         .task(id: proxy.size) {
                             buttonsViewHeight = proxy.size.height // Capture the size and monitor changes
                         }
@@ -413,6 +425,7 @@ struct MainView: View {
                         .background {
                             RoundedRectangle(cornerRadius: 25)
                                 .ifAvailableGlassEffect(strokeWidth: 0, opacity: 0.7, makeColor: .purple)
+                                .cardShadow()
                         }
                         .cardShadow(radius: 10, y: 0)
                     }
@@ -601,21 +614,28 @@ struct MainView: View {
                             )
                             .padding()
                             .frame(height: cardHeight)
-                            .background(.subTwo)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .background{
+                                RoundedRectangle(cornerRadius: 12)
+                                    .subTwoVsColor(makeColor: gameModel.getCourse()?.scoreCardColor)
+                            }
                         }
                         
                         StatCard(
                             title: "Your Strokes",
                             value: "\(analyzer?.usersScoreOfLatestGame ?? 0)",
+                            makeColor: gameModel.getCourse()?.scoreCardColor,
                             cornerRadius: 12,
                             cardHeight: cardHeight,
                             infoText: "The number of strokes you had last game."
                         )
                     }
                     
-                    BarChartView(data: analyzer?.usersHolesOfLatestGame ?? [], title: "Recap of Game", backgroundType: .custom(.subTwo))
+                    BarChartView(data: analyzer?.usersHolesOfLatestGame ?? [], title: "Recap of Game")
                         .frame(height: 150)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .subTwoVsColor(makeColor: gameModel.getCourse()?.scoreCardColor)
+                        )
                 }
                 .padding(.bottom)
                 

@@ -3,12 +3,11 @@ import Foundation
 import SwiftData
 
 @Model
-class Hole: Equatable, Identifiable {
+final class Hole: Equatable, Identifiable {
     @Attribute(.unique) var id: String = UUID().uuidString
     var number: Int
     var strokes: Int
     
-    @Relationship(deleteRule: .nullify)
     var player: Player?
     
     init(

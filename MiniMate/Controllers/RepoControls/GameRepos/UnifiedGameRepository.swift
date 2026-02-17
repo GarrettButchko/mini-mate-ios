@@ -19,37 +19,54 @@ class UnifiedGameRepository {
         print("start of save all locally")
         fetchAll(ids: gameIds) { games in
             print("Fetched \(games.count) games")
+            
+            let group = DispatchGroup()
+            var allSuccess = true
+            
             for game in games {
-                // 2️⃣ Insert only if it's new
-                context.insert(Game.fromDTO(game))
-                do {
-                    try context.save()
-                    print("💾 Inserted new game: \(game.id)")
-                    completion(true)
-                } catch {
-                    print("❌ Failed to save locally:", error)
-                    completion(false)
+                group.enter()
+                DispatchQueue.global().async {
+                    do {
+                        context.insert(Game.fromDTO(game))
+                        try context.save()
+                        print("💾 Inserted new game: \(game.id)")
+                    } catch {
+                        print("❌ Failed to save locally:", error)
+                        allSuccess = false
+                    }
+                    group.leave()
                 }
+            }
+            
+            group.notify(queue: .main) {
+                completion(allSuccess)
             }
         }
     }
     
     func save(_ game: Game, completion: @escaping (Bool, Bool) -> Void) {
-        
+        let group = DispatchGroup()
         var localComplete = false
         var remoteComplete = false
         
-        
         // 1️⃣ Save locally
+        group.enter()
         local.save(game) { success in
             localComplete = success
-        }
-        // 2️⃣ Save remotely
-        remote.save(game) { remoteSuccess in
-            remoteComplete = remoteSuccess
+            group.leave()
         }
         
-        completion(localComplete, remoteComplete)
+        // 2️⃣ Save remotely
+        group.enter()
+        remote.save(game) { remoteSuccess in
+            remoteComplete = remoteSuccess
+            group.leave()
+        }
+        
+        // 3️⃣ Call completion only after both finish
+        group.notify(queue: .main) {
+            completion(localComplete, remoteComplete)
+        }
     }
     
     func fetch(id: String, completion: @escaping (GameDTO?) -> Void) {

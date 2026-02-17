@@ -18,6 +18,8 @@ struct CourseView: View {
     @EnvironmentObject var authModel: AuthViewModel
     @StateObject var courseViewModel: CourseViewModel
     
+    @State private var showRetryButton = false
+    
     @StateObject var viewModel = LookAroundViewModel()
     
     init() {
@@ -164,31 +166,64 @@ struct CourseView: View {
     }
     
     var searchResultsView: some View {
-        ZStack {
-            ScrollView {
-                VStack(alignment: .leading) {
-                    if let userCoord = locationHandler.userLocation {
-                        ForEach(locationHandler.mapItems, id: \.self) { mapItem in
-                            if locationHandler.mapItems.count > 0 && mapItem != locationHandler.mapItems[0]{
-                                Divider()
-                            }
-                            SearchResultRow(item: mapItem, userLocation: userCoord)
-                                .onTapGesture {
-                                    courseViewModel.updatePosition(mapItem: mapItem, locationHandler: locationHandler)
-                                }
+        
+        
+        
+        return ZStack {
+            if courseViewModel.isLoadingCourses || locationHandler.mapItems.isEmpty{
+                VStack(spacing: 15) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                    Text("Trying to find nearby courses...")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    if showRetryButton {
+                        Button(action: {
+                            courseViewModel.searchNearby(locationHandler: locationHandler)
+                        }) {
+                            Text("Try Again")
+                                .fontWeight(.semibold)
+                                .padding(.horizontal, 30)
+                                .padding(.vertical, 10)
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(10)
                         }
-                    } else {
-                        Text("Fetching location...")
                     }
                 }
-                Rectangle()
-                    .fill(.clear)
-                    .frame(height: 4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear {
+                    showRetryButton = false
+                    // Start the timer when the view loads
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                        withAnimation(){
+                            showRetryButton = true
+                        }
+                    }
+                }
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading) {
+                        if let userCoord = locationHandler.userLocation {
+                            ForEach(locationHandler.mapItems, id: \.self) { mapItem in
+                                if locationHandler.mapItems.count > 0 && mapItem != locationHandler.mapItems[0]{
+                                    Divider()
+                                }
+                                SearchResultRow(item: mapItem, userLocation: userCoord)
+                            }
+                        } else {
+                            Text("Fetching location...")
+                        }
+                    }
+                    Rectangle()
+                        .fill(.clear)
+                        .frame(height: 4)
+                }
+                .contentMargins(.horizontal, 16)
+                .contentMargins(.top, 54)
+                .scrollContentBackground(.hidden)
+                .background(Color.clear)
             }
-            .contentMargins(.horizontal, 16)
-            .contentMargins(.top, 54)
-            .scrollContentBackground(.hidden)
-            .background(Color.clear)
             
             VStack{
                 HStack {
@@ -332,23 +367,21 @@ struct CourseView: View {
                 .padding()
             }
         }
-        .onChange(of: locationHandler.bindingForSelectedItem().wrappedValue) { _ , newItem in
-            courseViewModel.updateSupportedLocation(for: newItem)
-        }
     }
     
     private var supportedLocationCard: some View {
         Group {
-            if courseViewModel.nameExists[locationHandler.bindingForSelectedItem().wrappedValue?.name ?? ""] ?? false {
+            if let course = courseViewModel.selectedCourse, course.isSupported {
                 HStack(alignment: .top, spacing: 12) {
                     ZStack {
                         Circle()
                             .fill(Color.purple.opacity(0.2))
                             .frame(width: 36, height: 36)
-                        Image("logoOpp")
-                            .resizable()
+                        
+                        LogoIcon()
                             .scaledToFit()
-                            .frame(width: 18, height: 18)
+                            .foregroundStyle(.mainOpp)
+                            .frame(width: 24, height: 24)
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
@@ -361,6 +394,7 @@ struct CourseView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    Spacer()
                 }
                 .padding(14)
                 .background(.sub.opacity(0.5))
@@ -368,8 +402,7 @@ struct CourseView: View {
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(Color.purple.opacity(0.5), lineWidth: 2)
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                
+                .cardShadow()
             }
         }
     }
@@ -538,44 +571,58 @@ import MarqueeText
 // MARK: - SearchResultRow
 
 struct SearchResultRow: View {
+    @EnvironmentObject var VM: CourseViewModel
+    @EnvironmentObject var locationHandler: LocationHandler
+    
     let item: MKMapItem
     let userLocation: CLLocationCoordinate2D
     @State private var isSupported: Bool = false
     let courseRepo = CourseRepository()
-    @EnvironmentObject var VM: CourseViewModel
     
     var body: some View {
-        HStack{
-            VStack(alignment: .leading) {
-                
-                MarqueeText(
-                    text: "\(item.name ?? "Unknown Place")",
-                    font: UIFont.preferredFont(forTextStyle: .headline),
-                    leftFade: 16,
-                    rightFade: 16,
-                    startDelay: 3 // recommend 1–2 seconds for a subtle Apple-like pause
-                )
-                
-                let offsetLat = userLocation.latitude - 0.015
-                let distanceInMiles = CLLocation(latitude: offsetLat, longitude: userLocation.longitude)
-                    .distance(from: CLLocation(latitude: item.placemark.coordinate.latitude,
-                                               longitude: item.placemark.coordinate.longitude)) / 1609.34
-                
-                
-                MarqueeText(
-                    text: "\(String(format: "%.1f", distanceInMiles)) mi - \(VM.getPostalAddress(from: item))",
-                    font: UIFont.preferredFont(forTextStyle: .subheadline),
-                    leftFade: 16,
-                    rightFade: 16,
-                    startDelay: 4 // recommend 1–2 seconds for a subtle Apple-like pause
-                )
+        Button {
+            VM.updatePosition(mapItem: item, locationHandler: locationHandler)
+            if let name = item.name, isSupported {
+                VM.getCourse(name: name)
+            } else {
+                VM.selectedCourse = nil
             }
-            .frame(height: 50)
-            Spacer()
-            
-            if isSupported{
-                Image(systemName: "star.fill")
-                    .foregroundStyle(.purple)
+        } label: {
+            HStack{
+                VStack(alignment: .leading) {
+                    
+                    MarqueeText(
+                        text: "\(item.name ?? "Unknown Place")",
+                        font: UIFont.preferredFont(forTextStyle: .headline),
+                        leftFade: 16,
+                        rightFade: 16,
+                        startDelay: 3 // recommend 1–2 seconds for a subtle Apple-like pause
+                    )
+                    .foregroundStyle(.mainOpp)
+                    
+                    let offsetLat = userLocation.latitude - 0.015
+                    let distanceInMiles = CLLocation(latitude: offsetLat, longitude: userLocation.longitude)
+                        .distance(from: CLLocation(latitude: item.placemark.coordinate.latitude,
+                                                   longitude: item.placemark.coordinate.longitude)) / 1609.34
+                
+                    MarqueeText(
+                        text: "\(String(format: "%.1f", distanceInMiles)) mi - \(VM.getPostalAddress(from: item))",
+                        font: UIFont.preferredFont(forTextStyle: .subheadline),
+                        leftFade: 16,
+                        rightFade: 16,
+                        startDelay: 4 // recommend 1–2 seconds for a subtle Apple-like pause
+                    )
+                    .foregroundStyle(.mainOpp)
+                }
+                .frame(height: 50)
+                Spacer()
+                
+                if isSupported{
+                    LogoIcon()
+                        .scaledToFit()
+                        .foregroundStyle(.purple)
+                        .frame(width: 24, height: 24)
+                }
             }
         }
         .onAppear(){

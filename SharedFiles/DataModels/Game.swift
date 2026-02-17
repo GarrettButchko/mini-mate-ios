@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 @Model
-class Game: Equatable {
+final class Game: Equatable {
     @Attribute(.unique) var id: String
     var hostUserId: String
     var date: Date

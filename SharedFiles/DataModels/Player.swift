@@ -10,7 +10,7 @@ import Foundation
 import SwiftData
 
 @Model
-class Player: Identifiable, Equatable {
+final class Player: Identifiable, Equatable {
     @Attribute(.unique) var id: String = UUID().uuidString
     var userId: String
     var inGame: Bool = false
@@ -40,10 +40,6 @@ class Player: Identifiable, Equatable {
         self.inGame = inGame
         self.holes = holes
         self.email = email
-
-        for hole in self.holes {
-            hole.player = self
-        }
     }
 }
 
@@ -54,22 +50,11 @@ extension Player {
     }
     
     var incomplete: Bool {
-        for hole in holes {
-            if (hole.strokes == 0) {
-                return true
-            }
-        }
-        return false
+        holes.contains { $0.strokes == 0 }
     }
 
     static func == (lhs: Player, rhs: Player) -> Bool {
-        lhs.id == rhs.id &&
-        lhs.userId == rhs.userId &&
-        lhs.name == rhs.name &&
-        lhs.photoURL == rhs.photoURL &&
-        lhs.inGame == rhs.inGame &&
-        lhs.holes == rhs.holes &&
-        lhs.email == rhs.email
+        lhs.id == rhs.id
     }
 
     func toDTO() -> PlayerDTO {

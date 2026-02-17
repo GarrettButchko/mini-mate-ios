@@ -26,7 +26,11 @@ final class GameReviewViewModel: ObservableObject {
     }
 
     var holeCount: Int {
-        course?.pars?.count ?? game.numberOfHoles
+        if (course?.customPar) != nil {
+            return game.numberOfHoles
+        } else {
+            return course?.numHoles ?? 18
+        }
     }
     
     var shouldShowCustomAd: Bool? {

@@ -20,7 +20,7 @@ struct SkimButtonView: View {
     
     var body: some View {
         Button {
-            buttonSkim.function!()
+            buttonSkim.function?()
         } label: {
             ZStack {
                 RoundedRectangle(cornerRadius: 25)
@@ -43,18 +43,20 @@ struct SkimShareLinkView: View {
     @Binding var offsetX: CGFloat
     
     var body: some View {
-        ShareLink(item: buttonSkim.string!) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(Color(buttonSkim.color))
-                if offsetX < -35 {
-                    Image(systemName: buttonSkim.systemImage)
-                        .font(.title2)
-                        .foregroundStyle(.white)
-                        .opacity(offsetX < -50 ? 1 : 0)
+        if let shareString = buttonSkim.string {
+            ShareLink(item: shareString) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 25)
+                        .fill(Color(buttonSkim.color))
+                    if offsetX < -35 {
+                        Image(systemName: buttonSkim.systemImage)
+                            .font(.title2)
+                            .foregroundStyle(.white)
+                            .opacity(offsetX < -50 ? 1 : 0)
+                    }
                 }
+                .clipped()
             }
-            .clipped()
         }
     }
 }

@@ -153,35 +153,50 @@ struct StatsView: View {
                                 .frame(height: 50)
                                 .padding()
                         }
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 25))
+                        .background(
+                            RoundedRectangle(cornerRadius: 25)
+                                .fill(.sub)
+                                .cardShadow()
+                        )
                     }
                     
                     if !authModel.userModel!.isPro && authModel.userModel!.gameIDs.count >= 2 {
                         Text("You’ve reached the free limit. Upgrade to Pro to store more than 2 games.")
                             .padding()
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 25))
+                            .background(
+                                RoundedRectangle(cornerRadius: 25)
+                                    .fill(.sub)
+                                    .cardShadow()
+                            )
                     }
                     
-                    if !authModel.userModel!.gameIDs.isEmpty {
-                        if !viewModel.isRefreshing {
-                            ForEach(games) { game in
-                                GameRow(context: _context, editOn: $viewModel.editOn, editingGameID: $viewModel.editingGameID, gameReview: $gameReview, game: game, presentShareSheet: viewModel.presentShareSheet)
-                                    .transition(.opacity)
-                                    .sheet(item: $gameReview) {
-                                        gameReview = nil
-                                    } content: { game in
-                                        GameReviewView(game: game, showBackToStatsButton: true, gameReview: $gameReview)
-                                            .presentationDragIndicator(.visible)
-                                    }
-                                    .cardShadow()
-                            }
-                            LogoDefault(topPadding: 0)
-                        } else {
-                            ProgressView()
+                    
+                    if viewModel.isRefreshing {
+                        ProgressView()
+                    } else if !games.isEmpty {
+                        ForEach(games) { game in
+                            GameRow(context: _context, editOn: $viewModel.editOn, editingGameID: $viewModel.editingGameID, gameReview: $gameReview, game: game, presentShareSheet: viewModel.presentShareSheet)
+                                .transition(.opacity)
+                                .sheet(item: $gameReview) {
+                                    gameReview = nil
+                                } content: { game in
+                                    GameReviewView(game: game, showBackToStatsButton: true, gameReview: $gameReview)
+                                        .presentationDragIndicator(.visible)
+                                }
+                                .cardShadow()
                         }
+                        LogoDefault(topPadding: 0)
+                    } else if !authModel.userModel!.gameIDs.isEmpty && games.isEmpty {
+                        // Game IDs exist but SwiftData hasn't loaded them yet - show loading state
+                        VStack(spacing: 16) {
+                            ProgressView()
+                            
+                            Text("Loading Games...")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 32)
                     } else {
                         VStack(spacing: 8) {
                             Image("logoOpp")
@@ -275,13 +290,19 @@ struct StatsView: View {
                                 .frame(height: 50)
                                 .padding()
                         }
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 25))
-                        .padding(.top)
+                        .background(
+                            RoundedRectangle(cornerRadius: 25)
+                                .fill(.sub)
+                                .cardShadow()
+                        )
                     }
                     
                     SectionStatsView(title: "Average 18-Hole Game", spacing: spacing){
                         BarChartView(data: analyzer.averageHoles18, title: "Average Strokes")
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(.subTwo)
+                            )
                     }
                     
                     SectionStatsView(title: "Misc Stats", spacing: spacing) {
@@ -294,6 +315,10 @@ struct StatsView: View {
                     
                     SectionStatsView(title: "Average 9-Hole Game", spacing: spacing){
                         BarChartView(data: analyzer.averageHoles9, title: "Average Strokes")
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(.subTwo)
+                            )
                     }
                 }
             } else {
@@ -383,9 +408,11 @@ struct GameGridView: View {
             }
             
             // Bar Chart
-            BarChartView(data: averageStrokes(), title: "Average Strokes", backgroundType: .custom(.subTwo))
-            
-            
+            BarChartView(data: averageStrokes(), title: "Average Strokes")
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.subTwo)
+                )
         }
         .padding()
         .background(.sub)

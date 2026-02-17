@@ -21,8 +21,12 @@ final class CourseRepository {
     func addOrUpdateCourse(_ course: Course, completion: @escaping (Bool) -> Void) {
         let ref = db.collection(collectionName).document(course.id)
         
+        // Update computed properties before saving
+        var updatedCourse = course
+        updatedCourse.updateComputedProperties()
+        
         do {
-            try ref.setData(from: course, merge: true) { error in
+            try ref.setData(from: updatedCourse, merge: true) { error in
                 completion(error == nil)
             }
         } catch {
@@ -193,7 +197,7 @@ final class CourseRepository {
     func courseNameExistsAndSupported(_ name: String, completion: @escaping (Bool) -> Void) {
         db.collection(collectionName)
             .whereField("name", isEqualTo: name)
-            .whereField("supported", isEqualTo: true)
+            .whereField("isSupported", isEqualTo: true)
             .limit(to: 1)
             .getDocuments { snapshot, error in
                 
@@ -224,7 +228,6 @@ final class CourseRepository {
                 id: courseID,
                 name: location.name ?? "N/A",
                 password: PasswordGenerator.generate(.strong()),
-                supported: false,
                 latitude: location.coordinate.latitude,
                 longitude: location.coordinate.longitude
             )
@@ -319,7 +322,8 @@ final class CourseRepository {
         let ref = db.collection(collectionName).document(courseID)
         
         ref.updateData([
-            "adminIDs": FieldValue.arrayUnion([adminID])
+            "adminIDs": FieldValue.arrayUnion([adminID]),
+            "isClaimed": true  // Update computed stored property
         ]) { error in
             if let error = error {
                 print("❌ Failed to add email: \(error)")
@@ -330,14 +334,33 @@ final class CourseRepository {
         }
     }
     
-    func removAdminIDfromCourse(email: String, courseID: String, completion: @escaping (Bool) -> Void) {
-        db.collection(collectionName)
-            .document(courseID)
-            .updateData([
-                "adminIDs": FieldValue.arrayRemove([email])
-            ]) { error in
-                completion(error == nil)
+    func removeAdminIDfromCourse(email: String, courseID: String, completion: @escaping (Bool) -> Void) {
+        let ref = db.collection(collectionName).document(courseID)
+        
+        // First remove the admin ID
+        ref.updateData([
+            "adminIDs": FieldValue.arrayRemove([email])
+        ]) { error in
+            if error != nil {
+                completion(false)
+                return
             }
+            
+            // Then check if adminIDs is now empty and update isClaimed
+            ref.getDocument { snapshot, fetchError in
+                guard let data = snapshot?.data(), fetchError == nil else {
+                    completion(false)
+                    return
+                }
+                
+                let adminIDs = data["adminIDs"] as? [String] ?? []
+                let isClaimed = !adminIDs.isEmpty
+                
+                ref.updateData(["isClaimed": isClaimed]) { updateError in
+                    completion(updateError == nil)
+                }
+            }
+        }
     }
     
     
@@ -358,7 +381,8 @@ final class CourseRepository {
             
             // Update the document
             docRef.updateData([
-                "adminIDs": updatedAdminIDs
+                "adminIDs": updatedAdminIDs,
+                "isClaimed": !updatedAdminIDs.isEmpty  // Update computed stored property
             ]) { error in
                 completion(error == nil)
             }

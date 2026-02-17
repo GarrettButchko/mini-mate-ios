@@ -26,14 +26,16 @@ import Foundation
  */
 
 struct AnalyticsView: View {
-
+    
     @EnvironmentObject var courseVM: CourseViewModel
     @StateObject var VM = AnalyticsViewModel()
-
+    
     @State private var selectedSection: AnalyticsSection = .growth
     
     @State var range: AnalyticsRange = .last30
-
+    
+    @State private var topBarHeight: CGFloat = 0
+    
     var body: some View {
         VStack {
             HStack{
@@ -48,10 +50,7 @@ struct AnalyticsView: View {
                 // Content
                 ScrollView(.vertical) {
                     VStack(spacing: 16){
-                    Rectangle()
-                        .fill(Color.clear)
-                        .frame(height: 115)
-
+                        
                         HStack{
                             Spacer()
                             Text("ADD STUFF HERE")
@@ -60,11 +59,13 @@ struct AnalyticsView: View {
                         .padding()
                         .background {
                             RoundedRectangle(cornerRadius: 25)
-                                .fill(.ultraThinMaterial)
+                                .fill(.sub)
+                                .cardShadow()
                         }
                     }
                 }
-                .padding(.horizontal)
+                .contentMargins(.horizontal, 16)
+                .contentMargins(.top, topBarHeight + 16)
                 
                 
                 // Top Bar
@@ -112,14 +113,32 @@ struct AnalyticsView: View {
                         .padding([.horizontal, .bottom], 16)
                     
                 }
-                .background(content: {
-                    RoundedRectangle(cornerRadius: 25)
-                        .ifAvailableGlassEffect()
-                })
+                .background{
+                    GeometryReader { proxy in
+                        RoundedRectangle(cornerRadius: 25)
+                            .ifAvailableGlassEffect()
+                            .cardShadow()
+                            .task(id: proxy.size) {
+                                topBarHeight = proxy.size.height // Capture the size and monitor changes
+                            }
+                    }
+                }
                 .padding(.horizontal)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.bg,
+                            Color.clear
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .ignoresSafeArea(edges: .top)
+                )
             }
         }
         .environmentObject(VM)
+        .background(.bg)
     }
 }
 
@@ -127,10 +146,10 @@ struct AnalyticsRangeBar: View {
     @Binding var range: AnalyticsRange
     @EnvironmentObject var VM: AnalyticsViewModel
     @State private var showCustomSheet = false
-
+    
     var body: some View {
         HStack(spacing: 10) {
-
+            
             // Dropdown
             Menu {
                 Button("Last 7 days") { range = .last7 }
@@ -154,10 +173,10 @@ struct AnalyticsRangeBar: View {
                 )
                 .overlay {
                     RoundedRectangle(cornerRadius: 25)
-                        .strokeBorder(.blue.opacity(0.3), lineWidth: 2)
+                        .strokeBorder(.blue.opacity(0.3), lineWidth: 1)
                 }
             }
-
+            
             // Custom
             Button {
                 showCustomSheet = true
@@ -186,17 +205,17 @@ struct AnalyticsRangeBar: View {
         @EnvironmentObject var VM: AnalyticsViewModel
         @Environment(\.dismiss) private var dismiss
         @Binding var range: AnalyticsRange
-
+        
         @State private var startDate: Date
         @State private var endDate: Date
-
+        
         init(range: Binding<AnalyticsRange>) {
             self._range = range
-
+            
             // sensible defaults
             let today = Date()
             let defaultStart = Calendar.current.date(byAdding: .day, value: -30, to: today) ?? today
-
+            
             if case let .custom(s, e) = range.wrappedValue {
                 _startDate = State(initialValue: s)
                 _endDate = State(initialValue: e)
@@ -205,10 +224,10 @@ struct AnalyticsRangeBar: View {
                 _endDate = State(initialValue: today)
             }
         }
-
+        
         var body: some View {
             VStack(spacing: 14) {
-
+                
                 HStack {
                     Text("Custom Range - \(VM.daysBetween(startDate, endDate)) days")
                         .font(.headline)
@@ -258,7 +277,7 @@ struct AnalyticsRangeBar: View {
                                     .strokeBorder(.blue.opacity(0.3), lineWidth: 2)
                             }
                     }
-
+                    
                     Button {
                         // normalize just in case
                         let s = min(startDate, endDate)
@@ -281,6 +300,7 @@ struct AnalyticsRangeBar: View {
             .padding([.top, .horizontal], 30)
             .presentationDetents([.fraction(0.2)])
             .presentationDragIndicator(.visible)
+            
         }
     }
 }

@@ -101,7 +101,7 @@ final class HostViewModel: ObservableObject {
             if !exists { return }
             
             self.courseRepo.fetchCourseByName(name) { course in
-                let holes = course?.pars?.count ?? 18
+                let holes = course?.pars.count ?? 18
                 gameModel.setNumberOfHole(holes)
             }
         }

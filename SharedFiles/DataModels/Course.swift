@@ -9,16 +9,14 @@ struct Course: Codable, Identifiable, Equatable {
     var id: String
     var name: String
     var password: String
-    var isClaimed: Bool = false
-
-    var supported: Bool = false
 
     var logo: String?
     var scoreCardColorDT: String?
     var courseColorsDT: [String]? = []
     
     var customPar: Bool = false
-    var pars: [Int]?
+    var numHoles: Int = 18
+    var pars: [Int] = []
     
     var socialLinks: [String: String]?
     var link: String?
@@ -32,6 +30,10 @@ struct Course: Codable, Identifiable, Equatable {
     // admin stuff
     var tier: Int = 1
     var adminIDs: [String] = []
+    
+    // computed values stored for Firebase
+    var isClaimed: Bool = false
+    var isSupported: Bool = false
 
     //custom ad
     var customAdActive: Bool = false
@@ -153,5 +155,14 @@ extension DailyDoc {
         let cal = Calendar(identifier: .iso8601)
 
         return cal.component(.weekday, from: date)
+    }
+}
+
+// MARK: - Helper Methods
+extension Course {
+    /// Updates the computed stored properties (isClaimed, isSupported) based on current values
+    mutating func updateComputedProperties() {
+        self.isClaimed = !adminIDs.isEmpty
+        self.isSupported = customPar && (scoreCardColorDT != nil || logo != nil)
     }
 }

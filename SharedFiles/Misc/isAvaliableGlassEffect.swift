@@ -21,10 +21,25 @@ extension Shape {
                 .overlay(self.stroke(strokeColor, lineWidth: strokeWidth)) // ← correct border
         } else {
             self
-                .ultraThinMaterialVsColorFill(makeColor: fillColor)
+                .fill(.ultraThinMaterial)
+                .overlay(self.fill(fillColor))
                 .clipShape(self)
                 .overlay(self.stroke(strokeColor, lineWidth: strokeWidth))
-                .shadow(radius: 10)
+        }
+    }
+}
+
+extension Shape {
+    @ViewBuilder
+    func ifAGENoDefaultColor() -> some View {
+        if #available(iOS 26.0, *) {
+            self
+                .fill(.ultraThinMaterial.opacity(0.95))
+                .glassEffect(.clear, in: self)
+        } else {
+            self
+                .fill(.ultraThinMaterial)
+                .clipShape(self)
         }
     }
 }
@@ -43,6 +58,16 @@ extension View {
     }
 }
 
+extension Color {
+    func subVsColor(makeColor: Color?) -> Color {
+        if let makeColor {
+            return makeColor.opacity(0.50)
+        } else {
+            return .sub
+        }
+    }
+}
+
 extension Shape {
     @ViewBuilder
     func subVsColor(makeColor: Color?) -> some View {
@@ -52,6 +77,19 @@ extension Shape {
         } else {
             self
                 .fill(.sub)
+        }
+    }
+}
+
+extension Shape {
+    @ViewBuilder
+    func subTwoVsColor(makeColor: Color?) -> some View {
+        if let makeColor {
+            self
+                .fill(makeColor.opacity(0.50).mix(with: .subTwo, by: 0.7))
+        } else {
+            self
+                .fill(.subTwo)
         }
     }
 }

@@ -12,15 +12,25 @@ import SwiftUI
 final class CourseViewModel: ObservableObject {
 
     @Published var nameExists: [String: Bool] = [:]
-    @Published var isSupportedLocation: Bool? = nil
     @Published var position: MapCameraPosition = .automatic
     @Published var isUpperHalf: Bool = false
     @Published var hasAppeared = false
+    @Published var isLoadingCourses = false
+    
+    @Published var selectedCourse: Course? = nil
     
     private let courseRepo: CourseRepository
 
     init(courseRepo: CourseRepository = CourseRepository()) {
         self.courseRepo = courseRepo
+    }
+    
+    func getCourse(name: String) {
+        courseRepo.fetchCourseByName(name) { [weak self] course in
+            Task { @MainActor in
+                self?.selectedCourse = course
+            }
+        }
     }
 
     // MARK: - Marker Coloring
@@ -34,18 +44,6 @@ final class CourseViewModel: ObservableObject {
             courseRepo.courseNameExistsAndSupported(name) { [weak self] exists in
                 self?.nameExists[name] = exists
             }
-        }
-    }
-
-    // MARK: - Selected Result Support
-    func updateSupportedLocation(for item: MKMapItem?) {
-        guard let name = item?.name else {
-            isSupportedLocation = nil
-            return
-        }
-
-        courseRepo.courseNameExistsAndSupported(name) { [weak self] exists in
-            self?.isSupportedLocation = exists
         }
     }
     
@@ -64,8 +62,11 @@ final class CourseViewModel: ObservableObject {
     }
     
     func searchNearby(locationHandler: LocationHandler){
+        
+        isLoadingCourses = true
+        
         withAnimation {
-            isUpperHalf.toggle()
+            isUpperHalf = true
             
             locationHandler.searchNearbyCourses { success, newPosition in
                 if let newPosition {
@@ -73,6 +74,7 @@ final class CourseViewModel: ObservableObject {
                         self.position = newPosition
                     }
                 }
+                self.isLoadingCourses = !success
             }
         }
     }

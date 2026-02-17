@@ -95,8 +95,8 @@ struct PlayerScoreReview: View {
                 VStack{
                     Text("Hole \(i)")
                         .font(.body).fontWeight(.medium)
-                    if let pars = course.pars {
-                        Text("Par: \(pars[i - 1])")
+                    if course.customPar {
+                        Text("Par: \(course.pars[i - 1])")
                             .font(.caption)
                     }
                 }
@@ -113,8 +113,8 @@ struct PlayerScoreReview: View {
                 Text("Total")
                     .font(.title3).fontWeight(.semibold)
                 
-                if let coursePars = course.pars {
-                    Text("Par: \(coursePars.compactMap { $0 }.reduce(0, +))")
+                if course.customPar {
+                    Text("Par: \(course.pars.compactMap { $0 }.reduce(0, +))")
                         .font(.caption)
                 }
             }

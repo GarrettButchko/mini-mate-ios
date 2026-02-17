@@ -95,7 +95,7 @@ struct RecapView<Content: View>: View {
                     }
                     .background {
                         Capsule()
-                            .fill(.ultraThinMaterial)
+                            .fill(.sub)
                             .overlay(
                                 Capsule()
                                     .stroke(.blue.opacity(0.6), lineWidth: 1)
@@ -116,6 +116,7 @@ struct RecapView<Content: View>: View {
                 .padding()
             }
             .padding(.bottom)
+            .background(.bg)
         }
     }
 }

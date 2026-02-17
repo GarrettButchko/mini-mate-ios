@@ -20,61 +20,64 @@ struct CourseListView: View {
     @State private var showUnsuccessfulAlert: Bool = false
     @State private var isRotating: Bool = false
     
+    @State private var viewHeight: CGFloat = 0 // State to track the height of the view
+    
     var body: some View {
-        
-        
-        Group{
-            if viewModel.hasCourse {
-                multiCourse
-                    .contentMargins(.horizontal, 16)
-                    .transition(.opacity)
-            } else {
-                firstCourse
-                    .padding()
-                    .transition(.opacity)
+        GeometryReader { geometry in
+            Group{
+                if viewModel.hasCourse {
+                    multiCourse
+                        .contentMargins(.horizontal, 16)
+                        .transition(.opacity)
+                } else {
+                    firstCourse
+                        .padding()
+                        .transition(.opacity)
+                }
             }
-        }
-        .animation(.bouncy, value: viewModel.hasCourse)
-        .onReceive(viewModel.timer) { _ in
-            viewModel.tick()
-        }
-        .alert("Add Course", isPresented: $viewModel.showAddCourseAlert) {
-            TextField("Password", text: $viewModel.password)
+            .animation(.bouncy, value: viewModel.hasCourse)
             
-            Button("Add", role: .none) {
-                viewModel.tryPassword { _ in
+            .onReceive(viewModel.timer) { _ in
+                viewModel.tick()
+            }
+            .alert("Add Course", isPresented: $viewModel.showAddCourseAlert) {
+                TextField("Password", text: $viewModel.password)
+                
+                Button("Add", role: .none) {
+                    viewModel.tryPassword { _ in
+                        viewModel.password = ""
+                        viewModel.showAddCourseAlert = false
+                    }
+                }
+                .disabled(viewModel.password.isEmpty)
+                
+                Button("Cancel", role: .cancel) {
                     viewModel.password = ""
                     viewModel.showAddCourseAlert = false
                 }
+            } message: {
+                Text("Enter course password to begin.")
             }
-            .disabled(viewModel.password.isEmpty)
-            
-            Button("Cancel", role: .cancel) {
-                viewModel.password = ""
-                viewModel.showAddCourseAlert = false
-            }
-        } message: {
-            Text("Enter course password to begin.")
-        }
-        .onAppear {
-            viewModel.bind(authModel: authModel)
-            userRepo.loadOrCreateUser(id: authModel.currentUserIdentifier!, authModel: authModel) { _, done2,_  in
-                if done2 {
-                    if viewModel.userCourses.isEmpty {
-                        if authModel.userModel?.adminCourses.count ?? 0 > 1 {
-                            viewModel.getCourses()
-                        } else if authModel.userModel?.adminCourses.count == 1{
-                            viewModel.getCourse {
-                                viewManager.navigateToCourseTab(1)
+            .onAppear {
+                viewModel.bind(authModel: authModel)
+                userRepo.loadOrCreateUser(id: authModel.currentUserIdentifier!, authModel: authModel) { _, done2,_  in
+                    if done2 {
+                        if viewModel.userCourses.isEmpty {
+                            if authModel.userModel?.adminCourses.count ?? 0 > 1 {
+                                viewModel.getCourses()
+                            } else if authModel.userModel?.adminCourses.count == 1{
+                                viewModel.getCourse {
+                                    viewManager.navigateToCourseTab(1)
+                                }
+                            } else {
+                                viewModel.loadingCourse = false
                             }
-                        } else {
-                            viewModel.loadingCourse = false
                         }
                     }
                 }
             }
         }
-        .background(.bg)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
     
     var multiCourse: some View{

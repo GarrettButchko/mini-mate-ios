@@ -26,6 +26,8 @@ struct ScoreCardView: View {
     
     @State var passGame: Game? = nil
     
+    @State private var titleHeight: CGFloat = 0
+    
     var isGuest: Bool
     
     var body: some View {
@@ -81,22 +83,39 @@ struct ScoreCardView: View {
     // MARK: Header
     private var headerView: some View {
         HStack {
-            VStack(alignment: .leading){
-                Text("Scorecard")
-                    .font(.title).fontWeight(.bold)
-                if let locationName = gameModel.getCourse()?.name {
-                    Text(locationName)
-                        .font(.subheadline)
+            
+            HStack{
+                VStack(alignment: .leading){
+                    Text("Scorecard")
+                        .font(.title).fontWeight(.bold)
+                    if let locationName = gameModel.getCourse()?.name {
+                        Text(locationName)
+                            .font(.subheadline)
+                    }
+                }
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear
+                            .task(id: proxy.size) {
+                                titleHeight = proxy.size.height // Capture the size and monitor changes
+                            }
+                    }
+                }
+                
+                if let courseLogo = gameModel.getCourse()?.logo {
+                    Divider()
+                    
+                    AsyncImage(url: URL(string: courseLogo)) { image in
+                        image
+                            .resizable()
+                            .scaledToFit()
+                    } placeholder: {
+                        ProgressView()
+                    }
+                    .id(URL(string: courseLogo))
                 }
             }
-            if let logo = gameModel.getCourse()?.logo{
-                Divider()
-                    .frame(height: 30)
-                Image(logo)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 40)
-            }
+            .frame(maxHeight: titleHeight) // Set max height to captured title height
             Spacer()
             Button {
                 showInfoView = true
@@ -178,7 +197,13 @@ struct ScoreCardView: View {
     }
     
     /// first column with holes and number i.e "hole 1"
-    var holeCount: Int { gameModel.getCourse()?.pars?.count ?? gameModel.gameValue.numberOfHoles }
+    var holeCount: Int {
+        if let course = gameModel.getCourse(), !course.customPar{
+            return course.numHoles
+        } else {
+            return gameModel.gameValue.numberOfHoles
+        }
+    }
     /// first column with holes and number i.e "hole 1"
     private var holeNumbersColumn: some View {
         VStack {
@@ -188,11 +213,11 @@ struct ScoreCardView: View {
                     Text("Hole \(i)")
                         .font(.body).fontWeight(.medium)
                     
-                    if let course = gameModel.getCourse(), let coursePars = course.pars {
-                        Text("Par: \(coursePars[i - 1])")
+                    if let course = gameModel.getCourse(), course.customPar {
+                        Text("Par: \(course.pars[i - 1])")
                             .font(.caption)
                             .onAppear {
-                                print(coursePars[i - 1])
+                                print(course.pars[i - 1])
                             }
                     }
                 }
@@ -208,8 +233,8 @@ struct ScoreCardView: View {
             VStack{
                 Text("Total")
                     .font(.title3).fontWeight(.semibold)
-                if let course = gameModel.getCourse(), let coursePars = course.pars {
-                    Text("Par: \(coursePars.compactMap { $0 }.reduce(0, +))")
+                if let course = gameModel.getCourse(), course.customPar {
+                    Text("Par: \(course.pars.compactMap { $0 }.reduce(0, +))")
                         .font(.caption)
                 }
             }

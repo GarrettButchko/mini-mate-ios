@@ -20,6 +20,10 @@ struct MainView: View {
     @State var showTournamentSheet: Bool = false
     @State var isSheetPresented: Bool = false
     
+    @State private var buttonsViewHeight: CGFloat = 0 // State to track the height of the buttons view
+    
+    @State private var titleHeight: CGFloat = 0 // State to track the height of the title view
+    
     var body: some View {
         VStack{
             HStack(alignment: .center, spacing: 16) {
@@ -35,16 +39,40 @@ struct MainView: View {
                         .foregroundStyle(.blue)
                         .frame(width: 20, height: 20)
                 }
+                
+                HStack{
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Course Dashboard For,")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        
+                        Text(viewModel.selectedCourse?.name ?? "No Course Selected")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                    }
+                    .background {
+                        GeometryReader { proxy in
+                            Color.clear
+                                .task(id: proxy.size) {
+                                    titleHeight = proxy.size.height // Capture the size and monitor changes
+                                }
+                        }
+                    }
                     
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Course Dashboard For,")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    
-                    Text(viewModel.selectedCourse?.name ?? "No Course Selected")
-                        .font(.title2)
-                        .fontWeight(.semibold)
+                    if let courseLogo = viewModel.selectedCourse?.logo {
+                        Divider()
+                        
+                        AsyncImage(url: URL(string: courseLogo)) { image in
+                            image
+                                .resizable()
+                                .scaledToFit()
+                        } placeholder: {
+                            ProgressView()
+                        }
+                        .id(URL(string: courseLogo))
+                    }
                 }
+                .frame(maxHeight: titleHeight)
                 
                 Spacer()
                 
@@ -88,9 +116,17 @@ struct MainView: View {
                 
                 ScrollView{
                     VStack (spacing: 16){
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(height: 94)
+                        HStack{
+                            Spacer()
+                            Text("ADD STUFF HERE")
+                            Spacer()
+                        }
+                        .padding()
+                        .background {
+                            RoundedRectangle(cornerRadius: 25)
+                                .subVsColor(makeColor: viewModel.selectedCourse?.scoreCardColor)
+                                .cardShadow()
+                        }
                         
                         HStack{
                             Spacer()
@@ -100,44 +136,51 @@ struct MainView: View {
                         .padding()
                         .background {
                             RoundedRectangle(cornerRadius: 25)
-                                .fill(.ultraThinMaterial)
-                        }
-                        
-                        HStack{
-                            Spacer()
-                            Text("ADD STUFF HERE")
-                            Spacer()
-                        }
-                        .padding()
-                        .background {
-                            RoundedRectangle(cornerRadius: 25)
-                                .fill(.ultraThinMaterial)
+                                .subVsColor(makeColor: viewModel.selectedCourse?.scoreCardColor)
+                                .cardShadow()
                         }
                     }
                 }
+                .contentMargins(.top, buttonsViewHeight + 16)
                 
-                VStack{
-                    HStack(spacing: 14){
-                        mainViewButton(title: "Leaderboard", icon: "flag.pattern.checkered", color: Color.green) {
-                            // MARK: TODO
-                        }
+                
+                HStack(spacing: 14){
+                    mainViewButton(title: "Leaderboard", icon: "flag.pattern.checkered", color: Color.green) {
+                        // MARK: TODO
+                    }
                         
-                        mainViewButton(title: "Tournament", icon: "medal", color: Color.orange) {
-                            // MARK: TODO
-                        }
+                    mainViewButton(title: "Tournament", icon: "medal", color: Color.orange) {
+                        // MARK: TODO
                     }
                 }
                 .padding()
                 .background(content: {
-                    RoundedRectangle(cornerRadius: 25)
-                        .ifAvailableGlassEffect()
-                        
+                    GeometryReader { proxy in
+                        RoundedRectangle(cornerRadius: 25)
+                            .ifAvailableGlassEffect(strokeWidth: 0, makeColor: viewModel.selectedCourse?.scoreCardColor)
+                            .cardShadow()
+                            .task(id: proxy.size) {
+                                buttonsViewHeight = proxy.size.height // Capture the size and monitor changes
+                            }
+                    }
                 })
                 .padding(.horizontal)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.bg,
+                            Color.clear
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .ignoresSafeArea(edges: .top)
+                )
             }
             .contentMargins(.horizontal, 16)
             Spacer()
         }
+        .background(.bg)
     }
     
     func mainViewButton(title: String, icon: String? = nil, color: Color, action: @escaping () -> Void) -> some View {

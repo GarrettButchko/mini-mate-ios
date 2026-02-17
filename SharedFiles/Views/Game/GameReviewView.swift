@@ -16,6 +16,8 @@ struct GameReviewView: View {
     @State private var uuid: UUID?
     @State private var showInfoView: Bool
     
+    @State private var titleHeight: CGFloat = 0
+    
     @Binding var gameReview: Game?
     
     // Custom init to assign @StateObject and normal vars
@@ -35,9 +37,15 @@ struct GameReviewView: View {
         VStack(spacing: 16) {
             headerView
                 .padding(.top)
-            BarChartView(data: viewModel.averageStrokes(), title: "Average Strokes", paddingReview: true, cornerRadius: 25, backgroundType: .custom(.sub))
-                .frame(height: 140)
-                .cardShadow()
+            if !isInCourseSettings {
+                BarChartView(data: viewModel.averageStrokes(), title: "Average Strokes", paddingReview: true)
+                    .frame(height: 140)
+                    .background(
+                        RoundedRectangle(cornerRadius: 25)
+                            .subVsColor(makeColor: viewModel.course?.scoreCardColor)
+                    )
+                    .cardShadow()
+            }
             scoreGridView
             footerView
         }
@@ -54,15 +62,41 @@ struct GameReviewView: View {
     private var headerView: some View {
         VStack{
             HStack {
-                VStack(alignment: .leading){
-                    Text("Scorecard")
-                        .font(.title).fontWeight(.bold)
-                    if let locationName = viewModel.course?.name {
-                        Text(locationName)
-                            .font(.subheadline)
+                HStack{
+                    VStack(alignment: .leading){
+                        Text("Scorecard")
+                            .font(.title).fontWeight(.bold)
+                        if let locationName = viewModel.course?.name {
+                            Text(locationName)
+                                .font(.subheadline)
+                        }
+                    }
+                    .background {
+                        GeometryReader { proxy in
+                            Color.clear
+                                .task(id: proxy.size) {
+                                    titleHeight = proxy.size.height // Capture the size and monitor changes
+                                }
+                        }
+                    }
+                    
+                    if let courseLogo = viewModel.course?.logo {
+                        Divider()
+                        
+                        AsyncImage(url: URL(string: courseLogo)) { image in
+                            image
+                                .resizable()
+                                .scaledToFit()
+                        } placeholder: {
+                            ProgressView()
+                        }
+                        .id(URL(string: courseLogo))
                     }
                 }
+                .frame(maxHeight: titleHeight) // Set max height to captured title height
+                
                 Spacer()
+                
                 Button {
                     showInfoView = true
                 } label: {
@@ -153,7 +187,7 @@ struct GameReviewView: View {
             VStack{
                 Text("Total")
                     .font(.title3).fontWeight(.semibold)
-                if let course = viewModel.course, let coursePars = course.pars{
+                if let coursePars = viewModel.course?.pars, coursePars.count > 0{
                     Text("Par: \(coursePars.reduce(0) { $0 + ($1) })")
                         .font(.caption)
                 }
@@ -173,32 +207,38 @@ struct GameReviewView: View {
         .frame(height: 60)
         .padding(.bottom)
     }
+    @Environment(\.dismiss) var dismiss
     
     // MARK: Footer complete game button and timer
     private var footerView: some View {
         
         VStack{
             ZStack{
-                HStack{
-                    if showBackToStatsButton {
-                        Spacer()
-                    }
-                    if NetworkChecker.shared.isConnected {
-                        ShareLink(item: viewModel.shareText){
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.title2)
+                if !isInCourseSettings {
+                    HStack{
+                        if showBackToStatsButton {
+                            Spacer()
                         }
-                        .padding()
+                        if NetworkChecker.shared.isConnected {
+                            ShareLink(item: viewModel.shareText){
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.title2)
+                            }
+                            .padding()
+                        }
                     }
                 }
                 if showBackToStatsButton {
                     HStack {
                         Button {
-                            if !isInCourseSettings {
-                                #if MINIMATE
-                                gameReview = nil
-                                #endif
-                            }
+                            
+                            #if MINIMATE
+                            gameReview = nil
+                            #endif
+                            
+                            #if !MINIMATE
+                            dismiss()
+                            #endif
                         } label: {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 25)
@@ -223,7 +263,6 @@ struct GameReviewView: View {
                     } label: {
                         HStack{
                             VStack(alignment: .leading, spacing: 8) {
-                                
                                 if let adTitle = course.adTitle {
                                     Text(adTitle)
                                         .foregroundStyle(.mainOpp)
@@ -272,7 +311,7 @@ struct GameReviewView: View {
                         .padding()
                     }
                 } else if let course = viewModel.course, !course.customAdActive{
-                    Text("Google Ad Here")
+                    Text("Google Ad Here (If Not Pro User)")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)

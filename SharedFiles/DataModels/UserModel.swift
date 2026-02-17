@@ -10,7 +10,7 @@ import SwiftData
 import Foundation
 
 @Model
-class UserModel: Identifiable, Equatable {
+final class UserModel: Identifiable, Equatable {
     @Attribute(.unique) var googleId: String
     var appleId: String?
     var name: String

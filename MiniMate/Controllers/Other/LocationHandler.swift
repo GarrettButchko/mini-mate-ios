@@ -92,9 +92,7 @@ class LocationHandler: NSObject, ObservableObject, Observable, CLLocationManager
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = "mini golf"
         request.region = region
-        if #available(iOS 18.0, *) {
-            request.pointOfInterestFilter = .init(including: [.miniGolf])
-        }
+        request.pointOfInterestFilter = .init(including: [.miniGolf])
 
         let search = MKLocalSearch(request: request)
         search.start { response, error in
@@ -145,6 +143,10 @@ class LocationHandler: NSObject, ObservableObject, Observable, CLLocationManager
         span: MKCoordinateSpan = MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1),
         completion: @escaping (Bool, MapCameraPosition?) -> Void
     ) {
+        guard NetworkChecker.shared.isConnected else {
+            completion(false, nil)
+            return
+        }
         guard let userLocation else {
             completion(false, nil)
             return
@@ -177,9 +179,8 @@ class LocationHandler: NSObject, ObservableObject, Observable, CLLocationManager
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = "mini golf"
         request.region = region
-        if #available(iOS 18.0, *) {
-            request.pointOfInterestFilter = .init(including: [.miniGolf])
-        }
+        request.pointOfInterestFilter = .init(including: [.miniGolf])
+        
 
         let search = MKLocalSearch(request: request)
         search.start { response, error in

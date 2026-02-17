@@ -7,27 +7,16 @@
 import SwiftUI
 import Charts
 
-enum BackgroundType {
-    case clear
-    case adaptive
-    case ultraThin
-    case custom(Color)
-}
-
 struct BarChartView: View {
     @Environment(\.colorScheme) private var colorScheme
     let data: [Hole]
     let title: String
     let paddingReview: Bool
-    let cornerRadius: CGFloat
-    let backgroundType: BackgroundType
     
-    init(data: [Hole], title: String, paddingReview: Bool = false, cornerRadius: CGFloat = 12, backgroundType: BackgroundType = .adaptive) {
+    init(data: [Hole], title: String, paddingReview: Bool = false) {
         self.data = data
         self.title = title
         self.paddingReview = paddingReview
-        self.cornerRadius = cornerRadius
-        self.backgroundType = backgroundType
     }
 
     var body: some View {
@@ -37,20 +26,6 @@ struct BarChartView: View {
         let yMax = maxStroke + 2
         let yAxisLines = yMax / 3
         let xDomain: ClosedRange<Int> = data.isEmpty ? 0...1 : 1...data.count
-        let bg: AnyShapeStyle = {
-            switch backgroundType {
-            case .clear:
-                return AnyShapeStyle(.clear)
-            case .ultraThin:
-                return AnyShapeStyle(.ultraThinMaterial)
-            case .adaptive:
-                return colorScheme == .light
-                    ? AnyShapeStyle(Color.white)
-                    : AnyShapeStyle(.ultraThinMaterial)
-            case .custom(let color):
-                return AnyShapeStyle(color)
-            }
-        }()
         return Chart {
             ForEach(data, id: \.self) { hole in
                 if hole.strokes > 0 {
@@ -110,10 +85,7 @@ struct BarChartView: View {
         .padding(.bottom, paddingReview ? 5 : 10)
         .padding(.horizontal, 16)
         .padding(.trailing, paddingReview ? 12 : 15)
-        .background(
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(bg)
-        )
+        
     }
 }
 

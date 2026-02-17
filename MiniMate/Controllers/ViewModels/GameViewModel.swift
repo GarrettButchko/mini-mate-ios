@@ -564,68 +564,84 @@ final class GameViewModel: ObservableObject, Observable {
         game.live = false
         
         var finished: Game = Game()
-        
         copyGame(into: &finished, from: game)
         
         print(finished)
 
         let group = DispatchGroup()
-        var allOK = true
+        var saveSuccess = false
+        var analyticsSuccess = true
 
-        // 1) Save game
+        // 1) Save game FIRST - only update userModel if this succeeds
         if !isGuest {
             group.enter()
             UnifiedGameRepository(context: context).save(finished) { local, remote in
+                // Only mark as success if at least one save succeeded
                 if local || remote {
-                    print("Saved Game Everywhere")
-                    self.authModel.userModel?.gameIDs.append(finished.id)
-
-                    if let userModel = self.authModel.userModel,
-                       let uid = self.authModel.currentUserIdentifier {
-                        UserRepository(context: context).saveRemote(id: uid, userModel: userModel) { _ in
-                            print("Updated online user")
-                        }
-                    }
+                    print("✅ Saved Game: local=\(local), remote=\(remote)")
+                    saveSuccess = true
                 } else {
-                    print("Error Saving Game")
-                    allOK = false
+                    print("❌ Game save failed")
+                    saveSuccess = false
                 }
                 group.leave()
             }
         } else {
             group.enter()
-            LocalGameRepository(context: context).save(finished) { _ in
-                print("Saved Guest Game")
+            LocalGameRepository(context: context).save(finished) { success in
+                saveSuccess = success
+                print(success ? "✅ Saved Guest Game" : "❌ Failed to save guest game")
                 group.leave()
             }
         }
 
-        // 2) Analytics (host only)
+        // 2) Only run analytics if game was saved successfully
         if let currentUserId = authModel.userModel?.googleId,
            currentUserId == finished.hostUserId || isGuest {
-
             group.enter()
             print("running analytics")
             processAnalytics(finishedGame: finished) { success in
-                if !success { allOK = false }
+                analyticsSuccess = success
+                print(success ? "✅ Analytics processed" : "❌ Analytics failed")
                 group.leave()
             }
         }
 
-        // 3) Final reset ONLY after everything finishes
+        // 3) Save user model ONLY after game is confirmed saved
         group.notify(queue: .main) {
-            if allOK {
-                print("✅ Save + analytics completed")
-            } else {
-                print("⚠️ Save and/or analytics failed")
+            guard saveSuccess else {
+                print("⚠️ Skipping user save - game save failed")
+                self.objectWillChange.send()
+                self.hasLoaded = false
+                self.resetCourse()
+                self.resetGame()
+                return
             }
 
-            // If you truly need to update the live game state, do it BEFORE this notify,
-            // or do a minimal "dismissed/completed" update here.
-            self.objectWillChange.send()
-            self.hasLoaded = false
-            self.resetCourse()
-            self.resetGame()
+            // Now append the ID and save the updated userModel
+            if let userModel = self.authModel.userModel,
+               let uid = self.authModel.currentUserIdentifier {
+                userModel.gameIDs.append(finished.id)
+                
+                UserRepository(context: context).saveRemote(id: uid, userModel: userModel) { success in
+                    print(success ? "✅ Updated user model with new game ID" : "❌ Failed to update user model")
+                    
+                    if !analyticsSuccess {
+                        print("⚠️ Analytics encountered issues, but game was saved")
+                    }
+                    
+                    self.objectWillChange.send()
+                    self.hasLoaded = false
+                    self.resetCourse()
+                    self.resetGame()
+                }
+            } else {
+                print("❌ Unable to save user model - missing userModel or currentUserIdentifier")
+                self.objectWillChange.send()
+                self.hasLoaded = false
+                self.resetCourse()
+                self.resetGame()
+            }
         }
     }
     

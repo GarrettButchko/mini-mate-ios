@@ -65,7 +65,10 @@ class AuthViewModel: ObservableObject {
     
     /// Generates a random alphanumeric nonce of the given length.
     func randomNonceString(length: Int = 32) -> String {
-        precondition(length > 0)
+        guard length > 0 else {
+            print("❌ Invalid length: \(length), using default 32")
+            return randomNonceString(length: 32)
+        }
         let charset: [Character] =
         Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
         var result = ""

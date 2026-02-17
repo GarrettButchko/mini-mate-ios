@@ -13,6 +13,8 @@ struct ContentView: View {
     @EnvironmentObject var viewManager: ViewManager
     @StateObject var viewModel = CourseViewModel()
     
+    let courseRepo = CourseRepository()
+    
     @State private var selectedTab = 1
     
     var body: some View {
@@ -20,7 +22,30 @@ struct ContentView: View {
             Group {
                 switch viewManager.currentView {
                 case .courseTab(let tab):
-                    CourseTabView(selectedTab: tab)
+                    ZStack{
+                        CourseTabView(selectedTab: tab)
+                        ColorPickerView(showColor: $viewModel.showColor, addTarget: $viewModel.addTarget) { color in
+                            withAnimation() {
+                                guard var course = viewModel.selectedCourse else { return }
+                                
+                                switch viewModel.addTarget {
+                                case .scoreCardColor:
+                                    course.scoreCardColorDT = colorToString(color)
+                                case .courseColor:
+                                    course.courseColorsDT = (course.courseColorsDT ?? []) + [colorToString(color)]
+                                case nil:
+                                    viewModel.addTarget = nil
+                                }
+                                
+                                viewModel.selectedCourse = course
+                                courseRepo.addOrUpdateCourse(course) { _ in }
+                                viewModel.showColor = false
+                            }
+                        }
+                        .opacity(viewModel.showColor ? 1 : 0)
+                        .animation(.spring(duration: 0.25, bounce: 0.4), value: viewModel.showColor)
+                        .allowsHitTesting(viewModel.showColor)
+                    }
                 case .courseList:
                     CourseListView()
                 case .welcome:
@@ -32,6 +57,10 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.1), value: viewManager.currentView)
         .environmentObject(viewModel)
+    }
+    
+    func colorToString(_ color: Color) -> String {
+        return String(describing: color)
     }
 }
 

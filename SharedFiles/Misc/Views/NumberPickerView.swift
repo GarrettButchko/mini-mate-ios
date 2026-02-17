@@ -7,7 +7,7 @@
 import SwiftUI
 
 struct NumberPickerView: View {
-    @Binding var selectedNumber: Int  // 👈 make it a binding to pass value out
+    @Binding var selectedNumber: Int
     let minNumber: Int?
     let maxNumber: Int
 

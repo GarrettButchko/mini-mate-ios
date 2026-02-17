@@ -101,12 +101,19 @@ public final class PasswordGenerator {
 
     // MARK: - Secure Random
     private static func randomIndex(_ upperBound: Int) -> Int {
-        precondition(upperBound > 0)
+        guard upperBound > 0 else {
+            print("❌ Invalid upperBound: \(upperBound)")
+            return 0
+        }
 
         // Secure modulo-free random
         var value: UInt32 = 0
         let result = SecRandomCopyBytes(kSecRandomDefault, 4, &value)
-        precondition(result == errSecSuccess, "Secure RNG failed")
+        
+        guard result == errSecSuccess else {
+            print("❌ Secure RNG failed with code: \(result)")
+            return 0
+        }
 
         return Int(value % UInt32(upperBound))
     }

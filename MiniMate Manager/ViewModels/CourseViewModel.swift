@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import FirebaseAuth
 
 @MainActor
 final class CourseViewModel: ObservableObject {
@@ -27,6 +28,10 @@ final class CourseViewModel: ObservableObject {
     
     @Published var timeRemaining: TimeInterval = 0
     @Published var failedAttempts: Int = 0
+    
+    @Published var addTarget: ColorAddTarget? = nil
+    @Published var showColor: Bool = false
+    
     let failedLimit: Int = 5
     private let ttl: TimeInterval = 30
     private var lastUpdated = Date()
@@ -92,37 +97,55 @@ final class CourseViewModel: ObservableObject {
 
     func getCourse(completion: @escaping () -> Void){
         loadingCourse = true
-        if hasCourse{
-            courseRepo.fetchCourse(id: (authModel?.userModel?.adminCourses.first)!) { course in
-                if let course = course{
-                    withAnimation(){
-                        self.userCourses.append(course)
-                    }
-                    self.selectedCourse = course
-                    self.loadingCourse = false
-                    completion()
-                } else {
-                    self.loadingCourse = false
-                    completion()
+        guard hasCourse,
+              let firstCourseID = authModel?.userModel?.adminCourses.first else {
+            loadingCourse = false
+            completion()
+            return
+        }
+        
+        courseRepo.fetchCourse(id: firstCourseID) { course in
+            if let course = course{
+                withAnimation(){
+                    self.userCourses.append(course)
                 }
+                self.selectedCourse = course
+                self.loadingCourse = false
+                completion()
+            } else {
+                self.loadingCourse = false
+                completion()
             }
         }
     }
     
     func tryPassword(completion: @escaping (Bool) -> Void) {
-        courseRepo.findCourseIDWithPassword(withPassword: password) { courseID in
+        courseRepo.findCourseIDWithPassword(withPassword: password) { [self] courseID in
             Task { @MainActor in
-                if let courseID, let authModel = self.authModel {
+                if let courseID, self.authModel != nil {
                     // Update model on main thread
                     
-                    if authModel.userModel?.adminCourses.contains(courseID) == true {
+                    if self.authModel!.userModel?.adminCourses.contains(courseID) == true {
                         withAnimation(){
                             self.message = "Course Already Added"
                         }
                         completion(false)
                     } else {
+                        // Add course to user's admin courses
                         self.authModel?.userModel?.adminCourses.append(courseID)
-                        self.userRepo.saveRemote(id: authModel.currentUserIdentifier!, userModel: authModel.userModel!) { _ in }
+                        self.userRepo.saveRemote(id: authModel!.currentUserIdentifier!, userModel: authModel!.userModel!) { _ in }
+                        
+                        // Claim the course and add email to adminIDs
+                        if let email = authModel!.firebaseUser?.email {
+                            self.courseRepo.addAdminIDtoCourse(adminID: email, courseID: courseID) { success in
+                                if success {
+                                    print("✅ Course claimed and email added to adminIDs")
+                                } else {
+                                    print("❌ Failed to add email to course adminIDs")
+                                }
+                            }
+                        }
+                        
                         self.getCourses()
                         self.message = nil
                         completion(true)

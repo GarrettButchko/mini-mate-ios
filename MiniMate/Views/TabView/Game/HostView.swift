@@ -211,8 +211,8 @@ struct HostView: View {
                 }
                 
                 if let course {
-                    if let pars = course.pars {
-                        UserInfoRow(label: "Holes", value: String(pars.count))
+                    if course.customPar {
+                        UserInfoRow(label: "Holes", value: String(course.numHoles))
                     } else {
                         HStack {
                             Text("Holes:")
@@ -239,47 +239,51 @@ struct HostView: View {
     }
     
     private var playersSection: some View {
-        Section(header: Text("Players: \(gameModel.gameValue.players.count)")) {
-            ScrollView(.horizontal) {
-                HStack {
-                    ForEach(gameModel.gameValue.players) { player in
-                        PlayerIconView(player: player, isRemovable: player.userId.count == 6) {
-                            VM.playerToDelete = player.userId
-                            VM.resetTimer(gameModel)
-                            VM.showDeleteAlert = true
-                        }
-                    }
-                    Button(action: {
-                        VM.showAddPlayerAlert = true
-                        VM.resetTimer(gameModel)
-                    }) {
-                        VStack {
-                            ZStack {
-                                Circle()
-                                    .fill(.ultraThinMaterial)
-                                    .frame(width: 40, height: 40)
-                                Image(systemName: "plus")
+        Group{
+            Section {
+                ScrollView(.horizontal) {
+                    HStack {
+                        ForEach(gameModel.gameValue.players) { player in
+                            PlayerIconView(player: player, isRemovable: player.userId.count == 6) {
+                                VM.playerToDelete = player.userId
+                                VM.resetTimer(gameModel)
+                                VM.showDeleteAlert = true
                             }
-                            Text("Add Player").font(.caption)
                         }
-                        .padding(.horizontal)
-                    }
-                    if gameModel.isOnline {
-                        VStack {
-                            ProgressView()
-                                .scaleEffect(1.5)
-                                .frame(width: 40, height: 40)
-                            Text("Searching...").font(.caption)
-                        }.padding(.horizontal)
+                        Button(action: {
+                            VM.showAddPlayerAlert = true
+                            VM.resetTimer(gameModel)
+                        }) {
+                            VStack {
+                                ZStack {
+                                    Circle()
+                                        .fill(.ultraThinMaterial)
+                                        .frame(width: 40, height: 40)
+                                    Image(systemName: "plus")
+                                }
+                                Text("Add Player").font(.caption)
+                            }
+                            .padding(.horizontal)
+                        }
+                        if gameModel.isOnline {
+                            VStack {
+                                ProgressView()
+                                    .scaleEffect(1.5)
+                                    .frame(width: 40, height: 40)
+                                Text("Searching...").font(.caption)
+                            }.padding(.horizontal)
+                        }
                     }
                 }
+                .simultaneousGesture(
+                    DragGesture().onChanged { _ in
+                        VM.resetTimer(gameModel)
+                    }
+                )
+                .frame(height: 75)
+            }  header: {
+                Text("Players: \(gameModel.gameValue.players.count)")
             }
-            .simultaneousGesture(
-                DragGesture().onChanged { _ in
-                    VM.resetTimer(gameModel)
-                }
-            )
-            .frame(height: 75)
         }
     }
     

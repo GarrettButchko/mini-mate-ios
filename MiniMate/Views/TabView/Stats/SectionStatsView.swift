@@ -27,7 +27,7 @@ struct SectionStatsView<Content: View>: View {
         .padding()
         .background{
             RoundedRectangle(cornerRadius: 25)
-                .fill(.sub)
+                .subVsColor(makeColor: makeColor)
                 .cardShadow()
         }
         

@@ -15,6 +15,7 @@ struct UserInfoRow: View {
     var body: some View {
         HStack {
             Text("\(label):")
+            Spacer()
             Text(value)
         }
     }
