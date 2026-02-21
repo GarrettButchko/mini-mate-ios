@@ -18,8 +18,7 @@ struct Course: Codable, Identifiable, Equatable {
     var numHoles: Int = 18
     var pars: [Int] = []
     
-    var socialLinks: [String: String]?
-    var link: String?
+    var socialLinks: [SocialLink] = []
     
     // location & context
     var latitude: Double
@@ -165,4 +164,22 @@ extension Course {
         self.isClaimed = !adminIDs.isEmpty
         self.isSupported = customPar && (scoreCardColorDT != nil || logo != nil)
     }
+}
+
+
+enum SocialPlatform: String, Codable, CaseIterable, Identifiable {
+    case instagram
+    case facebook
+    case tiktok
+    case youtube
+    case google
+    case website
+    
+    var id: String { rawValue }
+}
+
+struct SocialLink: Identifiable, Codable, Equatable, Hashable {
+    var id: UUID = UUID()
+    var platform: SocialPlatform = .instagram
+    var url: String
 }

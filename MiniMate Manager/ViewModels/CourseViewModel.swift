@@ -32,6 +32,9 @@ final class CourseViewModel: ObservableObject {
     @Published var addTarget: ColorAddTarget? = nil
     @Published var showColor: Bool = false
     
+    // MARK: - Dependencies
+    private var saveWorkItem: DispatchWorkItem?
+    
     let failedLimit: Int = 5
     private let ttl: TimeInterval = 30
     private var lastUpdated = Date()
@@ -187,5 +190,197 @@ final class CourseViewModel: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             self.courseRepo.stopListening()
         }
+    }
+    
+    // MARK: - Save Methods
+    
+    func debouncedSave(delay: TimeInterval = 0.5) {
+        guard let course = selectedCourse else { return }
+        saveWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.courseRepo.addOrUpdateCourse(course) { _ in }
+        }
+        saveWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+    
+    func immediateSave() {
+        guard let course = selectedCourse else { return }
+        saveWorkItem?.cancel()
+        courseRepo.addOrUpdateCourse(course) { _ in }
+    }
+    
+    // MARK: - Binding Helpers
+    
+    func binding<T>(
+        keyPath: WritableKeyPath<Course, T>,
+        onSet: @escaping (T) -> Void = { _ in },
+        debounce: Bool = false
+    ) -> Binding<T>? {
+        guard selectedCourse != nil else { return nil }
+        return Binding(
+            get: {
+                guard let value = self.selectedCourse else {
+                    fatalError("Course became nil unexpectedly")
+                }
+                return value[keyPath: keyPath]
+            },
+            set: { [weak self] newValue in
+                guard var updatedCourse = self?.selectedCourse else { return }
+                updatedCourse[keyPath: keyPath] = newValue
+                self?.selectedCourse = updatedCourse
+                onSet(newValue)
+                if debounce {
+                    self?.debouncedSave()
+                } else {
+                    self?.immediateSave()
+                }
+            }
+        )
+    }
+    
+    func optionalBinding(
+        keyPath: WritableKeyPath<Course, String?>,
+        deleteKey: String,
+        debounce: Bool = true
+    ) -> Binding<String> {
+        Binding(
+            get: {
+                self.selectedCourse?[keyPath: keyPath] ?? ""
+            },
+            set: { [weak self] newValue in
+                guard var updatedCourse = self?.selectedCourse else { return }
+                
+                updatedCourse[keyPath: keyPath] = newValue.isEmpty ? nil : newValue
+                self?.selectedCourse = updatedCourse
+                
+                if newValue.isEmpty {
+                    self?.courseRepo.deleteCourseItem(courseID: updatedCourse.id, dataName: deleteKey)
+                } else {
+                    if debounce {
+                        self?.debouncedSave()
+                    } else {
+                        self?.immediateSave()
+                    }
+                }
+            }
+        )
+    }
+    
+    func socialPlatformBinding(
+        index: Int,
+        debounce: Bool = false
+    ) -> Binding<SocialPlatform> {
+        Binding(
+            get: {
+                guard let courseValue = self.selectedCourse,
+                      index < courseValue.socialLinks.count else {
+                    return .instagram
+                }
+                return courseValue.socialLinks[index].platform
+            },
+            set: { [weak self] newValue in
+                guard var updatedCourse = self?.selectedCourse,
+                      index < updatedCourse.socialLinks.count else { return }
+                
+                updatedCourse.socialLinks[index].platform = newValue
+                self?.selectedCourse = updatedCourse
+                
+                if debounce {
+                    self?.debouncedSave()
+                } else {
+                    self?.immediateSave()
+                }
+            }
+        )
+    }
+    
+    
+    func limitedTextBinding(
+        keyPath: WritableKeyPath<Course, String?>,
+        deleteKey: String,
+        limit: Int,
+        debounce: Bool = true
+    ) -> Binding<String> {
+        Binding(
+            get: {
+                self.selectedCourse?[keyPath: keyPath] ?? ""
+            },
+            set: { [weak self] newValue in
+                guard var updatedCourse = self?.selectedCourse else { return }
+                let limited = String(newValue.prefix(limit))
+                updatedCourse[keyPath: keyPath] = limited.isEmpty ? nil : limited
+                self?.selectedCourse = updatedCourse
+                
+                if limited.isEmpty {
+                    self?.courseRepo.deleteCourseItem(courseID: updatedCourse.id, dataName: deleteKey)
+                } else {
+                    if debounce {
+                        self?.debouncedSave()
+                    } else {
+                        self?.immediateSave()
+                    }
+                }
+            }
+        )
+    }
+    
+    func customParBinding() -> Binding<Bool> {
+        Binding(
+            get: { self.selectedCourse?.customPar ?? false },
+            set: { [weak self] newValue in
+                guard var updatedCourse = self?.selectedCourse else { return }
+                updatedCourse.customPar = newValue
+                if newValue {
+                    updatedCourse.numHoles = 18
+                    updatedCourse.pars = Array(repeating: 2, count: 18)
+                } else {
+                    updatedCourse.numHoles = 18
+                    updatedCourse.pars = []
+                }
+                self?.selectedCourse = updatedCourse
+                self?.immediateSave()
+            }
+        )
+    }
+    
+    func numHolesBinding() -> Binding<Int> {
+        Binding(
+            get: { self.selectedCourse?.numHoles ?? 18 },
+            set: { [weak self] newValue in
+                guard var updatedCourse = self?.selectedCourse else { return }
+                withAnimation {
+                    updatedCourse.numHoles = newValue
+                    
+                    var pars = updatedCourse.pars
+                    if newValue > pars.count {
+                        let difference = newValue - pars.count
+                        pars.append(contentsOf: Array(repeating: 2, count: difference))
+                    } else if newValue < pars.count {
+                        pars = Array(pars.prefix(newValue))
+                    }
+                    updatedCourse.pars = pars
+                    self?.selectedCourse = updatedCourse
+                }
+                self?.immediateSave()
+            }
+        )
+    }
+    
+    func parBinding(index: Int) -> Binding<Int> {
+        Binding(
+            get: {
+                guard let courseValue = self.selectedCourse,
+                      index < courseValue.pars.count else { return 2 }
+                return courseValue.pars[index]
+            },
+            set: { [weak self] newValue in
+                guard var updatedCourse = self?.selectedCourse,
+                      index < updatedCourse.pars.count else { return }
+                updatedCourse.pars[index] = newValue
+                self?.selectedCourse = updatedCourse
+                self?.debouncedSave(delay: 0.3)
+            }
+        )
     }
 }

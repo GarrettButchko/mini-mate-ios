@@ -195,6 +195,7 @@ struct CourseListView: View {
                         Spacer()
                     }
                 }
+                .contentMargins(.top, 16)
             }
             
             Button {
