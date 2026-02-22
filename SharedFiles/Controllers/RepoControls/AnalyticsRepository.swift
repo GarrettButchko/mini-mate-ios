@@ -316,21 +316,53 @@ final class AnalyticsRepository {
         var totalStrokes: [String: Int] = [:]
         var playsPerHole: [String: Int] = [:]
         
-        let plays = max(0, players * max(1, gamesPlayed))
-        let strokes = max(0, avgStrokesPerHole) * plays
-        
+        // Randomize strokes and plays per hole for more realistic data
         for hole in 1...max(1, holes) {
             let key = String(hole)
-            totalStrokes[key] = strokes
+            
+            // Random number of plays per hole (some holes might have different play counts)
+            let plays = max(1, players * max(1, gamesPlayed) + Int.random(in: -2...2))
             playsPerHole[key] = plays
+            
+            // Vary strokes per hole randomly (some holes are harder than others)
+            let strokeVariation = Int.random(in: -2...3)
+            let avgStrokes = max(1, avgStrokesPerHole + strokeVariation)
+            totalStrokes[key] = avgStrokes * plays
         }
         
+        // Distribute games across multiple hours for more realistic data
+        var hourlyCounts: [String: Int] = [:]
         let currentHour = Calendar.current.component(.hour, from: updatedAt)
-        let hourlyCounts = [String(currentHour): max(1, gamesPlayed)]
+        
+        // Spread games across 1-4 different hours
+        let hoursToSpread = min(max(1, gamesPlayed), Int.random(in: 1...4))
+        var gamesRemaining = max(1, gamesPlayed)
+        
+        for i in 0..<hoursToSpread {
+            let hour = (currentHour - i + 24) % 24
+            let gamesInHour: Int
+            
+            if i == hoursToSpread - 1 {
+                // Last hour gets remaining games
+                gamesInHour = gamesRemaining
+            } else {
+                // Random distribution
+                gamesInHour = max(1, Int.random(in: 1...max(1, gamesRemaining - (hoursToSpread - i - 1))))
+            }
+            
+            hourlyCounts[String(hour)] = gamesInHour
+            gamesRemaining -= gamesInHour
+            
+            if gamesRemaining <= 0 { break }
+        }
+        
+        // Randomize duration slightly
+        let durationVariation = Int.random(in: -15...15)
+        let actualDuration = max(30, durationMinutes + durationVariation)
         
         return DailyDoc(
             dayID: dayID,
-            totalRoundSeconds: Int64(max(0, durationMinutes * 60) * max(1, gamesPlayed)),
+            totalRoundSeconds: Int64(max(0, actualDuration * 60) * max(1, gamesPlayed)),
             gamesPlayed: max(1, gamesPlayed),
             newPlayers: max(0, newPlayers),
             returningPlayers: max(0, returningPlayers),
@@ -368,24 +400,24 @@ enum AnalyticsRange: Equatable {
         
         switch self {
         case .last7:
-            let start = calendar.date(byAdding: .day, value: -6, to: end)! // inclusive 7 days
+            let start = calendar.date(byAdding: .day, value: -7, to: end)! // inclusive 7 days
             
-            let deltaStart = calendar.date(byAdding: .day, value: -13, to: end)!
-            let deltaEnd = calendar.date(byAdding: .day, value: -7, to: end)!
+            let deltaStart = calendar.date(byAdding: .day, value: -14, to: end)!
+            let deltaEnd = calendar.date(byAdding: .day, value: -1, to: start)!
             return (start, end, deltaStart, deltaEnd)
             
         case .last30:
-            let start = calendar.date(byAdding: .day, value: -29, to: end)! // inclusive 30 days
+            let start = calendar.date(byAdding: .day, value: -30, to: end)! // inclusive 30 days
             
-            let deltaStart = calendar.date(byAdding: .day, value: -59, to: end)!
-            let deltaEnd = calendar.date(byAdding: .day, value: -30, to: end)!
+            let deltaStart = calendar.date(byAdding: .day, value: -60, to: end)!
+            let deltaEnd = calendar.date(byAdding: .day, value: -1, to: start)!
             return (start, end, deltaStart, deltaEnd)
             
         case .last90:
-            let start = calendar.date(byAdding: .day, value: -89, to: end)! // inclusive 90 days
+            let start = calendar.date(byAdding: .day, value: -90, to: end)! // inclusive 90 days
             
             
-            let deltaStart = calendar.date(byAdding: .day, value: -179, to: end)!
+            let deltaStart = calendar.date(byAdding: .day, value: -180, to: end)!
             let deltaEnd = calendar.date(byAdding: .day, value: -1, to: start)!
             return (start, end, deltaStart, deltaEnd)
             

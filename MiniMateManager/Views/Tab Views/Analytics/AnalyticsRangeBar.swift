@@ -21,24 +21,21 @@ struct AnalyticsRangeBar: View {
                 Button("Last 90 days") { VM.range = .last90 }
             } label: {
                 HStack {
-                    Text(VM.range.isCustom ? VM.range.title + " - \(VM.range.daysBetween) days" : VM.range.title)
+                    Text(VM.range.isCustom ? VM.getDateRangeString() + ", \(VM.range.daysBetween) days" : VM.range.title)
                         .font(.subheadline)
                         .fontWeight(.semibold)
+                        .foregroundStyle(.mainOpp)
                     Spacer()
                     Image(systemName: "chevron.down")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.mainOpp.opacity(0.5))
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .background(
                     RoundedRectangle(cornerRadius: 25)
-                        .fill(.ultraThinMaterial)
+                        .fill(.subTwo)
                 )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 25)
-                        .strokeBorder(.blue.opacity(0.3), lineWidth: 1)
-                }
             }
             
             // Custom

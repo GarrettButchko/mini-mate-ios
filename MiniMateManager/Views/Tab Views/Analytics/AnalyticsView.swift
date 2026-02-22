@@ -25,10 +25,15 @@ import Foundation
  % of players whose firstSeen is in range AND secondSeen <= firstSeen + 30
  */
 
+
+
+
 struct AnalyticsView: View {
     
     @EnvironmentObject var courseVM: CourseViewModel
     @StateObject var VM = AnalyticsViewModel()
+    
+    let anaRepo = AnalyticsRepository()
     
     @State private var topBarHeight: CGFloat = 0
     
@@ -39,6 +44,11 @@ struct AnalyticsView: View {
                     .font(.title)
                     .fontWeight(.bold)
                 Spacer()
+                Button {
+                    anaRepo.uploadDebugDailyDocs(courseID: courseVM.selectedCourse!.id) { _ in }
+                } label: {
+                    Text("Debug")
+                }
             }
             .padding([.horizontal, .top])
             ZStack (alignment: .top){
@@ -66,7 +76,7 @@ struct AnalyticsView: View {
             VStack(spacing: 16){
                 
                 HStack{
-                    Text("all: \(VM.allDailyDocs.count) range: \(VM.rangeDailyDocs.count) delta: \(VM.deltaDailyDocs.count), \(courseVM.selectedCourse?.name ?? "N/A") in range \(VM.range.title)")
+                    Text("all: \(VM.allDailyDocs.count) range: \(VM.rangeDailyDocs.count) delta: \(VM.deltaDailyDocs.count)")
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
@@ -77,16 +87,39 @@ struct AnalyticsView: View {
                 }
                 
                 if VM.loadingDocs {
-                    VStack(alignment: .center){
-                        Text("Loading data...")
-                        ProgressView()
+                    VStack(spacing: 16) {
+                        // Mock Player Data Card
+                        VStack {
+                            RoundedRectangle(cornerRadius: 17).fill(.subTwo).frame(height: 100)
+                            HStack {
+                                RoundedRectangle(cornerRadius: 17).fill(.subTwo).frame(height: 100)
+                                RoundedRectangle(cornerRadius: 17).fill(.subTwo).frame(height: 100)
+                            }
+                        }
+                        .skeleton(active: true)
+                        .clipShape(RoundedRectangle(cornerRadius: 17))
+                        
+                        // Mock Chart
+                        RoundedRectangle(cornerRadius: 17)
+                            .fill(.subTwo)
+                            .frame(height: 220)
+                            .skeleton(active: true)
+                            .clipShape(RoundedRectangle(cornerRadius: 17))
                     }
+                    .padding()
+                    .background {
+                        RoundedRectangle(cornerRadius: 25)
+                            .fill(.sub)
+                            .cardShadow()
+                    }
+                    
+                    
                 } else {
                     growthStats
                 }
             }
         }
-        .contentMargins(.horizontal, 16)
+        .contentMargins([.horizontal, .bottom], 16)
         .contentMargins(.top, topBarHeight + 16)
     }
     
@@ -100,9 +133,78 @@ struct AnalyticsView: View {
                     Spacer()
                 }
                 
-                let activeUserDT = VM.activeUsersPrime()
-                DataCard(title: "Active (Unique)", value: activeUserDT.value, deltaText: activeUserDT.delta, cornerRadius: 16, infoText: "Number of unique active players in the selected time range.", color: .subTwo, textColor: activeUserDT.dColor)
-
+                DataCard(data: VM.activeUsersPrime(), title: "Total Visits", infoText: "Total player visits during the selected date range. (Counts a player once per day. If a player visits on multiple days, each day is counted.)", color: .subTwo, cornerRadius: 16)
+                
+                HStack{
+                    DataCard(data: VM.firstTimePrime(), title: "First Time", infoText: "Players who visited this course for the first time during the selected date range.", color: .subTwo, cornerRadius: 16)
+                    DataCard(data: VM.returningPrime(), title: "Returning", infoText: "Players who had previously visited and played again during the selected date range.", color: .subTwo, cornerRadius: 16)
+                }
+                
+                VisitorDonutChart(returningPerc: VM.returningPercOfTotal(), firstTimePerc: VM.firstTimePercOfTotal())
+            }
+            .padding()
+            .background {
+                RoundedRectangle(cornerRadius: 25)
+                    .fill(.sub)
+                    .cardShadow()
+            }
+            
+            DataCard(data: VM.avgPlayersPerGamePrime(), title: "Avg Players Per Game", infoText: "The number of total plays divided by the number of total visits. (Counts a player once per day. If a player visits on multiple days, each day is counted.)", color: .sub, cornerRadius: 25)
+                .cardShadow()
+            
+            VStack(spacing: 8){
+                HStack{
+                    Text("Trend")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Spacer()
+                }
+                HStack{
+                    Text("Days vs:")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background {
+                            RoundedRectangle(cornerRadius: 17)
+                                .fill(.subTwo)
+                        }
+                    
+                    Menu {
+                        Button("Total") { VM.growthChartTopic = .total }
+                        Button("First-Time") {VM.growthChartTopic = .first }
+                        Button("Returning") { VM.growthChartTopic = .returning}
+                    } label: {
+                        HStack {
+                            Circle()
+                                .fill(VM.growthChartTopic.color)
+                                .frame(width: 10, height: 10)
+                            Text(VM.growthChartTopic.title)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.mainOpp)
+                            Spacer()
+                            Image(systemName: "chevron.down")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.mainOpp.opacity(0.5))
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 17)
+                                .fill(.subTwo)
+                        )
+                    }
+                }
+                
+                if VM.rangeDailyDocs.count > 32 || VM.rangeDailyDocs.count < 5 {
+                    PlayerSummaryChart(VM: VM)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                } else {
+                    PlayerTrendChart(VM: VM)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                }
             }
             .padding()
             .background {
@@ -112,7 +214,7 @@ struct AnalyticsView: View {
             }
         }
     }
-    
+        
     var topBar: some View {
         // Top Bar
         VStack (spacing: 16){
@@ -153,7 +255,7 @@ struct AnalyticsView: View {
                     }
                 }
             }
-            .contentMargins([.horizontal, .top],16, for: .scrollContent)
+            .contentMargins([.horizontal, .top], 16, for: .scrollContent)
             
             AnalyticsRangeBar()
                 .padding([.horizontal, .bottom], 16)
@@ -186,13 +288,12 @@ struct AnalyticsView: View {
 
 struct DataCard: View {
     @State var showInfo: Bool = false
+    var data: DataPointObject
     var title: String
-    var value: String
-    var deltaText: String
-    var cornerRadius: CGFloat = 12
     var infoText: String = "No Text Yet"
     var color: Color = .sub
-    var textColor: Color = .mainOpp
+    var cornerRadius: CGFloat = 12
+    var fontStyle: Font = .system(size: 14, weight: .semibold)
     
     var body: some View {
         
@@ -200,7 +301,7 @@ struct DataCard: View {
                 HStack{
                     Text(title)
                         .foregroundStyle(.mainOpp)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(fontStyle)
                     
                     Spacer()
                     
@@ -223,14 +324,14 @@ struct DataCard: View {
                 
                 
                 HStack{
-                    Text(value)
+                    Text(data.value)
                         .font(.title)
                         .fontWeight(.bold)
-                        .foregroundStyle(textColor)
-                    Text(deltaText)
+                        .foregroundStyle(data.deltaColor)
+                    Text(data.delta)
                         .font(.subheadline)
                         .fontWeight(.bold)
-                        .foregroundStyle(textColor)
+                        .foregroundStyle(data.deltaColor)
                     Spacer()
                 }
                 
@@ -239,6 +340,43 @@ struct DataCard: View {
         .background{
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(color)
+        }
+    }
+}
+
+// 1. Create the Shimmer Effect
+struct SkeletonModifier: ViewModifier {
+    @State private var phase: CGFloat = 0
+    
+    func body(content: Content) -> some View {
+        content
+            .redacted(reason: .placeholder) // Built-in SwiftUI ghosting
+            .overlay(
+                GeometryReader { geo in
+                    Color.white.opacity(0.3)
+                        .mask(Rectangle().fill(
+                            LinearGradient(colors: [.clear, .mainOpp.opacity(0.5), .clear],
+                                           startPoint: .leading,
+                                           endPoint: .trailing)
+                        ))
+                        .offset(x: -geo.size.width + (geo.size.width * 2 * phase))
+                }
+            )
+            .onAppear {
+                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                    phase = 1
+                }
+            }
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func skeleton(active: Bool) -> some View {
+        if active {
+            self.modifier(SkeletonModifier())
+        } else {
+            self
         }
     }
 }

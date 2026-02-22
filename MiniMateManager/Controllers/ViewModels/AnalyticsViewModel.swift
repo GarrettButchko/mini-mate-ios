@@ -15,8 +15,30 @@ enum AnalyticsSection: String, CaseIterable, Identifiable {
     case retention = "Retention"
     case operations = "Operations"
     case experience = "Experience"
-
+    
     var id: String { rawValue }
+}
+
+enum ChartTopic {
+    case total
+    case first
+    case returning
+    
+    var title: String {
+        switch self {
+        case .total: return "Total Visits"
+        case .first: return "First Time Visits"
+        case .returning: return "Returning Visits"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .total: return .purple
+        case .first: return .blue
+        case .returning: return .pink
+        }
+    }
 }
 
 struct AnalyticsObject{
@@ -25,9 +47,21 @@ struct AnalyticsObject{
     var color: Color
 }
 
+struct DataPointObject {
+    var value: String
+    var delta: String
+    var deltaColor: Color
+}
+
+struct PlayerActivity: Identifiable {
+    let id = UUID()
+    let date: Date
+    let count: Int
+}
+
 @MainActor
 final class AnalyticsViewModel: ObservableObject {
-
+    
     let analyticsRepo = AnalyticsRepository()
     
     @Published var range: AnalyticsRange = .last30
@@ -36,7 +70,9 @@ final class AnalyticsViewModel: ObservableObject {
     // Docs
     @Published var allDailyDocs: [DailyDoc] = []
     
-    @Published var loadingDocs: Bool = false
+    @Published var growthChartTopic: ChartTopic = .total
+    
+    @Published var loadingDocs: Bool = true
     
     var deltaDailyDocs: [DailyDoc] {
         allDailyDocs.filter { range.daysInDeltaRange.contains($0.dayID) }
@@ -51,60 +87,28 @@ final class AnalyticsViewModel: ObservableObject {
         docs.reduce(0) { $0 + $1.totalCount }
     }
     
-    func activeUsersPrime() -> (value: String, delta: String, dColor: Color) {
-        let rangeUsers = getActiveUsers(rangeDailyDocs)
-        let deltaUsers = getActiveUsers(deltaDailyDocs)
-        let delta = calcDelta(deltaUsers, rangeUsers)
-        
-        let isDeltaPositive = delta > 0
-        
-        var deltaString = String(format: "%.1f%%", delta)
-        
-        if isDeltaPositive {
-            deltaString = "+" + deltaString
-        }
-        
-        return (String(rangeUsers), deltaString, postive(good: true, delta))
-    }
-    
     func getFirstTimeUsers(_ docs: [DailyDoc]) -> Int {
         docs.reduce(0) { $0 + $1.newPlayers }
     }
     
-    func firstTimePrime() -> (value: String, delta: String, dColor: Color) {
-        let rangeUsers = getFirstTimeUsers(rangeDailyDocs)
-        let deltaUsers = getFirstTimeUsers(deltaDailyDocs)
-        let delta = calcDelta(deltaUsers, rangeUsers)
+    func firstTimePercOfTotal() -> Double {
+        let value = getFirstTimeUsers(rangeDailyDocs)
         
-        let isDeltaPositive = delta > 0
+        guard value > 0 else { return 0 }
         
-        var deltaString = String(format: "%.1f%%", delta)
-        
-        if isDeltaPositive {
-            deltaString = "+" + deltaString
-        }
-        
-        return (String(rangeUsers), deltaString, postive(good: true, delta))
+        return Double(value) / Double(getActiveUsers(rangeDailyDocs))
     }
     
     func getReturningUsers(_ docs: [DailyDoc]) -> Int {
         docs.reduce(0) { $0 + $1.returningPlayers }
     }
     
-    func returningPrime() -> (value: String, delta: String, dColor: Color) {
-        let rangeUsers = getReturningUsers(rangeDailyDocs)
-        let deltaUsers = getReturningUsers(deltaDailyDocs)
-        let delta = calcDelta(deltaUsers, rangeUsers)
+    func returningPercOfTotal() -> Double {
+        let value = getReturningUsers(rangeDailyDocs)
         
-        let isDeltaPositive = delta > 0
+        guard value > 0 else { return 0 }
         
-        var deltaString = String(format: "%.1f%%", delta)
-        
-        if isDeltaPositive {
-            deltaString = "+" + deltaString
-        }
-        
-        return (String(rangeUsers), deltaString, postive(good: true, delta))
+        return Double(value) / Double(getActiveUsers(rangeDailyDocs))
     }
     
     func avgPlayersPerGame(_ docs: [DailyDoc]) -> Double {
@@ -115,10 +119,20 @@ final class AnalyticsViewModel: ObservableObject {
         return players > 0 ? Double(players) / Double(totalGames) : 0
     }
     
-    func avgPlayersPerGamePrime() -> (value: String, delta: String, dColor: Color) {
-        let rangeUsers = avgPlayersPerGame(rangeDailyDocs)
-        let deltaUsers = avgPlayersPerGame(deltaDailyDocs)
-        let delta = calcDelta(deltaUsers, rangeUsers)
+    func deltaErrorCalc( delta: inout Double) {
+        if deltaDailyDocs.count != rangeDailyDocs.count - 1 && deltaDailyDocs.count != rangeDailyDocs.count {
+            delta = 0
+        }
+    }
+        
+    
+    // Prime (Data and delta and color)
+    func activeUsersPrime() -> DataPointObject {
+        let rangeUsers = getActiveUsers(rangeDailyDocs)
+        let deltaUsers = getActiveUsers(deltaDailyDocs)
+        var delta = calcDelta(deltaUsers, rangeUsers)
+        
+        deltaErrorCalc(delta: &delta)
         
         let isDeltaPositive = delta > 0
         
@@ -128,7 +142,67 @@ final class AnalyticsViewModel: ObservableObject {
             deltaString = "+" + deltaString
         }
         
-        return (String(rangeUsers), deltaString, postive(good: true, delta))
+        return DataPointObject(value: String(rangeUsers), delta: deltaString, deltaColor: postive(good: true, delta))
+    }
+    
+    
+    
+    func firstTimePrime() -> DataPointObject {
+        let rangeUsers = getFirstTimeUsers(rangeDailyDocs)
+        let deltaUsers = getFirstTimeUsers(deltaDailyDocs)
+        var delta = calcDelta(deltaUsers, rangeUsers)
+        
+        deltaErrorCalc(delta: &delta)
+        
+        let isDeltaPositive = delta > 0
+        
+        var deltaString = String(format: "%.1f%%", delta)
+        
+        if isDeltaPositive {
+            deltaString = "+" + deltaString
+        }
+        
+        return DataPointObject(value: String(rangeUsers), delta: deltaString, deltaColor: postive(good: true, delta))
+    }
+    
+    
+    
+    func returningPrime() -> DataPointObject {
+        let rangeUsers = getReturningUsers(rangeDailyDocs)
+        let deltaUsers = getReturningUsers(deltaDailyDocs)
+        var delta = calcDelta(deltaUsers, rangeUsers)
+        
+        deltaErrorCalc(delta: &delta)
+        
+        let isDeltaPositive = delta > 0
+        
+        var deltaString = String(format: "%.1f%%", delta)
+        
+        if isDeltaPositive {
+            deltaString = "+" + deltaString
+        }
+        
+        return DataPointObject(value: String(rangeUsers), delta: deltaString, deltaColor: postive(good: true, delta))
+    }
+    
+    
+    
+    func avgPlayersPerGamePrime() -> DataPointObject {
+        let rangeUsers = avgPlayersPerGame(rangeDailyDocs)
+        let deltaUsers = avgPlayersPerGame(deltaDailyDocs)
+        var delta = calcDelta(deltaUsers, rangeUsers)
+        
+        deltaErrorCalc(delta: &delta)
+        
+        let isDeltaPositive = delta > 0
+        
+        var deltaString = String(format: "%.1f%%", delta)
+        
+        if isDeltaPositive {
+            deltaString = "+" + deltaString
+        }
+        
+        return DataPointObject(value: String(format: "%.1f% / 1", rangeUsers), delta: deltaString, deltaColor: postive(good: true, delta))
     }
     
     // Delta Calc
@@ -140,6 +214,44 @@ final class AnalyticsViewModel: ObservableObject {
     func calcDelta(_ prev: Double, _ current: Double) -> Double {
         guard prev != 0 else { return 0 }
         return ((current - prev) / prev) * 100
+    }
+    
+    func getDataForGrowthTrend() -> [PlayerActivity] {
+        // 1. Sort the source data first so the line draws from left to right
+        let sortedDocs = rangeDailyDocs.sorted { $0.dayID < $1.dayID }
+        
+        // 2. Create a dictionary for quick lookup of existing data
+        let docsByDateString = Dictionary(uniqueKeysWithValues: sortedDocs.map { ($0.dayID, $0) })
+        
+        // 3. Generate all dates in the range and fill in missing days with count 0
+        var result: [PlayerActivity] = []
+        var currentDate = Calendar.current.startOfDay(for: range.startDate)
+        let endDate = Calendar.current.startOfDay(for: range.endDate)
+        
+        while currentDate <= endDate {
+            let dateString = formatDateToDateString(currentDate)
+            
+            if let doc = docsByDateString[dateString] {
+                // Data exists for this day
+                let count: Int
+                switch growthChartTopic {
+                case .total:
+                    count = doc.totalCount
+                case .first:
+                    count = doc.newPlayers
+                case .returning:
+                    count = doc.returningPlayers
+                }
+                result.append(PlayerActivity(date: currentDate, count: count))
+            } else {
+                // No data for this day, add zero
+                result.append(PlayerActivity(date: currentDate, count: 0))
+            }
+            
+            currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate)!
+        }
+        
+        return result
     }
     
     func postive(good: Bool, _ delta: Double, ) -> Color {
@@ -164,19 +276,19 @@ final class AnalyticsViewModel: ObservableObject {
             icon: "chart.line.uptrend.xyaxis",
             color: .green
         ),
-
+        
         AnalyticsSection.retention.rawValue: AnalyticsObject(
             type: .retention,
             icon: "arrow.triangle.2.circlepath",
             color: .orange
         ),
-
+        
         AnalyticsSection.operations.rawValue: AnalyticsObject(
             type: .operations,
             icon: "clock",
             color: .purple
         ),
-
+        
         AnalyticsSection.experience.rawValue: AnalyticsObject(
             type: .experience,
             icon: "star",
@@ -186,16 +298,15 @@ final class AnalyticsViewModel: ObservableObject {
     
     func onAppear(course: Course?) {
         guard let course else { return }
-
+        
         loadingDocs = true
         
         Task {
-            
-                allDailyDocs = await analyticsRepo.fetchDailyAnalytics(
-                    courseID: course.id,
-                    range: .last30,
-                    existingDocs: allDailyDocs
-                )
+            allDailyDocs = await analyticsRepo.fetchDailyAnalytics(
+                courseID: course.id,
+                range: .last30,
+                existingDocs: allDailyDocs
+            )
             
             loadingDocs = false
         }
@@ -229,6 +340,38 @@ final class AnalyticsViewModel: ObservableObject {
         let s = cal.startOfDay(for: start)
         let e = cal.startOfDay(for: end)
         return cal.dateComponents([.day], from: s, to: e).day ?? 0
+    }
+    
+    /// Converts a Date object to "MMM d" format (e.g., Feb 9)
+    /// - Parameter date: Date object to format
+    /// - Returns: Formatted date string in "MMM d" format
+    func formatDateToMonthDay(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
+    }
+    
+    /// Converts a Date object to "yyyy-MM-dd" format
+    /// - Parameter date: Date object to format
+    /// - Returns: Formatted date string in "yyyy-MM-dd" format
+    func formatDateToDateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+    
+    func formatDateStringToMonthDay(_ dateString: String) -> Date {
+        let inputFormatter = DateFormatter()
+        inputFormatter.dateFormat = "yyyy-MM-dd"
+        return inputFormatter.date(from: dateString)!
+    }
+    
+    func getDateRangeString() -> String {
+        
+        let startS = formatDateToMonthDay(range.startDate)
+        let endS = formatDateToMonthDay(range.endDate)
+        
+        return "\(startS) - \(endS)"
     }
 }
 

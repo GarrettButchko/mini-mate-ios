@@ -19,16 +19,8 @@ struct CustomRangeSheet: View {
         self._range = range
         
         // Set initial dates from the current range
-        let today = Date()
-        let defaultStart = Calendar.current.date(byAdding: .day, value: -30, to: today) ?? today
-        
-        if case let .custom(s, e) = range.wrappedValue {
-            _startDate = State(initialValue: s)
-            _endDate = State(initialValue: e)
-        } else {
-            _startDate = State(initialValue: defaultStart)
-            _endDate = State(initialValue: today)
-        }
+        _startDate = State(initialValue: range.wrappedValue.startDate)
+        _endDate = State(initialValue: range.wrappedValue.endDate)
     }
     
     var body: some View {
@@ -48,7 +40,7 @@ struct CustomRangeSheet: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 HStack {
-                    DatePicker("", selection: $startDate, displayedComponents: .date)
+                    DatePicker("", selection: $startDate, in: ...endDate, displayedComponents: .date)
                         .labelsHidden()
                     Spacer()
                     Image(systemName: "calendar")
