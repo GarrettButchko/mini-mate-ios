@@ -73,6 +73,7 @@
 				Controllers/Other/KeyboardObserver.swift,
 				Controllers/Other/LocFuncs.swift,
 				Controllers/Other/NetworkChecker.swift,
+				Controllers/RepoControls/AnalyticsRepository.swift,
 				Controllers/RepoControls/CourseRepos/CourseLeaderboardRepository.swift,
 				Controllers/RepoControls/CourseRepos/CourseRepository.swift,
 				Controllers/RepoControls/GameRepos/LocalGameRepository.swift,
@@ -145,9 +146,9 @@
 			path = SharedFiles;
 			sourceTree = "<group>";
 		};
-		21E19BB32EE4A3CE005C1193 /* MiniMate Manager */ = {
+		21E19BB32EE4A3CE005C1193 /* MiniMateManager */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "MiniMate Manager";
+			path = MiniMateManager;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -202,7 +203,7 @@
 			children = (
 				215B38902F42AF050007677F /* SharedFiles */,
 				213F26F82D4D639100579FAE /* MiniMate */,
-				21E19BB32EE4A3CE005C1193 /* MiniMate Manager */,
+				21E19BB32EE4A3CE005C1193 /* MiniMateManager */,
 				21033FFF2DBC4D5100F78FBF /* Frameworks */,
 				213F26F72D4D639100579FAE /* Products */,
 			);
@@ -268,7 +269,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				21E19BB32EE4A3CE005C1193 /* MiniMate Manager */,
+				21E19BB32EE4A3CE005C1193 /* MiniMateManager */,
 			);
 			name = "MiniMate Manager";
 			packageProductDependencies = (

@@ -231,14 +231,15 @@ final class CourseRepository {
                 latitude: location.coordinate.latitude,
                 longitude: location.coordinate.longitude
             )
-            
-            do {
-                try ref.setData(from: newCourse)
-                print("Created new course: \(courseID)")
-                completion(newCourse)
-            } catch {
-                print("❌ Firestore write error: \(error)")
-                completion(nil)
+            Task { @MainActor in
+                do {
+                    try ref.setData(from: newCourse)
+                    print("Created new course: \(courseID)")
+                    completion(newCourse)
+                } catch {
+                    print("❌ Firestore write error: \(error)")
+                    completion(nil)
+                }
             }
         }
     }
@@ -385,139 +386,6 @@ final class CourseRepository {
                 "isClaimed": !updatedAdminIDs.isEmpty  // Update computed stored property
             ]) { error in
                 completion(error == nil)
-            }
-        }
-    }
-    
-    
-    // MARK: - Update Day Analytics
-    func updateDayAnalytics(
-        emails: [String],
-        courseID: String,
-        game: Game, // Ensure your Game model has 'players' and 'holes'
-        startTime: Date,
-        endTime: Date,
-        completion: @escaping (Bool) -> Void
-    ) {
-        
-        print("Running updateDayAnalytics")
-        let updatedAt = Date()
-        let todayID = makeDayID()
-        let currentHour = Calendar.current.component(.hour, from: updatedAt)
-        
-        let courseRef = db.collection(collectionName).document(courseID)
-        let dayRef = courseRef.collection("dailyDocs").document(todayID)
-        let emailRef = courseRef.collection("emails")
-        
-        let uniqueEmails = Array(Set(
-            emails
-                .map { $0.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-        ))
-        
-        guard !uniqueEmails.isEmpty else {
-            print("Empty Emails")
-            DispatchQueue.main.async { completion(true) }
-            return
-        }
-        
-        db.runTransaction({ tx, errPtr -> Any? in
-            // --- 1. READ PHASE ---
-            var emailSnapshots: [String: DocumentSnapshot] = [:]
-            var resultDay: DailyDoc? = nil
-            
-            do {
-                for email in uniqueEmails {
-                    let docRef = emailRef.document(self.emailKey(email))
-                    emailSnapshots[email] = try tx.getDocument(docRef)
-                }
-                let daySnap = try tx.getDocument(dayRef)
-                if daySnap.exists {
-                    resultDay = try daySnap.data(as: DailyDoc.self)
-                }
-            } catch let err as NSError {
-                errPtr?.pointee = err
-                return nil
-            }
-            
-            // --- 2. LOGIC PHASE (No tx calls here) ---
-            var newCount = 0
-            var returningCount = 0
-            var emailUpdates: [(DocumentReference, CourseEmail)] = []
-            
-            for email in uniqueEmails {
-                let docRef = emailRef.document(self.emailKey(email))
-                let snap = emailSnapshots[email]
-                
-                if let snap = snap, snap.exists, let data = try? snap.data(as: CourseEmail.self) {
-                    var lastPlayed = data.lastPlayed ?? todayID
-                    var secondSeen = data.secondSeen
-                    let playCount = data.playCount
-                    
-                    if lastPlayed != todayID {
-                        returningCount += 1
-                        lastPlayed = todayID
-                    }
-                    if playCount == 1 && secondSeen == nil {
-                        secondSeen = todayID
-                    }
-                    
-                    let updated = CourseEmail(firstSeen: data.firstSeen ?? todayID, secondSeen: secondSeen, lastPlayed: lastPlayed, playCount: playCount + 1)
-                    emailUpdates.append((docRef, updated))
-                } else {
-                    newCount += 1
-                    let updated = CourseEmail(firstSeen: todayID, secondSeen: nil, lastPlayed: todayID, playCount: 1)
-                    emailUpdates.append((docRef, updated))
-                }
-            }
-            
-            // Analytics calculations
-            let roundLengthSeconds = max(0, Int(endTime.timeIntervalSince(startTime)))
-            var totalStrokes = resultDay?.holeAnalytics.totalStrokesPerHole ?? [:]
-            var playsPerHole = resultDay?.holeAnalytics.playsPerHole ?? [:]
-            var hourlyCounts = resultDay?.hourlyCounts ?? [:]
-            
-            for player in game.players {
-                for h in player.holes {
-                    guard h.strokes != 0 else { continue }
-                    let key = String(h.number)
-                    totalStrokes[key, default: 0] += h.strokes
-                    playsPerHole[key, default: 0] += 1
-                }
-            }
-            hourlyCounts[String(currentHour), default: 0] += 1
-            
-            let finalDailyDoc = DailyDoc(
-                dayID: todayID,
-                totalRoundSeconds: (resultDay?.totalRoundSeconds ?? 0) + Int64(roundLengthSeconds),
-                gamesPlayed: (resultDay?.gamesPlayed ?? 0) + 1,
-                newPlayers: (resultDay?.newPlayers ?? 0) + newCount,
-                returningPlayers: (resultDay?.returningPlayers ?? 0) + returningCount,
-                holeAnalytics: HoleAnalytics(totalStrokesPerHole: totalStrokes, playsPerHole: playsPerHole),
-                hourlyCounts: hourlyCounts,
-                updatedAt: updatedAt
-            )
-            
-            // --- 3. WRITE PHASE (All at the very end) ---
-            do {
-                for (ref, obj) in emailUpdates {
-                    try tx.setData(from: obj, forDocument: ref, merge: true)
-                }
-                try tx.setData(from: finalDailyDoc, forDocument: dayRef, merge: true)
-            } catch let err as NSError {
-                errPtr?.pointee = err
-                return nil
-            }
-            
-            return true
-        }) { _, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    print("❌ updateDayAnalytics failed: \(error.localizedDescription)")
-                    completion(false)
-                } else {
-                    completion(true)
-                }
             }
         }
     }

@@ -114,17 +114,18 @@ class FirestoreGameRepository {
                     if let error = error {
                         print("❌ Firestore fetchAll chunk error: \(error.localizedDescription)")
                     }
-
-                    if let docs = snapshot?.documents {
-                        for doc in docs {
-                            do {
-                                let dto = try doc.data(as: GameDTO.self)
-                                // write synchronously so it’s definitely in the dict before we leave the group
-                                syncQueue.sync {
-                                    allGames[dto.id] = dto
+                    Task { @MainActor in
+                        if let docs = snapshot?.documents {
+                            for doc in docs {
+                                do {
+                                    let dto = try doc.data(as: GameDTO.self)
+                                    // write synchronously so it’s definitely in the dict before we leave the group
+                                    syncQueue.sync {
+                                        allGames[dto.id] = dto
+                                    }
+                                } catch {
+                                    print("❌ Firestore decoding error for id \(doc.documentID): \(error)")
                                 }
-                            } catch {
-                                print("❌ Firestore decoding error for id \(doc.documentID): \(error)")
                             }
                         }
                     }

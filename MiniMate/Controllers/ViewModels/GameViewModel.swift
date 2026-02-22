@@ -35,6 +35,7 @@ final class GameViewModel: ObservableObject, Observable {
     
     private var liveGameRepo = LiveGameRepository()
     private var courseRepo = CourseRepository()
+    private var analyticsRepo = AnalyticsRepository()
     private var authModel: AuthViewModel
     private var listenerHandles: [DatabaseHandle] = []
     private var listenerRefs: [DatabaseReference] = []
@@ -685,7 +686,7 @@ final class GameViewModel: ObservableObject, Observable {
         }
 
         let emails = finished.players.compactMap { $0.email }
-        courseRepo.updateDayAnalytics(
+        analyticsRepo.updateDayAnalytics(
             emails: emails,
             courseID: courseID,
             game: finished,
