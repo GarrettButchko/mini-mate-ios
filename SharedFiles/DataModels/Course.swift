@@ -96,6 +96,7 @@ extension DailyDoc {
     var avgRoundTimeseconds: Double {
         Double(totalRoundSeconds) / Double(gamesPlayed)
     }
+    
     var totalCount: Int { newPlayers + returningPlayers }
     
     // MARK: - Init / dayID update

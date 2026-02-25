@@ -262,110 +262,106 @@ final class AnalyticsRepository {
     func makeDebugDailyDocs(
         from startDate: Date,
         to endDate: Date,
-        holes: Int = 18,
-        playersRange: ClosedRange<Int> = 3...5,
-        gamesRange: ClosedRange<Int> = 1...4,
-        avgStrokesRange: ClosedRange<Int> = 3...5,
-        durationMinutesRange: ClosedRange<Int> = 70...110,
-        newPlayersRange: ClosedRange<Int> = 0...3,
-        returningPlayersRange: ClosedRange<Int> = 1...5
+        holes: Int = 18
     ) -> [DailyDoc] {
         var docs: [DailyDoc] = []
-        var current = Calendar.current.startOfDay(for: startDate)
-        let end = Calendar.current.startOfDay(for: endDate)
+        let calendar = Calendar.current
+        var current = calendar.startOfDay(for: startDate)
+        let end = calendar.startOfDay(for: endDate)
         
         while current <= end {
-            let gamesPlayed = Int.random(in: gamesRange)
-            let players = Int.random(in: playersRange)
-            let totalPlayers = max(1, players * max(1, gamesPlayed))
-            let newPlayers = min(Int.random(in: newPlayersRange), totalPlayers)
-            let returningPlayers = min(Int.random(in: returningPlayersRange), max(0, totalPlayers - newPlayers))
-            let avgStrokes = Int.random(in: avgStrokesRange)
-            let durationMinutes = Int.random(in: durationMinutesRange)
+            let weekday = calendar.component(.weekday, from: current)
+            
+            // --- TREND: Day of Week Multipliers ---
+            // Sunday = 1, Saturday = 7
+            var dayWeight: Double = 1.0
+            switch weekday {
+            case 7, 1: dayWeight = Double.random(in: 1.8...2.5) // Busy Weekends
+            case 6:    dayWeight = Double.random(in: 1.3...1.6) // Friday spike
+            default:   dayWeight = Double.random(in: 0.7...1.1) // Normal Weekdays
+            }
+            
+            // Scale the base game range by the day's weight
+            let gamesPlayed = Int(Double(Int.random(in: 15...25)) * dayWeight)
+            let players = Int.random(in: 2...4)
+            let totalPlayers = gamesPlayed * players
+            let newPlayers = Int(Double(totalPlayers) * Double.random(in: 0.4...0.7))
+            let returningPlayers = totalPlayers - newPlayers
             
             let doc = makeDebugDailyDoc(
                 dayID: makeDayID(from: current),
                 holes: holes,
                 players: players,
                 gamesPlayed: gamesPlayed,
-                avgStrokesPerHole: avgStrokes,
-                durationMinutes: durationMinutes,
                 newPlayers: newPlayers,
                 returningPlayers: returningPlayers,
-                updatedAt: current
+                updatedAt: current,
+                dayWeight: dayWeight // Passed to distribute hours
             )
-            docs.append(doc)
             
-            current = Calendar.current.date(byAdding: .day, value: 1, to: current) ?? end.addingTimeInterval(86400)
+            docs.append(doc)
+            current = calendar.date(byAdding: .day, value: 1, to: current) ?? end.addingTimeInterval(86400)
         }
         
         return docs
     }
     
     func makeDebugDailyDoc(
-        dayID: String = makeDayID(),
-        holes: Int = 18,
-        players: Int = 4,
-        gamesPlayed: Int = 1,
-        avgStrokesPerHole: Int = 4,
-        durationMinutes: Int = 90,
-        newPlayers: Int = 2,
-        returningPlayers: Int = 2,
-        updatedAt: Date = Date()
+        dayID: String,
+        holes: Int,
+        players: Int,
+        gamesPlayed: Int,
+        newPlayers: Int,
+        returningPlayers: Int,
+        updatedAt: Date,
+        dayWeight: Double = 1.0
     ) -> DailyDoc {
+        // 1. Hole Difficulty Trends (Static variance so some holes are always harder)
         var totalStrokes: [String: Int] = [:]
         var playsPerHole: [String: Int] = [:]
         
-        // Randomize strokes and plays per hole for more realistic data
-        for hole in 1...max(1, holes) {
+        for hole in 1...holes {
             let key = String(hole)
-            
-            // Random number of plays per hole (some holes might have different play counts)
-            let plays = max(1, players * max(1, gamesPlayed) + Int.random(in: -2...2))
+            let plays = players * gamesPlayed
             playsPerHole[key] = plays
             
-            // Vary strokes per hole randomly (some holes are harder than others)
-            let strokeVariation = Int.random(in: -2...3)
-            let avgStrokes = max(1, avgStrokesPerHole + strokeVariation)
+            // TREND: Make Holes 6, 9, and 18 naturally "harder"
+            let difficultyBias = [6: 2, 9: 1, 18: 2][hole] ?? 0
+            let avgStrokes = Int.random(in: 3...5) + difficultyBias
             totalStrokes[key] = avgStrokes * plays
         }
         
-        // Distribute games across multiple hours for more realistic data
+        // 2. TREND: Hourly "Rush Hour" Distribution
         var hourlyCounts: [String: Int] = [:]
-        let currentHour = Calendar.current.component(.hour, from: updatedAt)
+        let weights: [Int: Double] = [
+            0: 0.1, 1: 0.0, 7: 0.2, 8: 0.8, 9: 1.5, 10: 2.0,
+            11: 3.0, 12: 4.5, 13: 4.0, 14: 4.5, 15: 5.0, 16: 7.0,
+            17: 9.0, 18: 10.0, 19: 8.5, 20: 6.0, 21: 3.5, 22: 1.5, 23: 0.5
+        ]
         
-        // Spread games across 1-4 different hours
-        let hoursToSpread = min(max(1, gamesPlayed), Int.random(in: 1...4))
-        var gamesRemaining = max(1, gamesPlayed)
+        var gamesToDistribute = gamesPlayed
         
-        for i in 0..<hoursToSpread {
-            let hour = (currentHour - i + 24) % 24
-            let gamesInHour: Int
+        // Fill all hours with 0 first
+        for h in 0...23 { hourlyCounts["\(h)"] = 0 }
+        
+        // Randomly assign games based on the weights
+        while gamesToDistribute > 0 {
+            let hour = (0...23).randomElement() ?? 18
+            let chance = weights[hour] ?? 0.0
             
-            if i == hoursToSpread - 1 {
-                // Last hour gets remaining games
-                gamesInHour = gamesRemaining
-            } else {
-                // Random distribution
-                gamesInHour = max(1, Int.random(in: 1...max(1, gamesRemaining - (hoursToSpread - i - 1))))
+            // Higher weight = higher probability of a game being assigned here
+            if Double.random(in: 0...10) < chance {
+                hourlyCounts["\(hour)", default: 0] += 1
+                gamesToDistribute -= 1
             }
-            
-            hourlyCounts[String(hour)] = gamesInHour
-            gamesRemaining -= gamesInHour
-            
-            if gamesRemaining <= 0 { break }
         }
-        
-        // Randomize duration slightly
-        let durationVariation = Int.random(in: -15...15)
-        let actualDuration = max(30, durationMinutes + durationVariation)
         
         return DailyDoc(
             dayID: dayID,
-            totalRoundSeconds: Int64(max(0, actualDuration * 60) * max(1, gamesPlayed)),
-            gamesPlayed: max(1, gamesPlayed),
-            newPlayers: max(0, newPlayers),
-            returningPlayers: max(0, returningPlayers),
+            totalRoundSeconds: Int64(Int.random(in: 70...100) * 60 * gamesPlayed),
+            gamesPlayed: gamesPlayed,
+            newPlayers: newPlayers,
+            returningPlayers: returningPlayers,
             holeAnalytics: HoleAnalytics(totalStrokesPerHole: totalStrokes, playsPerHole: playsPerHole),
             hourlyCounts: hourlyCounts,
             updatedAt: updatedAt

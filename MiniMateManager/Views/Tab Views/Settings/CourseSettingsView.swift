@@ -16,7 +16,7 @@ struct CourseSettingsView: View {
     var body: some View {
         VStack {
             CourseSettingsHeaderView()
-                .padding()
+                .padding([.horizontal, .top])
             
             formView
         }
@@ -39,6 +39,7 @@ struct CourseSettingsView: View {
             ParSettingsSectionView()
             ParConfigurationSectionView()
         }
+        .contentMargins(.top, 16)
     }
 }
 

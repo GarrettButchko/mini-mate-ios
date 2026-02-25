@@ -124,15 +124,13 @@ struct PlayerTrendChart: View {
                     x: .value("Day", item.date, unit: .day),
                     y: .value("Players", item.count)
                 )
-                .interpolationMethod(.catmullRom)
                 .foregroundStyle(lineColor)
-                .lineStyle(StrokeStyle(lineWidth: 5, lineCap: .round))
+                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
                 
                 AreaMark(
                     x: .value("Day", item.date, unit: .day),
                     y: .value("Players", item.count)
                 )
-                .interpolationMethod(.catmullRom)
                 .foregroundStyle(
                     .linearGradient(
                         colors: [lineColor.opacity(0.4), .clear],
@@ -229,9 +227,11 @@ struct PlayerSummaryChart: View {
                 )
             }
         }
-        // Hide the axes to keep it "Premium" and clean
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
+        // Hide the axes to keep it "Premium" and clean (empty closure removes space)
+        .chartXAxis {
+        }
+        .chartYAxis {
+        }
         .overlay(alignment: .center) {
             // Informational Overlay
             VStack(spacing: 6) {
@@ -239,11 +239,11 @@ struct PlayerSummaryChart: View {
                     .font(.title)
                     .symbolRenderingMode(.multicolor)
                 
-                Text("Select a range between 5 and 31 days to view daily trends.")
+                Text("Select a range between 9 and 30 days to view daily trends.")
                     .font(.headline)
                     .foregroundStyle(.mainOpp)
                 
-                Text("\(data.count) Days")
+                Text("\(data.count - 1) Days")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -258,6 +258,175 @@ struct PlayerSummaryChart: View {
             RoundedRectangle(cornerRadius: 17)
                 .fill(.subTwo)
         }
+    }
+}
+
+struct HourData: Identifiable {
+    let id = UUID()
+    let weekday: Int // 1 (Sun) to 7 (Sat)
+    let hour: Int    // 0 to 23
+    let count: Int
+}
+
+struct BusiestTimesChart: View {
+    let data: [HourData]
+    
+    // Define the weekday labels to match your screenshot
+    let dayLabels = ["", "Sun", "", "Tues", "", "Thurs", "", "Sat"]
+    
+    // Constants for grid
+    let maxHours = 24
+    let maxDays = 7
+    
+    var body: some View {
+        GeometryReader { geometry in
+            let cellWidth = (geometry.size.width / CGFloat(maxHours)) * 0.7
+            let cellHeight = (geometry.size.height / CGFloat(maxDays)) * 0.7
+            
+            Chart {
+                ForEach(data) { item in
+                    RectangleMark(
+                        x: .value("Hour", item.hour),
+                        y: .value("Day", item.weekday),
+                        width: .fixed(cellWidth),
+                        height: .fixed(cellHeight)
+                    )
+                    .foregroundStyle(by: .value("Count", item.count))
+                    .cornerRadius(6) // Makes the "pill" shape
+                }
+            }
+            // 1. Color Scale (Light green to Dark green)
+            .chartForegroundStyleScale(
+                range: [
+                    Color.green.opacity(0.16),
+                    Color.green.opacity(0.33),
+                    Color.green.opacity(0.5),
+                    Color.green.opacity(0.66),
+                    Color.green.opacity(0.83),
+                    Color.green
+                ]
+            )
+            // 2. Y-Axis (Days)
+            .chartYAxis {
+                AxisMarks(position: .leading, values: [1, 3, 5, 7]) { value in
+                    AxisValueLabel {
+                        if let dayInt = value.as(Int.self) {
+                            Text(dayLabels[dayInt])
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .offset(x: -8)
+                        }
+                    }
+                }
+            }
+            .chartXAxis {
+                // 1. ADD THE PRESET HERE
+                AxisMarks(preset: .aligned, values: [0, 3, 7, 11, 15, 19, 23]) { value in
+                    // 2. Add the Grid Line
+                    AxisGridLine()
+                        .foregroundStyle(.mainOpp.opacity(0.3))
+                    
+                    // 3. Add the Label
+                    AxisValueLabel {
+                        if let hour = value.as(Int.self) {
+                            Text(formatHour(hour))
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .offset(y: -16)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(height: 250)
+        .padding(.trailing, 16)
+        .padding(.top, 32)
+    }
+    
+    
+    func formatHour(_ h: Int) -> String {
+        if h == 23 { return "12am" }
+        if h == 0 { return "1am" }
+        if h == 11 { return "12pm" }
+        return h > 12 ? "\(h-12 + 1)pm" : "\(h + 1)am"
+    }
+}
+
+struct HoleDifficultyData: Identifiable {
+    let id = UUID()
+    let holeNumber: Int
+    let averageStrokes: Double
+}
+
+struct HoleDifficultyChart: View {
+    let difficultyData: [HoleDifficultyData]
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Bar chart
+            HStack{
+                Text("Hole Hardness (bright green = harder)")
+                    .foregroundStyle(.mainOpp)
+                    .font(.system(size: 14, weight: .semibold))
+                Spacer()
+            }
+            .padding(.bottom, 8)
+            
+            HStack(spacing: 8) {
+                ForEach(difficultyData) { hole in
+                    VStack() {
+                        RoundedRectangle(cornerRadius: 7)
+                            .fill(colorForDifficulty(hole.averageStrokes))
+                            .frame(height: 60)
+                        // Scale for visibility
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            
+            // Labels
+            HStack(spacing: 8) {
+                ForEach(difficultyData) { hole in
+                    VStack {
+                        if shouldShowLabel(holeNumber: hole.holeNumber) {
+                            Text("\(hole.holeNumber)")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.top, 4)
+        }
+    }
+    
+    private func colorForDifficulty(_ strokes: Double) -> Color {
+        // Normalize the difficulty to get a value between 0 and 1
+        let allStrokes = difficultyData.map { $0.averageStrokes }
+        guard let minStrokes = allStrokes.min(),
+              let maxStrokes = allStrokes.max(),
+              maxStrokes > minStrokes else {
+            return Color.green.opacity(0.5)
+        }
+        
+        let normalized = (strokes - minStrokes) / (maxStrokes - minStrokes)
+        
+        // Map to opacity from 0.16 to 1.0
+        let opacity = 0.16 + (normalized * 0.84)
+        
+        return Color.green.opacity(opacity)
+    }
+    
+    private func shouldShowLabel(holeNumber: Int) -> Bool {
+        let maxHole = difficultyData.map({ $0.holeNumber }).max() ?? 0
+        
+        // Show first, last, and every third hole
+        if holeNumber == 1 || holeNumber == maxHole {
+            return true
+        }
+        
+        return holeNumber % 3 == 0
     }
 }
 

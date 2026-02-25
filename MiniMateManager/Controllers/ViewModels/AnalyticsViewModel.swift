@@ -49,7 +49,7 @@ struct AnalyticsObject{
 
 struct DataPointObject {
     var value: String
-    var delta: String
+    var delta: String?
     var deltaColor: Color
 }
 
@@ -82,6 +82,10 @@ final class AnalyticsViewModel: ObservableObject {
         allDailyDocs.filter { range.daysInMainRange.contains($0.dayID) }
     }
     
+    
+    
+    
+    //MARK: Growth
     // Data Calc
     func getActiveUsers(_ docs: [DailyDoc]) -> Int {
         docs.reduce(0) { $0 + $1.totalCount }
@@ -124,7 +128,25 @@ final class AnalyticsViewModel: ObservableObject {
             delta = 0
         }
     }
-        
+    
+    
+    
+    
+    
+    // Delta Calc
+    func calcDelta(_ prev: Int, _ current: Int) -> Double {
+        guard prev != 0 else { return 0 }
+        return (Double(current - prev) / Double(prev)) * 100
+    }
+    
+    func calcDelta(_ prev: Double, _ current: Double) -> Double {
+        guard prev != 0 else { return 0 }
+        return ((current - prev) / prev) * 100
+    }
+    
+    
+    
+
     
     // Prime (Data and delta and color)
     func activeUsersPrime() -> DataPointObject {
@@ -145,8 +167,6 @@ final class AnalyticsViewModel: ObservableObject {
         return DataPointObject(value: String(rangeUsers), delta: deltaString, deltaColor: postive(good: true, delta))
     }
     
-    
-    
     func firstTimePrime() -> DataPointObject {
         let rangeUsers = getFirstTimeUsers(rangeDailyDocs)
         let deltaUsers = getFirstTimeUsers(deltaDailyDocs)
@@ -164,8 +184,6 @@ final class AnalyticsViewModel: ObservableObject {
         
         return DataPointObject(value: String(rangeUsers), delta: deltaString, deltaColor: postive(good: true, delta))
     }
-    
-    
     
     func returningPrime() -> DataPointObject {
         let rangeUsers = getReturningUsers(rangeDailyDocs)
@@ -185,8 +203,6 @@ final class AnalyticsViewModel: ObservableObject {
         return DataPointObject(value: String(rangeUsers), delta: deltaString, deltaColor: postive(good: true, delta))
     }
     
-    
-    
     func avgPlayersPerGamePrime() -> DataPointObject {
         let rangeUsers = avgPlayersPerGame(rangeDailyDocs)
         let deltaUsers = avgPlayersPerGame(deltaDailyDocs)
@@ -203,17 +219,6 @@ final class AnalyticsViewModel: ObservableObject {
         }
         
         return DataPointObject(value: String(format: "%.1f% / 1", rangeUsers), delta: deltaString, deltaColor: postive(good: true, delta))
-    }
-    
-    // Delta Calc
-    func calcDelta(_ prev: Int, _ current: Int) -> Double {
-        guard prev != 0 else { return 0 }
-        return (Double(current - prev) / Double(prev)) * 100
-    }
-    
-    func calcDelta(_ prev: Double, _ current: Double) -> Double {
-        guard prev != 0 else { return 0 }
-        return ((current - prev) / prev) * 100
     }
     
     func getDataForGrowthTrend() -> [PlayerActivity] {
@@ -253,6 +258,141 @@ final class AnalyticsViewModel: ObservableObject {
         
         return result
     }
+    
+    //MARK: Operations
+    func getBusiestHour() -> DataPointObject {
+        
+        let fragments: [[String: Int]] = rangeDailyDocs.map(\.hourlyCounts)
+        // 1. Initialize a dict with all hours set to 0
+        var combinedCounts: [String: Int] = (0...23).reduce(into: [:]) { dict, hour in
+            dict["\(hour)"] = 0
+        }
+        
+        // 2. Merge your data into the master dict
+        for fragment in fragments {
+            for (hour, count) in fragment {
+                combinedCounts[hour, default: 0] += count
+            }
+        }
+        
+        var busiestHour: Int = 0
+        
+        if let busiest = combinedCounts.max(by: { $0.value < $1.value }) {
+            busiestHour = Int(busiest.key) ?? 0
+        }
+        
+        var suffix = ""
+        var displayHour = busiestHour
+
+        switch busiestHour {
+        case 0:
+            displayHour = 12
+            suffix = "am"
+        case 1...11:
+            suffix = "am"
+        case 12:
+            suffix = "pm"
+        case 13...23:
+            displayHour = busiestHour - 12
+            suffix = "pm"
+        default:
+            suffix = "err"
+        }
+        
+        let valueString = "\(displayHour)\(suffix)"
+        
+        return DataPointObject(value: valueString, delta: nil, deltaColor: .mainOpp)
+    }
+    
+    func getBusiestDay() -> DataPointObject {
+        
+        // 1. Sum up games played by weekday
+        let weeklyVolume = rangeDailyDocs.reduce(into: [Int: Int]()) { dict, doc in
+            dict[doc.weekDay, default: 0] += doc.gamesPlayed
+        }
+        
+        var valueString: String = "Err"
+
+        // 2. To find the "Busiest Day" string (e.g., "Sat")
+        if let busiestDayInt = weeklyVolume.max(by: { $0.value < $1.value })?.key {
+            let dayLabels = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+            let busiestDayLabel = dayLabels[busiestDayInt]
+            valueString = busiestDayLabel.capitalized
+        }
+        
+        return DataPointObject(value: valueString, deltaColor: .mainOpp)
+        
+    }
+    
+    func getHardestHole() -> DataPointObject {
+        let avgStrokesPerHole = getHoleCombined()
+        
+        let hardestHoleID = avgStrokesPerHole.max(by: { $0.value < $1.value })?.key ?? "Err"
+        return DataPointObject(value: "Hole \(hardestHoleID)", delta: nil, deltaColor: .mainOpp)
+    }
+    
+    func getEasiestHole() -> DataPointObject {
+        let avgStrokesPerHole = getHoleCombined()
+        
+        let easiestHoleID = avgStrokesPerHole.min(by: { $0.value < $1.value })?.key ?? "Err"
+        return DataPointObject(value: "Hole \(easiestHoleID)", delta: nil, deltaColor: .mainOpp)
+    }
+
+    func getHoleCombined() -> [String: Double] {
+        var combinedTotalStrokes: [String: Int] = [:]
+        var combinedPlays: [String: Int] = [:]
+        
+        for doc in rangeDailyDocs {
+            for (holeID, strokes) in doc.holeAnalytics.totalStrokesPerHole {
+                combinedTotalStrokes[holeID, default: 0] += strokes
+            }
+            
+            for (holeID, plays) in doc.holeAnalytics.playsPerHole {
+                combinedPlays[holeID, default: 0] += plays
+            }
+        }
+        
+        let avgStrokesPerHole: [String: Double] = combinedTotalStrokes.reduce(into: [:]) { dict, hole in
+            return dict[hole.key] = Double(hole.value) / Double(combinedPlays[hole.key] ?? 1)
+        }
+        
+        return avgStrokesPerHole
+    }
+    
+    func getHoleDifficultyData() -> [HoleDifficultyData]{
+        // In your Parent View / ViewModel
+        let results = getHoleCombined()
+
+        // Convert [String: Double] to [HoleDifficultyData] sorted by hole number
+        let chartData = results.compactMap { (key, value) -> HoleDifficultyData? in
+            guard let holeNum = Int(key) else { return nil }
+            return HoleDifficultyData(holeNumber: holeNum, averageStrokes: value)
+        }.sorted(by: { $0.holeNumber < $1.holeNumber })
+
+        // Pass chartData to HoleDifficultyChart(difficultyData: chartData)
+        return chartData
+    }
+    
+    func prepareChartData() -> [HourData] {
+        
+        var chartData: [HourData] = []
+        
+        // Loop through each day (1-7)
+        for day in 1...7 {
+            // Find docs that match this weekday
+            let dayDocs = rangeDailyDocs.filter { $0.weekDay == day }
+            
+            // Loop through each hour (0-23)
+            for hour in 0...23 {
+                // Sum up all games played at this hour across all filtered docs
+                let totalForHour = dayDocs.reduce(0) { $0 + ($1.hourlyCounts["\(hour)"] ?? 0) }
+                
+                chartData.append(HourData(weekday: day, hour: hour, count: totalForHour))
+            }
+        }
+        return chartData
+    }
+    
     
     func postive(good: Bool, _ delta: Double, ) -> Color {
         if delta > 0 && good {
@@ -299,7 +439,10 @@ final class AnalyticsViewModel: ObservableObject {
     func onAppear(course: Course?) {
         guard let course else { return }
         
-        loadingDocs = true
+        withAnimation{
+            loadingDocs = true
+        }
+        
         
         Task {
             allDailyDocs = await analyticsRepo.fetchDailyAnalytics(
@@ -307,8 +450,9 @@ final class AnalyticsViewModel: ObservableObject {
                 range: .last30,
                 existingDocs: allDailyDocs
             )
-            
-            loadingDocs = false
+            withAnimation{
+                loadingDocs = false
+            }
         }
     }
     

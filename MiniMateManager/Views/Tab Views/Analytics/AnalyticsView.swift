@@ -40,9 +40,14 @@ struct AnalyticsView: View {
     var body: some View {
         VStack {
             HStack{
-                Text("Analytics")
-                    .font(.title)
-                    .fontWeight(.bold)
+                VStack(alignment: .leading){
+                    Text("Analytics")
+                        .font(.title)
+                        .fontWeight(.bold)
+                    Text(VM.selectedSection.rawValue)
+                        .font(.subheadline)
+                }
+                
                 Spacer()
                 Button {
                     anaRepo.uploadDebugDailyDocs(courseID: courseVM.selectedCourse!.id) { _ in }
@@ -74,18 +79,6 @@ struct AnalyticsView: View {
         // Content
         ScrollView(.vertical) {
             VStack(spacing: 16){
-                
-                HStack{
-                    Text("all: \(VM.allDailyDocs.count) range: \(VM.rangeDailyDocs.count) delta: \(VM.deltaDailyDocs.count)")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background {
-                    RoundedRectangle(cornerRadius: 25)
-                        .fill(.sub)
-                        .cardShadow()
-                }
-                
                 if VM.loadingDocs {
                     VStack(spacing: 16) {
                         // Mock Player Data Card
@@ -112,10 +105,23 @@ struct AnalyticsView: View {
                             .fill(.sub)
                             .cardShadow()
                     }
-                    
-                    
+                    .transition(.opacity)
                 } else {
-                    growthStats
+                    if VM.selectedSection == .growth {
+                        growthStats
+                            .transition(.opacity)
+                    } else if VM.selectedSection == .retention {
+                        retentionStats
+                            .transition(.opacity)
+                    } else if VM.selectedSection == .operations {
+                        operationsStats
+                            .frame(maxWidth: .infinity)
+                            .transition(.opacity)
+                    } else if VM.selectedSection == .experience {
+                        expierenceStats
+                            .frame(maxWidth: .infinity)
+                            .transition(.opacity)
+                    }
                 }
             }
         }
@@ -198,7 +204,7 @@ struct AnalyticsView: View {
                     }
                 }
                 
-                if VM.rangeDailyDocs.count > 32 || VM.rangeDailyDocs.count < 5 {
+                if VM.rangeDailyDocs.count > 32 || VM.rangeDailyDocs.count < 9 {
                     PlayerSummaryChart(VM: VM)
                         .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 } else {
@@ -214,48 +220,116 @@ struct AnalyticsView: View {
             }
         }
     }
-        
+    
+    var retentionStats: some View {
+        Text("Retention Stats")
+    }
+    
+    var operationsStats: some View {
+        VStack(spacing: 16){
+            
+            VStack(spacing: 8){
+                HStack{
+                    Text("Hole Stats")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Spacer()
+                }
+                
+                HoleDifficultyChart(difficultyData: VM.getHoleDifficultyData())
+                    .padding()
+                    .background {
+                        RoundedRectangle(cornerRadius: 17)
+                            .fill(.subTwo)
+                    }
+                    
+                
+                HStack{
+                    DataCard(data: VM.getEasiestHole(), title: "Easiest", infoText: "The hole which has the the lowest average strokes per plays", color: .subTwo, cornerRadius: 17)
+                    
+                    DataCard(data: VM.getHardestHole(), title: "Hardest", infoText: "The hole which has the the highest average strokes per plays", color: .subTwo, cornerRadius: 25)
+                }
+            }
+            .padding()
+            .background {
+                RoundedRectangle(cornerRadius: 25)
+                    .fill(.sub)
+                    .cardShadow()
+            }
+            
+            
+            VStack(spacing: 8){
+                HStack{
+                    Text("Busiest Times")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Spacer()
+                }
+                
+                HStack{
+                    DataCard(data: VM.getBusiestHour(), title: "Busiest Hour", infoText: "Based on the number of games played that hour.", color: .subTwo, cornerRadius: 17)
+                    
+                    DataCard(data: VM.getBusiestDay(), title: "Busiest Day", infoText: "Based on the number of games played that day.", color: .subTwo, cornerRadius: 17)
+                }
+                
+                BusiestTimesChart(data: VM.prepareChartData())
+                    .padding(.horizontal)
+                    .background {
+                        RoundedRectangle(cornerRadius: 25)
+                            .fill(.subTwo)
+                    }
+            }
+            .padding()
+            .background {
+                RoundedRectangle(cornerRadius: 25)
+                    .fill(.sub)
+                    .cardShadow()
+            }
+        }
+    }
+    
+    var expierenceStats: some View {
+        Text("Expierence Stats")
+    }
+    
     var topBar: some View {
         // Top Bar
         VStack (spacing: 16){
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack {
-                        ForEach(AnalyticsSection.allCases) { section in
-                            let obj = VM.analyticsObjects[section.rawValue]!
-                            Button {
-                                withAnimation(.snappy) {
-                                    VM.selectedSection = section
-                                    proxy.scrollTo(section, anchor: .leading) // ✅ shove to front
-                                }
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: obj.icon)
-                                    
-                                    Text(section.rawValue)
-                                        .fontWeight(.bold)
-                                        .transition(.move(edge: .leading).combined(with: .opacity))
-                                }
-                            }
-                            .id(section)
-                            .foregroundStyle(obj.color)
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 11)
-                            .background(
-                                VM.selectedSection == section ? obj.color.opacity(0.2) : .clear
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 25)
-                                    .stroke(obj.color.opacity(0.3), lineWidth: 4)
-                                    .opacity(VM.selectedSection != section ? 0.5 : 0)
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 25))
+            HStack {
+                ForEach(AnalyticsSection.allCases) { section in
+                    let obj = VM.analyticsObjects[section.rawValue]!
+                    Button {
+                        withAnimation(.snappy) {
+                            VM.selectedSection = section
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: obj.icon)
                             
+                            if VM.selectedSection == section {
+                                Text(section.rawValue)
+                                    .fontWeight(.bold)
+                                    .frame(maxWidth: .infinity)
+                            }
                         }
                     }
+                    .id(section)
+                    .foregroundStyle(obj.color)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
+                    .background(
+                        VM.selectedSection == section ? obj.color.opacity(0.2) : .clear
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 25)
+                            .stroke(obj.color.opacity(0.3), lineWidth: 4)
+                            .opacity(VM.selectedSection != section ? 0.5 : 0)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 25))
+                    
                 }
             }
-            .contentMargins([.horizontal, .top], 16, for: .scrollContent)
+            .padding([.horizontal, .top], 16)
             
             AnalyticsRangeBar()
                 .padding([.horizontal, .bottom], 16)
@@ -297,45 +371,47 @@ struct DataCard: View {
     
     var body: some View {
         
-            VStack(spacing: 8) {
-                HStack{
-                    Text(title)
-                        .foregroundStyle(.mainOpp)
-                        .font(fontStyle)
+        VStack(spacing: 8) {
+            HStack{
+                Text(title)
+                    .foregroundStyle(.mainOpp)
+                    .font(fontStyle)
+                
+                Spacer()
+                
+                Button {
+                    showInfo = true
+                } label: {
+                    Image(systemName: "info.circle")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
+                        .foregroundStyle(.blue)
                     
-                    Spacer()
-                    
-                    Button {
-                        showInfo = true
-                    } label: {
-                        Image(systemName: "info.circle")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 20, height: 20)
-                            .foregroundStyle(.blue)
-                        
-                    }
-                    .alert("Info", isPresented: $showInfo) {
-                        Button("OK") {}
-                    } message: {
-                        Text(infoText)
-                    }
                 }
-                
-                
-                HStack{
-                    Text(data.value)
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .foregroundStyle(data.deltaColor)
-                    Text(data.delta)
+                .alert("Info", isPresented: $showInfo) {
+                    Button("OK") {}
+                } message: {
+                    Text(infoText)
+                }
+            }
+            
+            
+            HStack{
+                Text(data.value)
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundStyle(data.deltaColor)
+                if let delta = data.delta, data.delta != "0.0%" {
+                    Text(delta)
                         .font(.subheadline)
                         .fontWeight(.bold)
                         .foregroundStyle(data.deltaColor)
-                    Spacer()
                 }
-                
+                Spacer()
             }
+            
+        }
         .padding()
         .background{
             RoundedRectangle(cornerRadius: cornerRadius)
