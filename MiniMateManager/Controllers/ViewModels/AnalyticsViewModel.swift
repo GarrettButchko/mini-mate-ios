@@ -12,7 +12,6 @@ import SwiftUI
 
 enum AnalyticsSection: String, CaseIterable, Identifiable {
     case growth = "Growth"
-    case retention = "Retention"
     case operations = "Operations"
     case experience = "Experience"
     
@@ -375,6 +374,24 @@ final class AnalyticsViewModel: ObservableObject {
         return chartData
     }
     
+    func getHoleHeatmapForParData(course: Course) -> [HoleHeatmapData] {
+        let combinedResults = getHoleCombined() // [String: Double] (HoleID: AvgStrokes)
+        
+        return combinedResults.compactMap { (key, avgStrokes) -> HoleHeatmapData? in
+            guard let holeNum = Int(key) else { return nil }
+            
+            // Ensure we don't go out of bounds of the pars array (Index is holeNum - 1)
+            let index = holeNum - 1
+            guard index >= 0 && index < course.pars.count else { return nil }
+            
+            let par = Double(course.pars[index])
+            let offset = avgStrokes - par
+            
+            return HoleHeatmapData(holeNumber: holeNum, relativeToPar: offset)
+        }
+        .sorted(by: { $0.holeNumber < $1.holeNumber })
+    }
+    
     func prepareChartData() -> [HourData] {
         
         var chartData: [HourData] = []
@@ -417,12 +434,6 @@ final class AnalyticsViewModel: ObservableObject {
             type: .growth,
             icon: "chart.line.uptrend.xyaxis",
             color: .green
-        ),
-        
-        AnalyticsSection.retention.rawValue: AnalyticsObject(
-            type: .retention,
-            icon: "arrow.triangle.2.circlepath",
-            color: .orange
         ),
         
         AnalyticsSection.operations.rawValue: AnalyticsObject(

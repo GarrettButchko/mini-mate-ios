@@ -37,6 +37,10 @@ struct AnalyticsView: View {
     
     @State private var topBarHeight: CGFloat = 0
     
+    var inRange: Bool {
+        VM.rangeDailyDocs.count > 28 || VM.rangeDailyDocs.count + 1 < 8
+    }
+    
     var body: some View {
         VStack {
             HStack{
@@ -110,9 +114,6 @@ struct AnalyticsView: View {
                     if VM.selectedSection == .growth {
                         growthStats
                             .transition(.opacity)
-                    } else if VM.selectedSection == .retention {
-                        retentionStats
-                            .transition(.opacity)
                     } else if VM.selectedSection == .operations {
                         operationsStats
                             .frame(maxWidth: .infinity)
@@ -178,7 +179,7 @@ struct AnalyticsView: View {
                     
                     Menu {
                         Button("Total") {
-                            if VM.rangeDailyDocs.count > 27 || VM.rangeDailyDocs.count + 1 < 8 {
+                            if inRange {
                                 VM.growthChartTopic = .total
                             } else {
                                 withAnimation {
@@ -187,7 +188,7 @@ struct AnalyticsView: View {
                             }
                         }
                         Button("First-Time") {
-                            if VM.rangeDailyDocs.count > 27 || VM.rangeDailyDocs.count + 1 < 8 {
+                            if inRange {
                                 VM.growthChartTopic = .first
                             } else {
                                 withAnimation {
@@ -196,7 +197,7 @@ struct AnalyticsView: View {
                             }
                         }
                         Button("Returning") {
-                            if VM.rangeDailyDocs.count > 27 || VM.rangeDailyDocs.count + 1 < 8 {
+                            if inRange {
                                 VM.growthChartTopic = .returning
                             } else {
                                 withAnimation {
@@ -228,7 +229,7 @@ struct AnalyticsView: View {
                     }
                 }
                 
-                if VM.rangeDailyDocs.count > 27 || VM.rangeDailyDocs.count + 1 < 8 {
+                if inRange {
                     PlayerSummaryChart(VM: VM)
                         .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 } else {
@@ -245,10 +246,6 @@ struct AnalyticsView: View {
         }
     }
     
-    var retentionStats: some View {
-        Text("Retention Stats")
-    }
-    
     var operationsStats: some View {
         VStack(spacing: 16){
             
@@ -260,13 +257,15 @@ struct AnalyticsView: View {
                     Spacer()
                 }
                 
-                HoleDifficultyChart(difficultyData: VM.getHoleDifficultyData())
-                    .padding()
-                    .background {
-                        RoundedRectangle(cornerRadius: 17)
-                            .fill(.subTwo)
-                    }
-                    
+                // SECTION 1: HARDNESS
+                let hardnessData = VM.getHoleDifficultyData()
+                
+                VStack(spacing: 16) {
+                    HoleDifficultyChart(difficultyData: VM.getHoleDifficultyData())
+                    HoleHardnessPreviewList(difficultyData: hardnessData)
+                }
+                .padding()
+                .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
                 
                 HStack{
                     DataCard(data: VM.getEasiestHole(), title: "Easiest", infoText: "The hole which has the the lowest average strokes per plays", color: .subTwo, cornerRadius: 17)
@@ -313,7 +312,24 @@ struct AnalyticsView: View {
     }
     
     var expierenceStats: some View {
-        Text("Expierence Stats")
+        VStack(spacing: 16){
+
+            let heatmapData = VM.getHoleHeatmapForParData(course: courseVM.selectedCourse!)
+            
+            VStack(spacing: 16) {
+                HoleDifficultyParChart(difficultyData: heatmapData)
+                    .frame(height: 100) // Constrain height so the list has room
+                    .padding(.bottom)
+                
+                HolePreviewList(allHoles: heatmapData)
+            }
+            .padding()
+            .background {
+                RoundedRectangle(cornerRadius: 25)
+                    .fill(.sub)
+                    .cardShadow()
+            }
+        }
     }
     
     var topBar: some View {
@@ -385,50 +401,6 @@ struct AnalyticsView: View {
     }
 }
 
-struct DataCard: View {
-    var data: DataPointObject
-    var title: String
-    var infoText: String = "No Text Yet"
-    var color: Color = .sub
-    var cornerRadius: CGFloat = 12
-    var fontStyle: Font = .system(size: 14, weight: .semibold)
-    
-    var body: some View {
-        
-        VStack(spacing: 8) {
-            HStack{
-                Text(title)
-                    .foregroundStyle(.mainOpp)
-                    .font(fontStyle)
-                
-                Spacer()
-                
-                InfoButton(infoText: infoText)
-            }
-            
-            
-            HStack{
-                Text(data.value)
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundStyle(data.deltaColor)
-                if let delta = data.delta {
-                    Text(delta)
-                        .font(.subheadline)
-                        .fontWeight(.bold)
-                        .foregroundStyle(data.deltaColor)
-                }
-                Spacer()
-            }
-            
-        }
-        .padding()
-        .background{
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(color)
-        }
-    }
-}
 
 struct InfoButton: View {
     
@@ -454,42 +426,6 @@ struct InfoButton: View {
     }
 }
 
-// 1. Create the Shimmer Effect
-struct SkeletonModifier: ViewModifier {
-    @State private var phase: CGFloat = 0
-    
-    func body(content: Content) -> some View {
-        content
-            .redacted(reason: .placeholder) // Built-in SwiftUI ghosting
-            .overlay(
-                GeometryReader { geo in
-                    Color.white.opacity(0.3)
-                        .mask(Rectangle().fill(
-                            LinearGradient(colors: [.clear, .mainOpp.opacity(0.5), .clear],
-                                           startPoint: .leading,
-                                           endPoint: .trailing)
-                        ))
-                        .offset(x: -geo.size.width + (geo.size.width * 2 * phase))
-                }
-            )
-            .onAppear {
-                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
-                    phase = 1
-                }
-            }
-    }
-}
-
-extension View {
-    @ViewBuilder
-    func skeleton(active: Bool) -> some View {
-        if active {
-            self.modifier(SkeletonModifier())
-        } else {
-            self
-        }
-    }
-}
 
 
 
