@@ -365,39 +365,34 @@ struct HoleDifficultyChart: View {
         VStack(spacing: 0) {
             // Bar chart
             HStack{
-                Text("Hole Hardness (bright green = harder)")
+                Text("Hole Hardness")
                     .foregroundStyle(.mainOpp)
                     .font(.system(size: 14, weight: .semibold))
                 Spacer()
+                InfoButton(infoText: "Greener = Harder, less opacity = easier. Based on average strokes per hole.")
             }
             .padding(.bottom, 8)
             
-            HStack(spacing: 8) {
+            HStack(spacing: 4) {
                 ForEach(difficultyData) { hole in
                     VStack() {
                         RoundedRectangle(cornerRadius: 7)
                             .fill(colorForDifficulty(hole.averageStrokes))
                             .frame(height: 60)
-                        // Scale for visibility
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            
-            // Labels
-            HStack(spacing: 8) {
-                ForEach(difficultyData) { hole in
-                    VStack {
                         if shouldShowLabel(holeNumber: hole.holeNumber) {
                             Text("\(hole.holeNumber)")
+                                .lineLimit(1)
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
+                                .padding(.top, 4)
+                        } else {
+                            Color.clear
+                                .padding(.top, 4)
                         }
                     }
                     .frame(maxWidth: .infinity)
                 }
             }
-            .padding(.top, 4)
         }
     }
     

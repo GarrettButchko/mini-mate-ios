@@ -177,9 +177,33 @@ struct AnalyticsView: View {
                         }
                     
                     Menu {
-                        Button("Total") { VM.growthChartTopic = .total }
-                        Button("First-Time") {VM.growthChartTopic = .first }
-                        Button("Returning") { VM.growthChartTopic = .returning}
+                        Button("Total") {
+                            if VM.rangeDailyDocs.count > 27 || VM.rangeDailyDocs.count + 1 < 8 {
+                                VM.growthChartTopic = .total
+                            } else {
+                                withAnimation {
+                                    VM.growthChartTopic = .total
+                                }
+                            }
+                        }
+                        Button("First-Time") {
+                            if VM.rangeDailyDocs.count > 27 || VM.rangeDailyDocs.count + 1 < 8 {
+                                VM.growthChartTopic = .first
+                            } else {
+                                withAnimation {
+                                    VM.growthChartTopic = .first
+                                }
+                            }
+                        }
+                        Button("Returning") {
+                            if VM.rangeDailyDocs.count > 27 || VM.rangeDailyDocs.count + 1 < 8 {
+                                VM.growthChartTopic = .returning
+                            } else {
+                                withAnimation {
+                                    VM.growthChartTopic = .returning
+                                }
+                            }
+                        }
                     } label: {
                         HStack {
                             Circle()
@@ -204,7 +228,7 @@ struct AnalyticsView: View {
                     }
                 }
                 
-                if VM.rangeDailyDocs.count > 32 || VM.rangeDailyDocs.count < 9 {
+                if VM.rangeDailyDocs.count > 27 || VM.rangeDailyDocs.count + 1 < 8 {
                     PlayerSummaryChart(VM: VM)
                         .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 } else {
@@ -247,7 +271,7 @@ struct AnalyticsView: View {
                 HStack{
                     DataCard(data: VM.getEasiestHole(), title: "Easiest", infoText: "The hole which has the the lowest average strokes per plays", color: .subTwo, cornerRadius: 17)
                     
-                    DataCard(data: VM.getHardestHole(), title: "Hardest", infoText: "The hole which has the the highest average strokes per plays", color: .subTwo, cornerRadius: 25)
+                    DataCard(data: VM.getHardestHole(), title: "Hardest", infoText: "The hole which has the the highest average strokes per plays", color: .subTwo, cornerRadius: 17)
                 }
             }
             .padding()
@@ -275,7 +299,7 @@ struct AnalyticsView: View {
                 BusiestTimesChart(data: VM.prepareChartData())
                     .padding(.horizontal)
                     .background {
-                        RoundedRectangle(cornerRadius: 25)
+                        RoundedRectangle(cornerRadius: 17)
                             .fill(.subTwo)
                     }
             }
@@ -299,6 +323,7 @@ struct AnalyticsView: View {
                 ForEach(AnalyticsSection.allCases) { section in
                     let obj = VM.analyticsObjects[section.rawValue]!
                     Button {
+                        
                         withAnimation(.snappy) {
                             VM.selectedSection = section
                         }
@@ -361,7 +386,6 @@ struct AnalyticsView: View {
 }
 
 struct DataCard: View {
-    @State var showInfo: Bool = false
     var data: DataPointObject
     var title: String
     var infoText: String = "No Text Yet"
@@ -379,21 +403,7 @@ struct DataCard: View {
                 
                 Spacer()
                 
-                Button {
-                    showInfo = true
-                } label: {
-                    Image(systemName: "info.circle")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 20, height: 20)
-                        .foregroundStyle(.blue)
-                    
-                }
-                .alert("Info", isPresented: $showInfo) {
-                    Button("OK") {}
-                } message: {
-                    Text(infoText)
-                }
+                InfoButton(infoText: infoText)
             }
             
             
@@ -402,7 +412,7 @@ struct DataCard: View {
                     .font(.title)
                     .fontWeight(.bold)
                     .foregroundStyle(data.deltaColor)
-                if let delta = data.delta, data.delta != "0.0%" {
+                if let delta = data.delta {
                     Text(delta)
                         .font(.subheadline)
                         .fontWeight(.bold)
@@ -416,6 +426,30 @@ struct DataCard: View {
         .background{
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(color)
+        }
+    }
+}
+
+struct InfoButton: View {
+    
+    @State var showInfo: Bool = false
+    let infoText: String
+    
+    var body: some View {
+        Button {
+            showInfo = true
+        } label: {
+            Image(systemName: "info.circle")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 20, height: 20)
+                .foregroundStyle(.blue)
+            
+        }
+        .alert("Info", isPresented: $showInfo) {
+            Button("OK") {}
+        } message: {
+            Text(infoText)
         }
     }
 }

@@ -124,7 +124,9 @@ final class AnalyticsViewModel: ObservableObject {
     }
     
     func deltaErrorCalc( delta: inout Double) {
-        if deltaDailyDocs.count != rangeDailyDocs.count - 1 && deltaDailyDocs.count != rangeDailyDocs.count {
+        // Only zero out delta if we have no delta data at all
+        // Otherwise, calculate with whatever data we have
+        if deltaDailyDocs.isEmpty {
             delta = 0
         }
     }
