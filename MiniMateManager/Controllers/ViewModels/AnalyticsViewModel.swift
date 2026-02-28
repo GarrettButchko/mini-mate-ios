@@ -66,6 +66,9 @@ final class AnalyticsViewModel: ObservableObject {
     @Published var range: AnalyticsRange = .last30
     @Published var selectedSection: AnalyticsSection = .growth
     
+    @Published var pickedSection: String = "Day Range"
+    let pickerSections: [String] = ["Day Range", "Retention"]
+    
     // Docs
     @Published var allDailyDocs: [DailyDoc] = []
     

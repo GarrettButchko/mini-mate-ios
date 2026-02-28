@@ -44,26 +44,41 @@ struct AnalyticsView: View {
     
     var body: some View {
         VStack {
-            HStack{
-                VStack(alignment: .leading){
-                    Text("Analytics")
-                        .font(.title)
-                        .fontWeight(.bold)
-                    Text(VM.selectedSection.rawValue)
-                        .font(.subheadline)
+            VStack (spacing: 8){
+                HStack{
+                    VStack(alignment: .leading){
+                        Text("Analytics")
+                            .font(.title)
+                            .fontWeight(.bold)
+                        
+                        Text(VM.pickedSection == "Day Range" ? VM.selectedSection.rawValue : "Retention")
+                            .font(.subheadline)
+                    }
+                    
+                    Spacer()
+                    Button {
+                        anaRepo.uploadDebugDailyDocs(courseID: courseVM.selectedCourse!.id) { _ in }
+                    } label: {
+                        Text("Debug")
+                    }
                 }
                 
-                Spacer()
-                Button {
-                    anaRepo.uploadDebugDailyDocs(courseID: courseVM.selectedCourse!.id) { _ in }
-                } label: {
-                    Text("Debug")
+                Picker("Section", selection: $VM.pickedSection) {
+                    ForEach(VM.pickerSections, id: \.self) {
+                        Text($0)
+                    }
                 }
+                .pickerStyle(.segmented)
             }
             .padding([.horizontal, .top])
+            
             ZStack (alignment: .top){
-                content
-                topBar
+                if VM.pickedSection == "Day Range" {
+                    dayRangecontent
+                    topBar
+                } else {
+                    retentionContent
+                }
             }
         }
         .onChange(of: VM.range) { old, new in
@@ -80,7 +95,45 @@ struct AnalyticsView: View {
         .background(.bg)
     }
     
-    var content: some View {
+    var retentionContent: some View {
+        ScrollView(.vertical) {
+            VStack(spacing: 16){
+                if VM.loadingDocs {
+                    VStack(spacing: 16) {
+                        // Mock Player Data Card
+                        VStack {
+                            RoundedRectangle(cornerRadius: 17).fill(.subTwo).frame(height: 100)
+                            HStack {
+                                RoundedRectangle(cornerRadius: 17).fill(.subTwo).frame(height: 100)
+                                RoundedRectangle(cornerRadius: 17).fill(.subTwo).frame(height: 100)
+                            }
+                        }
+                        .skeleton(active: true)
+                        .clipShape(RoundedRectangle(cornerRadius: 17))
+                        
+                        // Mock Chart
+                        RoundedRectangle(cornerRadius: 17)
+                            .fill(.subTwo)
+                            .frame(height: 220)
+                            .skeleton(active: true)
+                            .clipShape(RoundedRectangle(cornerRadius: 17))
+                    }
+                    .padding()
+                    .background {
+                        RoundedRectangle(cornerRadius: 25)
+                            .fill(.sub)
+                            .cardShadow()
+                    }
+                    .transition(.opacity)
+                } else {
+                    Text("Retention Content")
+                }
+            }
+        }
+        .contentMargins([.horizontal, .bottom, .top], 16)
+    }
+    
+    var dayRangecontent: some View {
         // Content
         ScrollView(.vertical) {
             VStack(spacing: 16){
@@ -128,7 +181,7 @@ struct AnalyticsView: View {
             }
         }
         .contentMargins([.horizontal, .bottom], 16)
-        .contentMargins(.top, topBarHeight + 16)
+        .contentMargins(.top, topBarHeight + 24)
     }
     
     var growthStats: some View {
@@ -336,6 +389,8 @@ struct AnalyticsView: View {
     var topBar: some View {
         // Top Bar
         VStack (spacing: 16){
+            
+            
             HStack {
                 ForEach(AnalyticsSection.allCases) { section in
                     let obj = VM.analyticsObjects[section.rawValue]!
@@ -388,6 +443,7 @@ struct AnalyticsView: View {
             }
         }
         .padding(.horizontal)
+        .padding(.top, 8)
         .background(
             LinearGradient(
                 gradient: Gradient(colors: [
