@@ -38,7 +38,8 @@ struct AnalyticsView: View {
     @State private var topBarHeight: CGFloat = 0
     
     var inRange: Bool {
-        VM.rangeDailyDocs.count > 28 || VM.rangeDailyDocs.count + 1 < 8
+        let count = VM.rangeDailyDocs.count
+        return !(count >= 7)
     }
     
     var body: some View {

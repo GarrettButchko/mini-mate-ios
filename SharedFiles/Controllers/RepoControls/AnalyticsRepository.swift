@@ -161,41 +161,63 @@ final class AnalyticsRepository {
     func fetchDailyAnalytics(
         courseID: String,
         range: AnalyticsRange,
-        existingDocs: [DailyDoc],
+        existingDocs: [DailyDoc]
     ) async -> [DailyDoc] {
+        // 1. Determine the full date range (Current Period + Previous Period)
         let startDate = range.startDate
         let endDate = range.endDate
-        let exendedForData = Calendar.current.date(byAdding: .day, value: -range.daysBetween, to: startDate)!
+        let extendedForData = Calendar.current.date(byAdding: .day, value: -range.daysBetween, to: startDate)!
+        
+        // Create a list of every single DayID we expect to have
+        let allDaysInFullRange = daysInRange(from: extendedForData, to: endDate)
+        
+        // 2. Identify what we already have vs. what we need to fetch
         let existingDayIDs = Set(existingDocs.map { $0.dayID })
-        let allDaysInRange = daysInRange(from: exendedForData, to: endDate)
-        let missingDays = allDaysInRange.filter { !existingDayIDs.contains($0) }
+        let missingDays = allDaysInFullRange.filter { !existingDayIDs.contains($0) }
         
-        guard !missingDays.isEmpty else { return existingDocs }
+        var fetchedDocs: [DailyDoc] = []
         
-        let courseRef = db.collection(collectionName).document(courseID)
-        let dailyDocsRef = courseRef.collection("dailyDocs")
-        
-        do {
-            // Firestore 'in' query supports up to 30 values — chunk accordingly
-            let chunks = stride(from: 0, to: missingDays.count, by: 30).map {
-                Array(missingDays[$0..<min($0 + 30, missingDays.count)])
-            }
+        // 3. Fetch only the missing days from Firestore
+        if !missingDays.isEmpty {
+            let dailyDocsRef = db.collection(collectionName).document(courseID).collection("dailyDocs")
             
-            var allNewDocs: [DailyDoc] = []
-            for chunk in chunks {
-                let snapshot = try await dailyDocsRef
-                    .whereField("dayID", in: chunk)
-                    .getDocuments()
-                let docs = snapshot.documents.compactMap { try? $0.data(as: DailyDoc.self) }
-                allNewDocs.append(contentsOf: docs)
+            do {
+                // Chunking into 30s because Firestore 'in' query limit
+                let chunks = stride(from: 0, to: missingDays.count, by: 30).map {
+                    Array(missingDays[$0..<min($0 + 30, missingDays.count)])
+                }
+                
+                for chunk in chunks {
+                    let snapshot = try await dailyDocsRef
+                        .whereField("dayID", in: chunk)
+                        .getDocuments()
+                    
+                    let docs = snapshot.documents.compactMap { try? $0.data(as: DailyDoc.self) }
+                    fetchedDocs.append(contentsOf: docs)
+                }
+            } catch {
+                print("❌ Firestore fetch failed: \(error.localizedDescription)")
+                // We continue so we can still provide zeroed-out docs for the missing slots
             }
-            
-            let combined = (existingDocs + allNewDocs).filter { allDaysInRange.contains($0.dayID) }
-            return combined
-        } catch {
-            print("❌ Failed to fetch daily analytics: \(error.localizedDescription)")
-            return existingDocs
         }
+        
+        // 4. Create a "Source of Truth" map from existing and fetched data
+        let combinedFoundDocs = existingDocs + fetchedDocs
+        let docLookup = Dictionary(uniqueKeysWithValues: combinedFoundDocs.map { ($0.dayID, $0) })
+        
+        // 5. RECONCILIATION: Map the timeline to ensure NO gaps
+        let finalTimeline = allDaysInFullRange.map { dayID -> DailyDoc in
+            if let actualDoc = docLookup[dayID] {
+                return actualDoc
+            } else {
+                // Generate a zeroed-out placeholder for this session
+                // Your DailyDoc init handles the weekID/weekDay auto-calculation
+                return DailyDoc(dayID: dayID)
+            }
+        }
+        
+        // Sort to ensure the split logic (prefix/suffix) is mathematically sound
+        return finalTimeline.sorted { $0.dayID < $1.dayID }
     }
     
     private func daysInRange(from startDate: Date, to endDate: Date) -> [String] {

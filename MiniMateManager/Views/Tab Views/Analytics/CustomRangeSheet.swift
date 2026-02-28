@@ -39,9 +39,16 @@ struct CustomRangeSheet: View {
                 Text("From")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                
                 HStack {
-                    DatePicker("", selection: $startDate, in: ...endDate, displayedComponents: .date)
-                        .labelsHidden()
+                    // Range Logic:
+                    // 1. Min: 90 days before endDate
+                    // 2. Max: The current endDate
+                    DatePicker("",
+                               selection: $startDate,
+                               in: date(byAdding: -90, to: endDate)...endDate,
+                               displayedComponents: .date)
+                    .labelsHidden()
                     Spacer()
                     Image(systemName: "calendar")
                         .foregroundStyle(.secondary)
@@ -52,9 +59,16 @@ struct CustomRangeSheet: View {
                 Text("To")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                
                 HStack {
-                    DatePicker("", selection: $endDate, in: startDate...Date(), displayedComponents: .date)
-                        .labelsHidden()
+                    // Range Logic:
+                    // 1. Min: The current startDate
+                    // 2. Max: The EARLIER of (startDate + 90 days) OR Today
+                    DatePicker("",
+                               selection: $endDate,
+                               in: startDate...min(Date(), date(byAdding: 90, to: startDate)),
+                               displayedComponents: .date)
+                    .labelsHidden()
                     Spacer()
                     Image(systemName: "calendar")
                         .foregroundStyle(.secondary)
@@ -99,5 +113,10 @@ struct CustomRangeSheet: View {
         .padding([.top, .horizontal], 30)
         .presentationDetents([.fraction(0.4)])
         .presentationDragIndicator(.visible)
+    }
+    
+    // A helper to get a date +/- days from another date
+    func date(byAdding days: Int, to baseDate: Date) -> Date {
+        Calendar.current.date(byAdding: .day, value: days, to: baseDate) ?? baseDate
     }
 }

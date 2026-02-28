@@ -49,7 +49,7 @@ struct AnalyticsObject{
 struct DataPointObject {
     var value: String
     var delta: String?
-    var deltaColor: Color
+    var deltaColor: Color?
 }
 
 struct PlayerActivity: Identifiable {
@@ -122,17 +122,28 @@ final class AnalyticsViewModel: ObservableObject {
         return players > 0 ? Double(players) / Double(totalGames) : 0
     }
     
-    func deltaErrorCalc( delta: inout Double) {
+    func deltaErrorCalc(delta: inout Double, positiveGood: Bool) -> (deltaS: String?, deltaC: Color?) {
         // Only zero out delta if we have no delta data at all
         // Otherwise, calculate with whatever data we have
-        if deltaDailyDocs.isEmpty {
+        
+        if deltaDailyDocs.isEmpty || (rangeDailyDocs.count != deltaDailyDocs.count && rangeDailyDocs.count != deltaDailyDocs.count + 1 && rangeDailyDocs.count != deltaDailyDocs.count - 1) || (delta > 999 || delta < -999) {
             delta = 0
         }
+    
+        let isDeltaPositive = delta > 0
+        
+        var deltaString = String(format: "%.1f%%", delta)
+        
+        if isDeltaPositive {
+            deltaString = "+" + deltaString
+        }
+        
+        if delta == 0 {
+            return(nil, nil)
+        } else {
+            return(deltaString, postive(good: positiveGood, delta))
+        }
     }
-    
-    
-    
-    
     
     // Delta Calc
     func calcDelta(_ prev: Int, _ current: Int) -> Double {
@@ -155,17 +166,9 @@ final class AnalyticsViewModel: ObservableObject {
         let deltaUsers = getActiveUsers(deltaDailyDocs)
         var delta = calcDelta(deltaUsers, rangeUsers)
         
-        deltaErrorCalc(delta: &delta)
-        
-        let isDeltaPositive = delta > 0
-        
-        var deltaString = String(format: "%.1f%%", delta)
-        
-        if isDeltaPositive {
-            deltaString = "+" + deltaString
-        }
-        
-        return DataPointObject(value: String(rangeUsers), delta: deltaString, deltaColor: postive(good: true, delta))
+        let data = deltaErrorCalc(delta: &delta, positiveGood: true)
+
+        return DataPointObject(value: String(rangeUsers), delta: data.deltaS, deltaColor: data.deltaC)
     }
     
     func firstTimePrime() -> DataPointObject {
@@ -173,17 +176,9 @@ final class AnalyticsViewModel: ObservableObject {
         let deltaUsers = getFirstTimeUsers(deltaDailyDocs)
         var delta = calcDelta(deltaUsers, rangeUsers)
         
-        deltaErrorCalc(delta: &delta)
-        
-        let isDeltaPositive = delta > 0
-        
-        var deltaString = String(format: "%.1f%%", delta)
-        
-        if isDeltaPositive {
-            deltaString = "+" + deltaString
-        }
-        
-        return DataPointObject(value: String(rangeUsers), delta: deltaString, deltaColor: postive(good: true, delta))
+        let data = deltaErrorCalc(delta: &delta, positiveGood: true)
+  
+        return DataPointObject(value: String(rangeUsers), delta: data.deltaS, deltaColor: data.deltaC)
     }
     
     func returningPrime() -> DataPointObject {
@@ -191,17 +186,9 @@ final class AnalyticsViewModel: ObservableObject {
         let deltaUsers = getReturningUsers(deltaDailyDocs)
         var delta = calcDelta(deltaUsers, rangeUsers)
         
-        deltaErrorCalc(delta: &delta)
-        
-        let isDeltaPositive = delta > 0
-        
-        var deltaString = String(format: "%.1f%%", delta)
-        
-        if isDeltaPositive {
-            deltaString = "+" + deltaString
-        }
-        
-        return DataPointObject(value: String(rangeUsers), delta: deltaString, deltaColor: postive(good: true, delta))
+        let data = deltaErrorCalc(delta: &delta, positiveGood: true)
+    
+        return DataPointObject(value: String(rangeUsers), delta: data.deltaS, deltaColor: data.deltaC)
     }
     
     func avgPlayersPerGamePrime() -> DataPointObject {
@@ -209,17 +196,9 @@ final class AnalyticsViewModel: ObservableObject {
         let deltaUsers = avgPlayersPerGame(deltaDailyDocs)
         var delta = calcDelta(deltaUsers, rangeUsers)
         
-        deltaErrorCalc(delta: &delta)
+        let data = deltaErrorCalc(delta: &delta, positiveGood: true)
         
-        let isDeltaPositive = delta > 0
-        
-        var deltaString = String(format: "%.1f%%", delta)
-        
-        if isDeltaPositive {
-            deltaString = "+" + deltaString
-        }
-        
-        return DataPointObject(value: String(format: "%.1f% / 1", rangeUsers), delta: deltaString, deltaColor: postive(good: true, delta))
+        return DataPointObject(value: String(format: "%.2f / 1", rangeUsers), delta: data.deltaS, deltaColor: data.deltaC)
     }
     
     func getDataForGrowthTrend() -> [PlayerActivity] {

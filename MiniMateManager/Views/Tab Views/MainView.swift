@@ -15,7 +15,6 @@ struct MainView: View {
     @EnvironmentObject var viewModel: CourseViewModel
     @EnvironmentObject var viewManager: ViewManager
     
-    
     @State var showLeaderBoardSheet: Bool = false
     @State var showTournamentSheet: Bool = false
     @State var isSheetPresented: Bool = false
@@ -152,6 +151,7 @@ struct MainView: View {
                     mainViewButton(title: "Tournament", icon: "medal", color: Color.orange) {
                         // MARK: TODO
                     }
+                    .disabled(true)
                 }
                 .padding()
                 .background(content: {

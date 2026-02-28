@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 struct Course: Codable, Identifiable, Equatable {
     var id: String
@@ -173,7 +174,6 @@ enum SocialPlatform: String, Codable, CaseIterable, Identifiable {
     case facebook
     case tiktok
     case youtube
-    case google
     case website
     
     var id: String { rawValue }
@@ -183,4 +183,18 @@ struct SocialLink: Identifiable, Codable, Equatable, Hashable {
     var id: UUID = UUID()
     var platform: SocialPlatform = .instagram
     var url: String
+    var platformImage: Image {
+        switch platform {
+        case .instagram:
+            return Image("instagram")
+        case .facebook:
+            return Image("facebook")
+        case .tiktok:
+            return Image("tiktok")
+        case .youtube:
+            return Image("youtube")
+        case .website:
+            return Image(systemName: "globe")
+        }
+    }
 }

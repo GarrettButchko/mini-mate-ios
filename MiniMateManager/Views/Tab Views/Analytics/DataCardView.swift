@@ -27,17 +27,16 @@ struct DataCard: View {
                 InfoButton(infoText: infoText)
             }
             
-            
             HStack{
                 Text(data.value)
                     .font(.title)
                     .fontWeight(.bold)
-                    .foregroundStyle(data.deltaColor)
-                if let delta = data.delta {
+                    .foregroundStyle(data.deltaColor != nil ? data.deltaColor! : .mainOpp)
+                if let delta = data.delta, let deltaColor = data.deltaColor {
                     Text(delta)
                         .font(.subheadline)
                         .fontWeight(.bold)
-                        .foregroundStyle(data.deltaColor)
+                        .foregroundStyle(deltaColor)
                 }
                 Spacer()
             }
