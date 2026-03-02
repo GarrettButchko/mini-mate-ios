@@ -389,6 +389,43 @@ final class AnalyticsRepository {
             updatedAt: updatedAt
         )
     }
+    
+    func fetchEmails(
+        courseID: String
+    ) async -> [String: CourseEmail] {
+        let emailsRef = db.collection(collectionName).document(courseID).collection("emails")
+        
+        var emailsMap: [String: CourseEmail] = [:]
+        var lastDoc: DocumentSnapshot? = nil
+        let pageSize: Int = 30
+        
+        do {
+            while true {
+                let query = emailsRef.limit(to: pageSize)
+                let queryWithStart = lastDoc != nil ? query.start(afterDocument: lastDoc!) : query
+                
+                let snapshot = try await queryWithStart.getDocuments()
+                
+                guard !snapshot.documents.isEmpty else { break }
+                
+                for document in snapshot.documents {
+                    if let email = try? document.data(as: CourseEmail.self) {
+                        let emailAddress = emailFromKey(document.documentID)
+                        emailsMap[emailAddress] = email
+                    }
+                }
+                
+                lastDoc = snapshot.documents.last
+                
+                if snapshot.documents.count < pageSize { break }
+            }
+            
+            return emailsMap
+        } catch {
+            print("❌ Firestore fetch emails failed: \(error.localizedDescription)")
+            return [:]
+        }
+    }
 }
 
 enum AnalyticsRange: Equatable {

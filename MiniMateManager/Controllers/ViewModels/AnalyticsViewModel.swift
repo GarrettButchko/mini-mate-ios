@@ -72,10 +72,6 @@ final class AnalyticsViewModel: ObservableObject {
     // Docs
     @Published var allDailyDocs: [DailyDoc] = []
     
-    @Published var growthChartTopic: ChartTopic = .total
-    
-    @Published var loadingDocs: Bool = true
-    
     var deltaDailyDocs: [DailyDoc] {
         allDailyDocs.filter { range.daysInDeltaRange.contains($0.dayID) }
     }
@@ -84,8 +80,12 @@ final class AnalyticsViewModel: ObservableObject {
         allDailyDocs.filter { range.daysInMainRange.contains($0.dayID) }
     }
     
+    @Published var allEmails: [String : CourseEmail] = [:]
     
+    @Published var growthChartTopic: ChartTopic = .total
     
+    @Published var loadingDocs: Bool = true
+    @Published var loadingEmails: Bool = true
     
     //MARK: Growth
     // Data Calc
@@ -431,7 +431,7 @@ final class AnalyticsViewModel: ObservableObject {
         )
     ]
     
-    func onAppear(course: Course?) {
+    func onAppearDailyAnalytics(course: Course?) {
         guard let course else { return }
         
         withAnimation{
@@ -445,11 +445,30 @@ final class AnalyticsViewModel: ObservableObject {
                 range: .last30,
                 existingDocs: allDailyDocs
             )
+            
             withAnimation{
                 loadingDocs = false
             }
         }
     }
+    
+    func onAppearRetention(course: Course?) {
+        guard let course else { return }
+        
+        withAnimation{
+            loadingEmails = true
+        }
+        
+        Task {
+            allEmails = await analyticsRepo.fetchEmails(courseID: course.id)
+            
+            withAnimation{
+                loadingEmails = false
+            }
+        }
+    }
+    
+    
     
     func onChange(old: AnalyticsRange, new: AnalyticsRange, course: Course?) {
         guard let course, old != new else { return }

@@ -75,20 +75,23 @@ struct AnalyticsView: View {
             ZStack (alignment: .top){
                 if VM.pickedSection == "Day Range" {
                     dayRangecontent
+                        .onChange(of: VM.range) { old, new in
+                            withAnimation{
+                                VM.onChange(old: old, new: new, course: courseVM.selectedCourse)
+                            }
+                        }
+                        .onAppear{
+                            withAnimation{
+                                VM.onAppearDailyAnalytics(course: courseVM.selectedCourse)
+                            }
+                        }
                     topBar
                 } else {
                     retentionContent
+                        .onAppear {
+                            VM.onAppearRetention(course: courseVM.selectedCourse)
+                        }
                 }
-            }
-        }
-        .onChange(of: VM.range) { old, new in
-            withAnimation{
-                VM.onChange(old: old, new: new, course: courseVM.selectedCourse)
-            }
-        }
-        .onAppear{
-            withAnimation{
-                VM.onAppear(course: courseVM.selectedCourse)
             }
         }
         .environmentObject(VM)
@@ -126,11 +129,15 @@ struct AnalyticsView: View {
                     }
                     .transition(.opacity)
                 } else {
-                    Text("Retention Content")
+                    Text("\(String(VM.allEmails.count)) Unique Players")
+                        
                 }
             }
         }
         .contentMargins([.horizontal, .bottom, .top], 16)
+        .onAppear {
+            
+        }
     }
     
     var dayRangecontent: some View {
