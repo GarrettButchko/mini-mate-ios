@@ -25,9 +25,6 @@ import Foundation
  % of players whose firstSeen is in range AND secondSeen <= firstSeen + 30
  */
 
-
-
-
 struct AnalyticsView: View {
     
     @EnvironmentObject var courseVM: CourseViewModel
