@@ -17,6 +17,11 @@ struct AnalyticsView: View {
     let anaRepo = AnalyticsRepository()
     
     @State private var topBarHeight: CGFloat = 0
+    @State private var canManualRefresh = true
+    @State private var refreshRotation: Double = 0
+    private let refreshCooldown: TimeInterval = 3
+    
+    @State var isRotating: Bool = false
     
     var inRange: Bool {
         let count = VM.rangeDailyDocs.count
@@ -36,11 +41,34 @@ struct AnalyticsView: View {
                             .font(.subheadline)
                     }
                     
+                    
                     Spacer()
+                    
+                    Button(action: {
+                        withAnimation(){
+                            isRotating = true
+                            triggerAnalyticsRefresh()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                                isRotating = false
+                            }
+                        }
+                    }) {
+                        Image(systemName: "arrow.trianglehead.2.clockwise")
+                            .rotationEffect(.degrees(isRotating ? 360 : 0))
+                            .font(.title2)
+                            .foregroundColor(.blue)
+                            .frame(width: 30, height: 30)
+                    }
+                    .disabled(!canManualRefresh)
+                    .opacity(canManualRefresh ? 1 : 0.45)
+                    
+
                     Menu {
                         Button {
                             anaRepo.uploadDebugDailyDocs(courseID: courseVM.selectedCourse!.id) { success in
-                                print(success ? "✅ Daily docs uploaded" : "❌ Failed to upload daily docs")
+                                if success{
+                                    VM.onAppearDailyAnalytics(course: courseVM.selectedCourse)
+                                }
                             }
                         } label: {
                             Label("Upload Daily Docs", systemImage: "calendar")
@@ -74,7 +102,6 @@ struct AnalyticsView: View {
             ZStack (alignment: .top){
                 if VM.pickedSection == "Day Range" {
                     dayRangecontent
-                        
                     topBar
                 } else {
                     RetentionView()
@@ -92,10 +119,6 @@ struct AnalyticsView: View {
         .onAppear{
             withAnimation{
                 VM.onAppearDailyAnalytics(course: courseVM.selectedCourse)
-            }
-        }
-        .onAppear {
-            withAnimation{
                 VM.onAppearRetention(course: courseVM.selectedCourse)
             }
         }
@@ -335,20 +358,22 @@ struct AnalyticsView: View {
     var expierenceStats: some View {
         VStack(spacing: 16){
 
-            let heatmapData = VM.getHoleHeatmapForParData(course: courseVM.selectedCourse!)
-            
-            VStack(spacing: 16) {
-                HoleDifficultyParChart(difficultyData: heatmapData)
-                    .frame(height: 100) // Constrain height so the list has room
-                    .padding(.bottom)
+            if let course = courseVM.selectedCourse {
+                let heatmapData = VM.getHoleHeatmapForParData(course: course)
                 
-                HolePreviewList(allHoles: heatmapData)
-            }
-            .padding()
-            .background {
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(.sub)
-                    .cardShadow()
+                VStack(spacing: 16) {
+                    HoleDifficultyParChart(difficultyData: heatmapData)
+                        .frame(height: 100) // Constrain height so the list has room
+                        .padding(.bottom)
+                    
+                    HolePreviewList(allHoles: heatmapData)
+                }
+                .padding()
+                .background {
+                    RoundedRectangle(cornerRadius: 25)
+                        .fill(.sub)
+                        .cardShadow()
+                }
             }
         }
     }
@@ -423,6 +448,18 @@ struct AnalyticsView: View {
             .ignoresSafeArea(edges: .top)
         )
     }
+    
+    private func triggerAnalyticsRefresh() {
+        guard canManualRefresh else { return }
+        canManualRefresh = false
+
+        VM.refreshAnalytics(course: courseVM.selectedCourse)
+        VM.onAppearRetention(course: courseVM.selectedCourse)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + refreshCooldown) {
+            canManualRefresh = true
+        }
+    }
 }
 
 
@@ -449,8 +486,3 @@ struct InfoButton: View {
         }
     }
 }
-
-
-
-
-

@@ -462,6 +462,27 @@ final class AnalyticsViewModel: ObservableObject {
         }
     }
     
+    func refreshAnalytics(course: Course?) {
+        guard let course else { return }
+        
+        withAnimation{
+            loadingDocs = true
+        }
+        
+        
+        Task {
+            allDailyDocs = await analyticsRepo.fetchDailyAnalytics(
+                courseID: course.id,
+                range: .last30,
+                existingDocs: []
+            )
+            
+            withAnimation{
+                loadingDocs = false
+            }
+        }
+    }
+    
     func onAppearRetention(course: Course?) {
         guard let course else { return }
         

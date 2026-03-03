@@ -32,11 +32,15 @@ struct DataCard: View {
                     .font(.title)
                     .fontWeight(.bold)
                     .foregroundStyle(data.deltaColor != nil ? data.deltaColor! : .mainOpp)
+                    .lineLimit(1) // Ensures the text stays on one line while shrinking
+                    .minimumScaleFactor(0.75) // Allows text to shrink down to 75% of its original size
                 if let delta = data.delta, let deltaColor = data.deltaColor {
                     Text(delta)
                         .font(.subheadline)
                         .fontWeight(.bold)
                         .foregroundStyle(deltaColor)
+                        .lineLimit(1) // Ensures the text stays on one line while shrinking
+                        .minimumScaleFactor(0.5) // Allows text to shrink down to 50% of its original size
                 }
                 Spacer()
             }

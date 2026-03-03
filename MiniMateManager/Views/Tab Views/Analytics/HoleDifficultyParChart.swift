@@ -24,7 +24,7 @@ struct HoleDifficultyParChart: View {
                     .font(.title2)
                     .fontWeight(.bold)
                 Spacer()
-                InfoButton(infoText: "Blue = Under Par, Green = Par, Red = Over Par. Shows how the field is scoring vs par.")
+                InfoButton(infoText: "Heatmap: Purple (Under Par) | Blue (Little Under Par) | Green (Par) | Orange (Just Over Par) | Red (Over Par). Note: Missing holes represent unplayed or incomplete data.")
             }
             .padding(.bottom, 8)
             
@@ -55,20 +55,17 @@ struct HoleDifficultyParChart: View {
     }
     
     private func colorForDifficulty(_ relativeToPar: Double) -> Color {
-        // heatmap Logic:
-        // <-0.5: Blue (Very Easy)
-        // -0.5 to 0.2: Green (Fair)
-        // 0.2 to 0.8: Orange (Hard)
-        // >0.8: Red (Very Hard)
-        
-        if relativeToPar < -0.2 {
-            return Color.blue.opacity(0.7)
-        } else if relativeToPar <= 0.3 {
-            return Color.green.opacity(0.8)
-        } else if relativeToPar <= 0.8 {
-            return Color.orange.opacity(0.8)
+        // Heatmap Logic based on Score vs. Par
+        if relativeToPar <= -1.5 {
+            return Color.purple.opacity(0.8)  // Very Easy (Way under par)
+        } else if relativeToPar <= -0.5 {
+            return Color.blue.opacity(0.8)    // Easy
+        } else if relativeToPar < 0.5 {
+            return Color.green.opacity(0.8)   // Fair (Near Par)
+        } else if relativeToPar < 1.5 {
+            return Color.orange.opacity(0.8)  // Hard
         } else {
-            return Color.red.opacity(0.8)
+            return Color.red.opacity(0.8)     // Very Hard (Way over par)
         }
     }
     
@@ -161,9 +158,17 @@ struct HoleStatusRow: View {
     }
     
     private func colorForDifficulty(_ relativeToPar: Double) -> Color {
-        if relativeToPar < -0.2 { return .blue }
-        if relativeToPar <= 0.3 { return .green }
-        if relativeToPar <= 0.8 { return .orange }
-        return .red
+        // Heatmap Logic based on Score vs. Par
+        if relativeToPar <= -1.5 {
+            return Color.purple.opacity(0.8)  // Very Easy (Way under par)
+        } else if relativeToPar <= -0.5 {
+            return Color.blue.opacity(0.8)    // Easy
+        } else if relativeToPar < 0.5 {
+            return Color.green.opacity(0.8)   // Fair (Near Par)
+        } else if relativeToPar < 1.5 {
+            return Color.orange.opacity(0.8)  // Hard
+        } else {
+            return Color.red.opacity(0.8)     // Very Hard (Way over par)
+        }
     }
 }
