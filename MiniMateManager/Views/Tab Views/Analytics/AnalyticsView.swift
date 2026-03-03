@@ -9,22 +9,6 @@ import SwiftUI
 import Combine
 import Foundation
 
-/*
- Retention
- 
- Repeat Rate
- 
- % of active players with playCount >= 2 (for a period, you’ll filter by lastPlayed in range)
- 
- Avg Time to Return
- 
- average of daysBetween(firstSeen, secondSeen) for players where secondSeen != nil
- 
- 30-Day Retention
- 
- % of players whose firstSeen is in range AND secondSeen <= firstSeen + 30
- */
-
 struct AnalyticsView: View {
     
     @EnvironmentObject var courseVM: CourseViewModel
@@ -53,10 +37,28 @@ struct AnalyticsView: View {
                     }
                     
                     Spacer()
-                    Button {
-                        anaRepo.uploadDebugDailyDocs(courseID: courseVM.selectedCourse!.id) { _ in }
+                    Menu {
+                        Button {
+                            anaRepo.uploadDebugDailyDocs(courseID: courseVM.selectedCourse!.id) { success in
+                                print(success ? "✅ Daily docs uploaded" : "❌ Failed to upload daily docs")
+                            }
+                        } label: {
+                            Label("Upload Daily Docs", systemImage: "calendar")
+                        }
+                        
+                        Button {
+                            anaRepo.uploadDebugEmails(courseID: courseVM.selectedCourse!.id, count: 100) { success in
+                                if success {
+                                    // Refresh the emails after upload
+                                    VM.onAppearRetention(course: courseVM.selectedCourse)
+                                }
+                            }
+                        } label: {
+                            Label("Upload 100 Test Emails", systemImage: "envelope.badge.fill")
+                        }
                     } label: {
-                        Text("Debug")
+                        Image(systemName: "hammer.fill")
+                            .foregroundStyle(.secondary)
                     }
                 }
                 
@@ -72,71 +74,32 @@ struct AnalyticsView: View {
             ZStack (alignment: .top){
                 if VM.pickedSection == "Day Range" {
                     dayRangecontent
-                        .onChange(of: VM.range) { old, new in
-                            withAnimation{
-                                VM.onChange(old: old, new: new, course: courseVM.selectedCourse)
-                            }
-                        }
-                        .onAppear{
-                            withAnimation{
-                                VM.onAppearDailyAnalytics(course: courseVM.selectedCourse)
-                            }
-                        }
+                        
                     topBar
                 } else {
-                    retentionContent
-                        .onAppear {
-                            VM.onAppearRetention(course: courseVM.selectedCourse)
-                        }
+                    RetentionView()
+                        
                 }
             }
         }
         .environmentObject(VM)
         .background(.bg)
-    }
-    
-    var retentionContent: some View {
-        ScrollView(.vertical) {
-            VStack(spacing: 16){
-                if VM.loadingDocs {
-                    VStack(spacing: 16) {
-                        // Mock Player Data Card
-                        VStack {
-                            RoundedRectangle(cornerRadius: 17).fill(.subTwo).frame(height: 100)
-                            HStack {
-                                RoundedRectangle(cornerRadius: 17).fill(.subTwo).frame(height: 100)
-                                RoundedRectangle(cornerRadius: 17).fill(.subTwo).frame(height: 100)
-                            }
-                        }
-                        .skeleton(active: true)
-                        .clipShape(RoundedRectangle(cornerRadius: 17))
-                        
-                        // Mock Chart
-                        RoundedRectangle(cornerRadius: 17)
-                            .fill(.subTwo)
-                            .frame(height: 220)
-                            .skeleton(active: true)
-                            .clipShape(RoundedRectangle(cornerRadius: 17))
-                    }
-                    .padding()
-                    .background {
-                        RoundedRectangle(cornerRadius: 25)
-                            .fill(.sub)
-                            .cardShadow()
-                    }
-                    .transition(.opacity)
-                } else {
-                    Text("\(String(VM.allEmails.count)) Unique Players")
-                        
-                }
+        .onChange(of: VM.range) { old, new in
+            withAnimation{
+                VM.onChange(old: old, new: new, course: courseVM.selectedCourse)
             }
         }
-        .contentMargins([.horizontal, .bottom, .top], 16)
+        .onAppear{
+            withAnimation{
+                VM.onAppearDailyAnalytics(course: courseVM.selectedCourse)
+            }
+        }
         .onAppear {
-            
+            withAnimation{
+                VM.onAppearRetention(course: courseVM.selectedCourse)
+            }
         }
     }
-    
     var dayRangecontent: some View {
         // Content
         ScrollView(.vertical) {

@@ -426,6 +426,157 @@ final class AnalyticsRepository {
             return [:]
         }
     }
+    
+    // MARK: - Debug Email Generation
+    
+    /// Upload debug email data to Firebase for testing retention features
+    /// - Parameters:
+    ///   - courseID: The course to add emails to
+    ///   - count: Total number of emails to generate (default: 100)
+    ///   - completion: Callback with success status
+    func uploadDebugEmails(
+        courseID: String,
+        count: Int = 100,
+        completion: @escaping (Bool) -> Void
+    ) {
+        let emails = makeDebugEmails(count: count)
+        
+        guard !emails.isEmpty else {
+            DispatchQueue.main.async { completion(true) }
+            return
+        }
+        
+        let courseRef = db.collection(collectionName).document(courseID)
+        let emailsRef = courseRef.collection("emails")
+        let batch = db.batch()
+        
+        for (email, data) in emails {
+            let docRef = emailsRef.document(emailKey(email))
+            do {
+                try batch.setData(from: data, forDocument: docRef, merge: true)
+            } catch {
+                DispatchQueue.main.async {
+                    print("❌ Failed to encode debug email: \(error.localizedDescription)")
+                    completion(false)
+                }
+                return
+            }
+        }
+        
+        batch.commit { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("❌ Failed to upload debug emails: \(error.localizedDescription)")
+                    completion(false)
+                } else {
+                    print("✅ Successfully uploaded \(emails.count) debug emails")
+                    completion(true)
+                }
+            }
+        }
+    }
+    
+    /// Generate debug email data across all retention tiers
+    /// - Parameter count: Number of emails to generate
+    /// - Returns: Dictionary of email addresses to CourseEmail data
+    private func makeDebugEmails(count: Int) -> [String: CourseEmail] {
+        var emails: [String: CourseEmail] = [:]
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        
+        // Distribution across tiers:
+        // 30% New (playCount = 1)
+        // 25% Mid-Tier (2-5 plays, active)
+        // 20% Frequent (5+ plays, active)
+        // 25% At Risk (>1 play, inactive 38+ days)
+        
+        let newCount = Int(Double(count) * 0.30)
+        let midTierCount = Int(Double(count) * 0.25)
+        let frequentCount = Int(Double(count) * 0.20)
+        let atRiskCount = count - newCount - midTierCount - frequentCount
+        
+        var index = 1
+        
+        // Generate NEW players (🎉)
+        for _ in 0..<newCount {
+            let email = "new.player\(index)@example.com"
+            let daysAgo = Int.random(in: 1...30)
+            let firstSeen = calendar.date(byAdding: .day, value: -daysAgo, to: today)!
+            
+            emails[email] = CourseEmail(
+                firstSeen: makeDayID(from: firstSeen),
+                secondSeen: nil,
+                lastPlayed: makeDayID(from: firstSeen),
+                playCount: 1
+            )
+            index += 1
+        }
+        
+        // Generate MID-TIER players (🥈)
+        for _ in 0..<midTierCount {
+            let email = "midtier.player\(index)@example.com"
+            let playCount = Int.random(in: 2...5)
+            let firstSeenDays = Int.random(in: 30...90)
+            let lastPlayedDays = Int.random(in: 1...30) // Active within 30 days
+            let secondSeenDays = Int.random(in: firstSeenDays-25...firstSeenDays-5)
+            
+            let firstSeen = calendar.date(byAdding: .day, value: -firstSeenDays, to: today)!
+            let secondSeen = calendar.date(byAdding: .day, value: -secondSeenDays, to: today)!
+            let lastPlayed = calendar.date(byAdding: .day, value: -lastPlayedDays, to: today)!
+            
+            emails[email] = CourseEmail(
+                firstSeen: makeDayID(from: firstSeen),
+                secondSeen: makeDayID(from: secondSeen),
+                lastPlayed: makeDayID(from: lastPlayed),
+                playCount: playCount
+            )
+            index += 1
+        }
+        
+        // Generate FREQUENT players (💎)
+        for _ in 0..<frequentCount {
+            let email = "frequent.player\(index)@example.com"
+            let playCount = Int.random(in: 6...20)
+            let firstSeenDays = Int.random(in: 60...180)
+            let lastPlayedDays = Int.random(in: 1...30) // Active within 30 days
+            let secondSeenDays = Int.random(in: firstSeenDays-25...firstSeenDays-5)
+            
+            let firstSeen = calendar.date(byAdding: .day, value: -firstSeenDays, to: today)!
+            let secondSeen = calendar.date(byAdding: .day, value: -secondSeenDays, to: today)!
+            let lastPlayed = calendar.date(byAdding: .day, value: -lastPlayedDays, to: today)!
+            
+            emails[email] = CourseEmail(
+                firstSeen: makeDayID(from: firstSeen),
+                secondSeen: makeDayID(from: secondSeen),
+                lastPlayed: makeDayID(from: lastPlayed),
+                playCount: playCount
+            )
+            index += 1
+        }
+        
+        // Generate AT RISK players (⚠️)
+        for _ in 0..<atRiskCount {
+            let email = "atrisk.player\(index)@example.com"
+            let playCount = Int.random(in: 2...10)
+            let firstSeenDays = Int.random(in: 90...365)
+            let lastPlayedDays = Int.random(in: 39...180) // Inactive 38+ days
+            let secondSeenDays = min(firstSeenDays - Int.random(in: 10...30), lastPlayedDays + 10)
+            
+            let firstSeen = calendar.date(byAdding: .day, value: -firstSeenDays, to: today)!
+            let secondSeen = calendar.date(byAdding: .day, value: -secondSeenDays, to: today)!
+            let lastPlayed = calendar.date(byAdding: .day, value: -lastPlayedDays, to: today)!
+            
+            emails[email] = CourseEmail(
+                firstSeen: makeDayID(from: firstSeen),
+                secondSeen: makeDayID(from: secondSeen),
+                lastPlayed: makeDayID(from: lastPlayed),
+                playCount: playCount
+            )
+            index += 1
+        }
+        
+        return emails
+    }
 }
 
 enum AnalyticsRange: Equatable {
