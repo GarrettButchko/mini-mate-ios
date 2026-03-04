@@ -47,7 +47,7 @@ struct AnalyticsView: View {
                     Button(action: {
                         withAnimation(){
                             isRotating = true
-                            triggerAnalyticsRefresh()
+                            triggerAnalyticsRefresh(isAnalytics: VM.pickedSection == "Day Range")
                             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                                 isRotating = false
                             }
@@ -359,14 +359,100 @@ struct AnalyticsView: View {
         VStack(spacing: 16){
 
             if let course = courseVM.selectedCourse {
-                let heatmapData = VM.getHoleHeatmapForParData(course: course)
-                
-                VStack(spacing: 16) {
-                    HoleDifficultyParChart(difficultyData: heatmapData)
-                        .frame(height: 100) // Constrain height so the list has room
-                        .padding(.bottom)
+                // SECTION 1: Par Performance Overview
+                VStack(spacing: 8){
+                    HStack{
+                        Text("Par Performance")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        Spacer()
+                    }
                     
-                    HolePreviewList(allHoles: heatmapData)
+                    HStack{
+                        DataCard(data: VM.getAvgRelativeToPar(), title: "Avg vs Par", infoText: "Average strokes above or below par across all holes played.", color: .subTwo, cornerRadius: 17)
+                        
+                        DataCard(data: VM.getMostBeatenPar(), title: "Best Hole", infoText: "Hole where players most frequently beat par.", color: .subTwo, cornerRadius: 17)
+                    }
+                    
+                    let heatmapData = VM.getHoleHeatmapForParData(course: course)
+                    
+                    VStack(spacing: 16) {
+                        HoleDifficultyParChart(difficultyData: heatmapData)
+                            .frame(height: 100)
+                        
+                        HolePreviewList(allHoles: heatmapData)
+                    }
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
+                }
+                .padding()
+                .background {
+                    RoundedRectangle(cornerRadius: 25)
+                        .fill(.sub)
+                        .cardShadow()
+                }
+                
+                // SECTION 2: Score Distribution
+                VStack(spacing: 8){
+                    HStack{
+                        Text("Score Distribution")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        Spacer()
+                    }
+                    
+                    HStack{
+                        DataCard(data: VM.getUnderParPercentage(), title: "Under Par", infoText: "Percentage of holes completed under par.", color: .subTwo, cornerRadius: 17)
+                        
+                        DataCard(data: VM.getOverParPercentage(), title: "Over Par", infoText: "Percentage of holes completed over par.", color: .subTwo, cornerRadius: 17)
+                    }
+                    
+                    DataCard(data: VM.getHoleInOneCount(), title: "Total Holes-in-One", infoText: "Total number of holes completed in one stroke during this period.", color: .subTwo, cornerRadius: 17)
+                }
+                .padding()
+                .background {
+                    RoundedRectangle(cornerRadius: 25)
+                        .fill(.sub)
+                        .cardShadow()
+                }
+                
+                // SECTION 3: Game Duration & Engagement
+                VStack(spacing: 8){
+                    HStack{
+                        Text("Game Duration")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        Spacer()
+                    }
+                    
+                    HStack{
+                        DataCard(data: VM.getAvgGameDuration(), title: "Avg Duration", infoText: "Average time players spend per game.", color: .subTwo, cornerRadius: 17)
+                        
+                        DataCard(data: VM.getTotalPlayTime(), title: "Total Time", infoText: "Total play time across all games in this period.", color: .subTwo, cornerRadius: 17)
+                    }
+                    
+                    HStack{
+                        DataCard(data: VM.getFastestGameTime(), title: "Fastest Game", infoText: "Shortest game duration recorded.", color: .subTwo, cornerRadius: 17)
+                        
+                        DataCard(data: VM.getSlowestGameTime(), title: "Longest Game", infoText: "Longest game duration recorded.", color: .subTwo, cornerRadius: 17)
+                    }
+                    
+                    VStack{
+                        HStack(alignment: .center) {
+                            Text("Game Duration Trend")
+                                .foregroundStyle(.mainOpp)
+                                .font(.system(size: 14, weight: .semibold))
+                            Spacer()
+                            InfoButton(infoText: "Shows the duration of the games over time.")
+                        }
+                        .padding(.bottom, 16)
+                        GameDurationTrendChart(VM: VM)
+                    }
+                    
+                    
+                        .frame(height: 200)
+                        .padding()
+                        .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
                 }
                 .padding()
                 .background {
@@ -449,12 +535,15 @@ struct AnalyticsView: View {
         )
     }
     
-    private func triggerAnalyticsRefresh() {
+    private func triggerAnalyticsRefresh(isAnalytics: Bool = true) {
         guard canManualRefresh else { return }
         canManualRefresh = false
 
-        VM.refreshAnalytics(course: courseVM.selectedCourse)
-        VM.onAppearRetention(course: courseVM.selectedCourse)
+        if isAnalytics {
+            VM.refreshAnalytics(course: courseVM.selectedCourse)
+        } else {
+            VM.onAppearRetention(course: courseVM.selectedCourse)
+        }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + refreshCooldown) {
             canManualRefresh = true

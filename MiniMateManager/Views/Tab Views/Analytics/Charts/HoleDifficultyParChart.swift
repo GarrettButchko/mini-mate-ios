@@ -20,9 +20,9 @@ struct HoleDifficultyParChart: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .center) {
-                Text("Hole Difficulty (VS Par) Map")
-                    .font(.title2)
-                    .fontWeight(.bold)
+                Text("Hole Difficulty (vs Par) Map")
+                    .foregroundStyle(.mainOpp)
+                    .font(.system(size: 14, weight: .semibold))
                 Spacer()
                 InfoButton(infoText: "Heatmap: Purple (Under Par) | Blue (Little Under Par) | Green (Par) | Orange (Just Over Par) | Red (Over Par). Note: Missing holes represent unplayed or incomplete data.")
             }

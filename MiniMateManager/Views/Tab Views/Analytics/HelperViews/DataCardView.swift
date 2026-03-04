@@ -33,7 +33,7 @@ struct DataCard: View {
                     .fontWeight(.bold)
                     .foregroundStyle(data.deltaColor != nil ? data.deltaColor! : .mainOpp)
                     .lineLimit(1) // Ensures the text stays on one line while shrinking
-                    .minimumScaleFactor(0.75) // Allows text to shrink down to 75% of its original size
+                    .minimumScaleFactor(0.5) // Allows text to shrink down to 75% of its original size
                 if let delta = data.delta, let deltaColor = data.deltaColor {
                     Text(delta)
                         .font(.subheadline)

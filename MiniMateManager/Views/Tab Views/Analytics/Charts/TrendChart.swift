@@ -169,3 +169,96 @@ struct PlayerSummaryChart: View {
         }
     }
 }
+
+struct GameDurationTrendChart: View {
+    var data: [GameDurationActivity] = []
+    var lineColor: Color = .cyan
+    
+    init(VM: AnalyticsViewModel) {
+        self.data = VM.getDataForDurationTrend()
+        self.lineColor = .cyan
+    }
+    
+    var body: some View {
+        if data.isEmpty {
+            VStack(spacing: 12) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.largeTitle)
+                    .foregroundStyle(.secondary)
+                
+                Text("No duration data available")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            Chart {
+                ForEach(data) { item in
+                    LineMark(
+                        x: .value("Day", item.date, unit: .day),
+                        y: .value("Minutes", item.avgMinutes)
+                    )
+                    .foregroundStyle(lineColor)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    
+                    AreaMark(
+                        x: .value("Day", item.date, unit: .day),
+                        y: .value("Minutes", item.avgMinutes)
+                    )
+                    .foregroundStyle(
+                        .linearGradient(
+                            colors: [lineColor.opacity(0.3), .clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                }
+            }
+            .chartYScale(domain: .automatic(includesZero: true))
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                    AxisGridLine()
+                        .foregroundStyle(.secondary.opacity(0.2))
+                    AxisValueLabel {
+                        if let minutes = value.as(Double.self) {
+                            Text("\(Int(minutes))m")
+                                .font(.caption2)
+                        }
+                    }
+                }
+            }
+            .chartXAxis {
+                AxisMarks(preset: .aligned, values: getStrideValues(from: data)) { value in
+                    AxisGridLine()
+                        .foregroundStyle(.secondary.opacity(0.3))
+                    AxisValueLabel {
+                        if let date = value.as(Date.self) {
+                            Text(date, format: .dateTime.month().day())
+                                .font(.caption2)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    func getStrideValues(from data: [GameDurationActivity]) -> [Date] {
+        let count = data.count
+        
+        if count <= 5 {
+            return data.map { $0.date }
+        }
+        
+        guard let first = data.first?.date, let last = data.last?.date else { return [] }
+        
+        let diff = last.timeIntervalSince(first)
+        let step = diff / 5
+        
+        return [
+            first.addingTimeInterval(step),
+            first.addingTimeInterval(step * 2),
+            first.addingTimeInterval(step * 3),
+            first.addingTimeInterval(step * 4)
+        ]
+    }
+}

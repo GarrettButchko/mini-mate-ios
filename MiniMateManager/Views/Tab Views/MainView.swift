@@ -15,6 +15,8 @@ struct MainView: View {
     @EnvironmentObject var viewModel: CourseViewModel
     @EnvironmentObject var viewManager: ViewManager
     
+    @StateObject private var analyticsVM = AnalyticsViewModel()
+    
     @State var showLeaderBoardSheet: Bool = false
     @State var showTournamentSheet: Bool = false
     @State var isSheetPresented: Bool = false
@@ -22,6 +24,11 @@ struct MainView: View {
     @State private var buttonsViewHeight: CGFloat = 0 // State to track the height of the buttons view
     
     @State private var titleHeight: CGFloat = 0 // State to track the height of the title view
+    
+    @State private var healthReport: CourseHealthReport?
+    @State private var isLoadingHealth = false
+    
+    @State var showHealthRatingSheet: Bool = false
     
     var body: some View {
         VStack{
@@ -112,31 +119,49 @@ struct MainView: View {
                 .padding(.bottom)
             
             ZStack(alignment: .top){
-                
                 ScrollView{
                     VStack (spacing: 16){
-                        HStack{
-                            Spacer()
-                            Text("ADD STUFF HERE")
-                            Spacer()
-                        }
-                        .padding()
-                        .background {
-                            RoundedRectangle(cornerRadius: 25)
-                                .subVsColor(makeColor: viewModel.selectedCourse?.scoreCardColor)
-                                .cardShadow()
-                        }
-                        
-                        HStack{
-                            Spacer()
-                            Text("ADD STUFF HERE")
-                            Spacer()
-                        }
-                        .padding()
-                        .background {
-                            RoundedRectangle(cornerRadius: 25)
-                                .subVsColor(makeColor: viewModel.selectedCourse?.scoreCardColor)
-                                .cardShadow()
+                        if isLoadingHealth {
+                            ProgressView("Analyzing course health...")
+                                .frame(height: 375)
+                                .frame(maxWidth: .infinity)
+                                .background {
+                                    RoundedRectangle(cornerRadius: 25)
+                                        .subVsColor(makeColor: viewModel.selectedCourse?.scoreCardColor)
+                                        .cardShadow()
+                                }
+                        } else if let report = healthReport {
+                            Button{
+                                showHealthRatingSheet = true
+                            } label: {
+                                HealthRatingChart(healthReport: report)
+                                    .frame(height: 375)
+                            }
+                            .sheet(isPresented: $showHealthRatingSheet){
+                                SectionHealthDetailView(healthReport: report)
+                                    .presentationDragIndicator(.visible)
+                            }
+                        } else {
+                            VStack(spacing: 12) {
+                                Image(systemName: "chart.bar.doc.horizontal")
+                                    .font(.system(size: 48))
+                                    .foregroundStyle(.secondary)
+                                
+                                Text("No Health Data Available")
+                                    .font(.headline)
+                                    .foregroundStyle(.secondary)
+                                
+                                Text("Analytics data is being collected")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(height: 375)
+                            .frame(maxWidth: .infinity)
+                            .background {
+                                RoundedRectangle(cornerRadius: 25)
+                                    .subVsColor(makeColor: viewModel.selectedCourse?.scoreCardColor)
+                                    .cardShadow()
+                            }
                         }
                     }
                 }
@@ -177,10 +202,38 @@ struct MainView: View {
                     .ignoresSafeArea(edges: .top)
                 )
             }
-            .contentMargins(.horizontal, 16)
-            Spacer()
+            .contentMargins([.horizontal, .bottom], 16)
         }
         .background(.bg)
+        .task(id: viewModel.selectedCourse?.id) {
+            await loadHealthData()
+        }
+    }
+    
+    @MainActor
+    private func loadHealthData() async {
+        guard let course = viewModel.selectedCourse else {
+            healthReport = nil
+            return
+        }
+        
+        withAnimation{
+            isLoadingHealth = true
+        }
+        
+        // Load analytics data
+        analyticsVM.onAppearDailyAnalytics(course: course)
+        analyticsVM.onAppearRetention(course: course)
+        
+        // Wait for data to load
+        try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+        
+        // Calculate health report
+        healthReport = analyticsVM.calculateCourseHealth()
+        
+        withAnimation{
+            isLoadingHealth = false
+        }
     }
     
     func mainViewButton(title: String, icon: String? = nil, color: Color, action: @escaping () -> Void) -> some View {
