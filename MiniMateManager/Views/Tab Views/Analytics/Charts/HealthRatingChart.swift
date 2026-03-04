@@ -179,25 +179,28 @@ struct SectionHealthDetailView: View {
                     
                     // Top Insights
                     if !healthReport.topInsights.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Key Insights")
-                                .font(.headline)
-                                .padding(.top, 8)
-                            
-                            ForEach(Array(healthReport.topInsights.prefix(5).enumerated()), id: \.offset) { _, insight in
-                                HStack(alignment: .top, spacing: 8) {
-                                    Image(systemName: "lightbulb.fill")
-                                        .font(.caption)
-                                        .foregroundStyle(.yellow)
-                                        .frame(width: 16)
-                                    
-                                    Text(insight)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .fixedSize(horizontal: false, vertical: true)
+                        HStack {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Key Insights")
+                                    .font(.headline)
+                                    .padding(.top, 8)
+                                
+                                ForEach(Array(healthReport.topInsights.prefix(5).enumerated()), id: \.offset) { _, insight in
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Image(systemName: "lightbulb.fill")
+                                            .font(.caption)
+                                            .foregroundStyle(.yellow)
+                                            .frame(width: 16)
+                                        
+                                        Text(insight)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                    .padding(.vertical, 4)
                                 }
-                                .padding(.vertical, 4)
                             }
+                            Spacer()
                         }
                         .padding()
                         .background {
