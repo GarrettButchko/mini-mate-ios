@@ -293,9 +293,19 @@ struct SectionHealthDetailView: View {
             if !rating.insights.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(Array(rating.insights.prefix(2).enumerated()), id: \.offset) { _, insight in
-                        Text(insight)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        HStack(alignment: .center, spacing: 8) {
+                            Image(systemName: insight.imageName)
+                                .font(.caption)
+                                .foregroundStyle(insight.color)
+                                .frame(width: 16, height: 16)
+                            
+                            Text(insight.descripton)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(3)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.vertical, 6)
                     }
                 }
                 .padding(.top, 4)
@@ -307,55 +317,4 @@ struct SectionHealthDetailView: View {
                 .fill(.subTwo)
         }
     }
-}
-
-// Preview
-#Preview {
-    let mockReport = CourseHealthReport(
-        overallScore: 78.5,
-        overallGrade: .good,
-        growthHealth: SectionHealthRating(
-            section: .growth,
-            score: 85,
-            grade: .great,
-            insights: ["🚀 Exceptional growth! Active users up 25.3%", "✨ Good new player rate at 22%"],
-            metrics: ["growthRate": 25.3]
-        ),
-        operationsHealth: SectionHealthRating(
-            section: .operations,
-            score: 72,
-            grade: .good,
-            insights: ["📊 Good activity with 35 games/day", "✅ Good social play with groups of 2.5"],
-            metrics: ["avgGamesPerDay": 35]
-        ),
-        experienceHealth: SectionHealthRating(
-            section: .experience,
-            score: 68,
-            grade: .satisfactory,
-            insights: ["✅ Well-balanced challenge for players", "✅ Good success rate keeps players engaged"],
-            metrics: ["avgRelativeToPar": 1.2]
-        ),
-        retentionHealth: SectionHealthRating(
-            section: .experience,
-            score: 82,
-            grade: .great,
-            insights: ["✅ Strong retention rate of 38%", "✨ Excellent engaged player base at 42%"],
-            metrics: ["retention30Day": 38]
-        ),
-        topInsights: [
-            "[Growth] 🚀 Exceptional growth! Active users up 25.3%",
-            "[Retention] ✅ Strong retention rate of 38%",
-            "[Operations] 📊 Good activity with 35 games/day"
-        ],
-        timestamp: Date()
-    )
-    
-    return ScrollView {
-        VStack(spacing: 16) {
-            HealthRatingChart(healthReport: mockReport)
-            SectionHealthDetailView(healthReport: mockReport)
-        }
-        .padding()
-    }
-    .background(.bg)
 }

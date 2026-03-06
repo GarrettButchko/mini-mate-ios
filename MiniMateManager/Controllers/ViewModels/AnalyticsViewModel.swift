@@ -18,6 +18,12 @@ enum AnalyticsSection: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum InsightType {
+    case good
+    case warning
+    case critical
+}
+
 enum ChartTopic {
     case total
     case first
@@ -64,13 +70,33 @@ struct GameDurationActivity: Identifiable {
     let avgMinutes: Double
 }
 
-// MARK: - Health Rating Models
+struct Insight {
+    let descripton: String
+    let insightType: InsightType
+    
+    var color: Color {
+        switch insightType {
+        case .good: return .green
+        case .warning: return .orange
+        case .critical: return .red
+        }
+    }
+    
+    var imageName: String {
+        switch insightType {
+        case .good: return "checkmark.circle.fill"
+        case .warning: return "exclamationmark.triangle.fill"
+        case .critical: return "x.circle.fill"
+        }
+    }
+}
 
+// MARK: - Health Rating Models
 struct SectionHealthRating {
     let section: AnalyticsSection
     let score: Double // 0.0 to 100.0
     let grade: HealthGrade
-    let insights: [String]
+    let insights: [Insight]
     let metrics: [String: Double] // Raw metric values for transparency
 }
 
@@ -161,7 +187,6 @@ final class AnalyticsViewModel: ObservableObject {
     @Published var cached30DayRetention: Double = 0.0
     
     //MARK: Growth
-    // Data Calc
     func getActiveUsers(_ docs: [DailyDoc]) -> Int {
         docs.reduce(0) { $0 + $1.totalCount }
     }
@@ -205,7 +230,7 @@ final class AnalyticsViewModel: ObservableObject {
         if deltaDailyDocs.isEmpty || (rangeDailyDocs.count != deltaDailyDocs.count && rangeDailyDocs.count != deltaDailyDocs.count + 1 && rangeDailyDocs.count != deltaDailyDocs.count - 1) || (delta > 999 || delta < -999) {
             delta = 0
         }
-    
+        
         let isDeltaPositive = delta > 0
         
         var deltaString = String(format: "%.1f%%", delta)
@@ -239,7 +264,7 @@ final class AnalyticsViewModel: ObservableObject {
     
     
     
-
+    
     
     // Prime (Data and delta and color)
     func activeUsersPrime() -> DataPointObject {
@@ -248,7 +273,7 @@ final class AnalyticsViewModel: ObservableObject {
         var delta = calcDelta(deltaUsers, rangeUsers)
         
         let data = deltaErrorCalc(delta: &delta, positiveGood: true)
-
+        
         return DataPointObject(value: String(rangeUsers), delta: data.deltaS, deltaColor: data.deltaC)
     }
     
@@ -258,7 +283,7 @@ final class AnalyticsViewModel: ObservableObject {
         var delta = calcDelta(deltaUsers, rangeUsers)
         
         let data = deltaErrorCalc(delta: &delta, positiveGood: true)
-  
+        
         return DataPointObject(value: String(rangeUsers), delta: data.deltaS, deltaColor: data.deltaC)
     }
     
@@ -268,7 +293,7 @@ final class AnalyticsViewModel: ObservableObject {
         var delta = calcDelta(deltaUsers, rangeUsers)
         
         let data = deltaErrorCalc(delta: &delta, positiveGood: true)
-    
+        
         return DataPointObject(value: String(rangeUsers), delta: data.deltaS, deltaColor: data.deltaC)
     }
     
@@ -344,7 +369,7 @@ final class AnalyticsViewModel: ObservableObject {
         
         var suffix = ""
         var displayHour = busiestHour
-
+        
         switch busiestHour {
         case 0:
             displayHour = 12
@@ -373,7 +398,7 @@ final class AnalyticsViewModel: ObservableObject {
         }
         
         var valueString: String = "Err"
-
+        
         // 2. To find the "Busiest Day" string (e.g., "Sat")
         if let busiestDayInt = weeklyVolume.max(by: { $0.value < $1.value })?.key {
             let dayLabels = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -398,7 +423,7 @@ final class AnalyticsViewModel: ObservableObject {
         let easiestHoleID = avgStrokesPerHole.min(by: { $0.value < $1.value })?.key ?? "Err"
         return DataPointObject(value: "Hole \(easiestHoleID)", delta: nil, deltaColor: .mainOpp)
     }
-
+    
     func getHoleCombined() -> [String: Double] {
         var combinedTotalStrokes: [String: Int] = [:]
         var combinedPlays: [String: Int] = [:]
@@ -423,13 +448,13 @@ final class AnalyticsViewModel: ObservableObject {
     func getHoleDifficultyData() -> [HoleDifficultyData]{
         // In your Parent View / ViewModel
         let results = getHoleCombined()
-
+        
         // Convert [String: Double] to [HoleDifficultyData] sorted by hole number
         let chartData = results.compactMap { (key, value) -> HoleDifficultyData? in
             guard let holeNum = Int(key) else { return nil }
             return HoleDifficultyData(holeNumber: holeNum, averageStrokes: value)
         }.sorted(by: { $0.holeNumber < $1.holeNumber })
-
+        
         // Pass chartData to HoleDifficultyChart(difficultyData: chartData)
         return chartData
     }
@@ -1176,7 +1201,7 @@ final class AnalyticsViewModel: ObservableObject {
     /// Calculate Growth section health rating
     private func calculateGrowthHealth() -> SectionHealthRating {
         var score: Double = 0
-        var insights: [String] = []
+        var insights: [Insight] = []
         var metrics: [String: Double] = [:]
         
         // Metric 1: Active user growth (40 points)
@@ -1188,22 +1213,22 @@ final class AnalyticsViewModel: ObservableObject {
         switch growthRate {
         case 20...:
             score += 40
-            insights.append("🚀 Exceptional growth! Active users up \(String(format: "%.1f%%", growthRate))")
+            insights.append(Insight(descripton: "Exceptional growth! Active users up \(String(format: "%.1f%%", growthRate))", insightType: .good))
         case 10..<20:
             score += 35
-            insights.append("📈 Strong growth trend with \(String(format: "%.1f%%", growthRate)) increase")
+            insights.append(Insight(descripton: "Strong growth trend with \(String(format: "%.1f%%", growthRate)) increase", insightType: .good))
         case 5..<10:
             score += 30
-            insights.append("✅ Steady growth at \(String(format: "%.1f%%", growthRate))")
+            insights.append(Insight(descripton: "Steady growth at \(String(format: "%.1f%%", growthRate))", insightType: .good))
         case 0..<5:
             score += 20
-            insights.append("⚠️ Slow growth at \(String(format: "%.1f%%", growthRate))")
+            insights.append(Insight(descripton: "Slow growth at \(String(format: "%.1f%%", growthRate))", insightType: .warning))
         case -10..<0:
             score += 10
-            insights.append("⚠️ Declining users by \(String(format: "%.1f%%", abs(growthRate)))")
+            insights.append(Insight(descripton: "Declining users by \(String(format: "%.1f%%", abs(growthRate)))", insightType: .warning))
         default:
             score += 0
-            insights.append("🚨 Significant decline of \(String(format: "%.1f%%", abs(growthRate)))")
+            insights.append(Insight(descripton: "Significant decline of \(String(format: "%.1f%%", abs(growthRate)))", insightType: .critical))
         }
         
         // Metric 2: New player acquisition (30 points)
@@ -1213,16 +1238,16 @@ final class AnalyticsViewModel: ObservableObject {
         switch newPlayerPercentage {
         case 30...:
             score += 30
-            insights.append("🎉 Excellent new player acquisition at \(String(format: "%.0f%%", newPlayerPercentage))")
+            insights.append(Insight(descripton: "Excellent new player acquisition at \(String(format: "%.0f%%", newPlayerPercentage))", insightType: .good))
         case 20..<30:
             score += 25
-            insights.append("✨ Good new player rate at \(String(format: "%.0f%%", newPlayerPercentage))")
+            insights.append(Insight(descripton: "Good new player rate at \(String(format: "%.0f%%", newPlayerPercentage))", insightType: .good))
         case 10..<20:
             score += 20
-            insights.append("💡 Moderate new player acquisition")
+            insights.append(Insight(descripton: "Moderate new player acquisition", insightType: .good))
         default:
             score += 10
-            insights.append("📊 Focus needed on attracting new players")
+            insights.append(Insight(descripton: "Focus needed on attracting new players", insightType: .warning))
         }
         
         // Metric 3: Returning player ratio (30 points)
@@ -1232,16 +1257,16 @@ final class AnalyticsViewModel: ObservableObject {
         switch returningPercentage {
         case 50...:
             score += 30
-            insights.append("💎 Outstanding player return rate at \(String(format: "%.0f%%", returningPercentage))")
+            insights.append(Insight(descripton: "Outstanding player return rate at \(String(format: "%.0f%%", returningPercentage))", insightType: .good))
         case 30..<50:
             score += 25
-            insights.append("✅ Healthy returning player base")
+            insights.append(Insight(descripton: "Healthy returning player base", insightType: .good))
         case 15..<30:
             score += 15
-            insights.append("⚠️ Below-average return rate")
+            insights.append(Insight(descripton: "Below-average return rate", insightType: .warning))
         default:
             score += 5
-            insights.append("🚨 Critical: Very low player retention")
+            insights.append(Insight(descripton: "Critical: Very low player retention", insightType: .critical))
         }
         
         let grade = HealthGrade.from(score: score)
@@ -1257,7 +1282,7 @@ final class AnalyticsViewModel: ObservableObject {
     /// Calculate Operations section health rating
     private func calculateOperationsHealth() -> SectionHealthRating {
         var score: Double = 0
-        var insights: [String] = []
+        var insights: [Insight] = []
         var metrics: [String: Double] = [:]
         
         // Metric 1: Game volume (40 points)
@@ -1268,19 +1293,19 @@ final class AnalyticsViewModel: ObservableObject {
         switch avgGamesPerDay {
         case 50...:
             score += 40
-            insights.append("🔥 High volume: \(String(format: "%.0f", avgGamesPerDay)) games/day")
+            insights.append(Insight(descripton: "High volume: \(String(format: "%.0f", avgGamesPerDay)) games/day", insightType: .good))
         case 25..<50:
             score += 35
-            insights.append("📊 Good activity with \(String(format: "%.0f", avgGamesPerDay)) games/day")
+            insights.append(Insight(descripton: "Good activity with \(String(format: "%.0f", avgGamesPerDay)) games/day", insightType: .good))
         case 10..<25:
             score += 25
-            insights.append("✅ Moderate activity level")
+            insights.append(Insight(descripton: "Moderate activity level", insightType: .good))
         case 5..<10:
             score += 15
-            insights.append("⚠️ Low game volume")
+            insights.append(Insight(descripton: "Low game volume", insightType: .warning))
         default:
             score += 5
-            insights.append("🚨 Very low operational activity")
+            insights.append(Insight(descripton: "Very low operational activity", insightType: .critical))
         }
         
         // Metric 2: Course utilization (30 points)
@@ -1290,16 +1315,16 @@ final class AnalyticsViewModel: ObservableObject {
         switch avgPlayersPerGameValue {
         case 3...:
             score += 30
-            insights.append("👥 Excellent group sizes averaging \(String(format: "%.1f", avgPlayersPerGameValue)) players")
+            insights.append(Insight(descripton: "Excellent group sizes averaging \(String(format: "%.1f", avgPlayersPerGameValue)) players", insightType: .good))
         case 2..<3:
             score += 25
-            insights.append("✅ Good social play with groups of \(String(format: "%.1f", avgPlayersPerGameValue))")
+            insights.append(Insight(descripton: "Good social play with groups of \(String(format: "%.1f", avgPlayersPerGameValue))", insightType: .good))
         case 1.5..<2:
             score += 15
-            insights.append("💡 Opportunity to encourage group play")
+            insights.append(Insight(descripton: "Opportunity to encourage group play", insightType: .warning))
         default:
             score += 10
-            insights.append("🎯 Promote social features to increase group sizes")
+            insights.append(Insight(descripton: "Promote social features to increase group sizes", insightType: .warning))
         }
         
         // Metric 3: Game duration efficiency (30 points)
@@ -1310,17 +1335,17 @@ final class AnalyticsViewModel: ObservableObject {
         switch avgGameMinutes {
         case 15...45:
             score += 30
-            insights.append("⏱️ Optimal game duration at \(String(format: "%.0f", avgGameMinutes)) minutes")
+            insights.append(Insight(descripton: "Optimal game duration at \(String(format: "%.0f", avgGameMinutes)) minutes", insightType: .good))
         case 10..<15:
             score += 25
-            insights.append("⚡ Quick games averaging \(String(format: "%.0f", avgGameMinutes)) minutes")
+            insights.append(Insight(descripton: "Quick games averaging \(String(format: "%.0f", avgGameMinutes)) minutes", insightType: .good))
         case 45..<60:
             score += 20
-            insights.append("⏰ Longer games may indicate engagement or pacing issues")
+            insights.append(Insight(descripton: "Longer games may indicate engagement or pacing issues", insightType: .warning))
         default:
             if avgGameMinutes > 0 {
                 score += 10
-                insights.append("⚠️ Review game duration patterns")
+                insights.append(Insight(descripton: "Review game duration patterns", insightType: .warning))
             } else {
                 score += 15
             }
@@ -1339,7 +1364,7 @@ final class AnalyticsViewModel: ObservableObject {
     /// Calculate Experience section health rating
     private func calculateExperienceHealth() -> SectionHealthRating {
         var score: Double = 0
-        var insights: [String] = []
+        var insights: [Insight] = []
         var metrics: [String: Double] = [:]
         
         guard let course = currentCourse else {
@@ -1347,7 +1372,7 @@ final class AnalyticsViewModel: ObservableObject {
                 section: .experience,
                 score: 50,
                 grade: .needsImprovement,
-                insights: ["⚠️ Course data not available"],
+                insights: [Insight(descripton: "Course data not available", insightType: .warning)],
                 metrics: [:]
             )
         }
@@ -1372,19 +1397,19 @@ final class AnalyticsViewModel: ObservableObject {
         switch avgRelativeToPar {
         case -0.5...0.5:
             score += 35
-            insights.append("🎯 Perfect difficulty balance! Players score near par")
+            insights.append(Insight(descripton: "Perfect difficulty balance! Players score near par", insightType: .good))
         case 0.5...1.5:
             score += 30
-            insights.append("✅ Well-balanced challenge for players")
+            insights.append(Insight(descripton: "Well-balanced challenge for players", insightType: .good))
         case 1.5...2.5:
             score += 20
-            insights.append("⚠️ Course may be slightly too difficult")
+            insights.append(Insight(descripton: "Course may be slightly too difficult", insightType: .warning))
         case 2.5...:
             score += 10
-            insights.append("🚨 Course difficulty may frustrate players")
+            insights.append(Insight(descripton: "Course difficulty may frustrate players", insightType: .critical))
         case ...(-0.5):
             score += 25
-            insights.append("💡 Course may be too easy - consider adding challenges")
+            insights.append(Insight(descripton: "Course may be too easy - consider adding challenges", insightType: .warning))
         default:
             score += 15
         }
@@ -1417,16 +1442,16 @@ final class AnalyticsViewModel: ObservableObject {
         switch successRate {
         case 30...:
             score += 35
-            insights.append("🌟 Excellent player success rate at \(String(format: "%.0f%%", successRate))")
+            insights.append(Insight(descripton: "Excellent player success rate at \(String(format: "%.0f%%", successRate))", insightType: .good))
         case 20..<30:
             score += 30
-            insights.append("✅ Good success rate keeps players engaged")
+            insights.append(Insight(descripton: "Good success rate keeps players engaged", insightType: .good))
         case 10..<20:
             score += 20
-            insights.append("💡 Moderate success rate - room for improvement")
+            insights.append(Insight(descripton: "Moderate success rate - room for improvement", insightType: .warning))
         default:
             score += 10
-            insights.append("⚠️ Low success rate may impact satisfaction")
+            insights.append(Insight(descripton: "Low success rate may impact satisfaction", insightType: .warning))
         }
         
         // Metric 3: Course variety & engagement (30 points)
@@ -1438,13 +1463,13 @@ final class AnalyticsViewModel: ObservableObject {
             switch range {
             case 2...:
                 score += 30
-                insights.append("🎨 Excellent hole variety creates engaging experience")
+                insights.append(Insight(descripton: "Excellent hole variety creates engaging experience", insightType: .good))
             case 1..<2:
                 score += 25
-                insights.append("✅ Good variety across holes")
+                insights.append(Insight(descripton: "Good variety across holes", insightType: .good))
             default:
                 score += 15
-                insights.append("💡 Consider adding more variety to hole difficulty")
+                insights.append(Insight(descripton: "Consider adding more variety to hole difficulty", insightType: .warning))
             }
         } else {
             score += 15
@@ -1463,7 +1488,7 @@ final class AnalyticsViewModel: ObservableObject {
     /// Calculate Retention section health rating
     private func calculateRetentionHealth() -> SectionHealthRating {
         var score: Double = 0
-        var insights: [String] = []
+        var insights: [Insight] = []
         var metrics: [String: Double] = [:]
         
         let totalPlayers = Double(allEmails.count)
@@ -1472,7 +1497,7 @@ final class AnalyticsViewModel: ObservableObject {
                 section: .experience,
                 score: 0,
                 grade: .critical,
-                insights: ["⚠️ No player data available"],
+                insights: [Insight(descripton: "No player data available", insightType: .warning)],
                 metrics: [:]
             )
         }
@@ -1484,19 +1509,19 @@ final class AnalyticsViewModel: ObservableObject {
         switch retention30Day {
         case 40...:
             score += 40
-            insights.append("💎 Outstanding 30-day retention at \(String(format: "%.0f%%", retention30Day))")
+            insights.append(Insight(descripton: "Outstanding 30-day retention at \(String(format: "%.0f%%", retention30Day))", insightType: .good))
         case 25..<40:
             score += 35
-            insights.append("✅ Strong retention rate of \(String(format: "%.0f%%", retention30Day))")
+            insights.append(Insight(descripton: "Strong retention rate of \(String(format: "%.0f%%", retention30Day))", insightType: .good))
         case 15..<25:
             score += 25
-            insights.append("📊 Moderate retention - opportunities exist")
+            insights.append(Insight(descripton: "Moderate retention - opportunities exist", insightType: .warning))
         case 10..<15:
             score += 15
-            insights.append("⚠️ Below-average retention needs attention")
+            insights.append(Insight(descripton: "Below-average retention needs attention", insightType: .warning))
         default:
             score += 5
-            insights.append("🚨 Critical: Very low player retention")
+            insights.append(Insight(descripton: "Critical: Very low player retention", insightType: .critical))
         }
         
         // Metric 2: Player tier distribution (30 points)
@@ -1511,16 +1536,16 @@ final class AnalyticsViewModel: ObservableObject {
         switch engagedRatio {
         case 40...:
             score += 30
-            insights.append("🏆 Exceptional engaged player base at \(String(format: "%.0f%%", engagedRatio))")
+            insights.append(Insight(descripton: "Exceptional engaged player base at \(String(format: "%.0f%%", engagedRatio))", insightType: .good))
         case 25..<40:
             score += 25
-            insights.append("✅ Healthy mix of engaged players")
+            insights.append(Insight(descripton: "Healthy mix of engaged players", insightType: .good))
         case 15..<25:
             score += 15
-            insights.append("💡 Focus on moving players to higher tiers")
+            insights.append(Insight(descripton: "Focus on moving players to higher tiers", insightType: .warning))
         default:
             score += 8
-            insights.append("⚠️ Low engagement - activate dormant players")
+            insights.append(Insight(descripton: "Low engagement - activate dormant players", insightType: .warning))
         }
         
         // Metric 3: At-risk player management (30 points)
@@ -1530,16 +1555,16 @@ final class AnalyticsViewModel: ObservableObject {
         switch atRiskRatio {
         case ..<15:
             score += 30
-            insights.append("✨ Excellent retention - minimal at-risk players")
+            insights.append(Insight(descripton: "Excellent retention - minimal at-risk players", insightType: .good))
         case 15..<30:
             score += 25
-            insights.append("✅ Manageable at-risk player count")
+            insights.append(Insight(descripton: "Manageable at-risk player count", insightType: .good))
         case 30..<50:
             score += 15
-            insights.append("⚠️ \(String(format: "%.0f%%", atRiskRatio)) players at risk - re-engagement needed")
+            insights.append(Insight(descripton: "\(String(format: "%.0f%%", atRiskRatio)) players at risk - re-engagement needed", insightType: .warning))
         default:
             score += 5
-            insights.append("🚨 High churn risk: \(String(format: "%.0f%%", atRiskRatio)) players at risk")
+            insights.append(Insight(descripton: "High churn risk: \(String(format: "%.0f%%", atRiskRatio)) players at risk", insightType: .critical))
         }
         
         // Add insight about avg return time
@@ -1547,13 +1572,13 @@ final class AnalyticsViewModel: ObservableObject {
         metrics["avgReturnDays"] = Double(avgReturn)
         
         if avgReturn < 7 {
-            insights.append("⚡ Players return quickly (avg \(avgReturn) days)")
+            insights.append(Insight(descripton: "Players return quickly (avg \(avgReturn) days)", insightType: .good))
         } else if avgReturn < 14 {
-            insights.append("📅 Good return frequency at \(avgReturn) days")
+            insights.append(Insight(descripton: "Good return frequency at \(avgReturn) days", insightType: .good))
         } else if avgReturn < 30 {
-            insights.append("💡 Consider incentives to shorten \(avgReturn)-day return cycle")
+            insights.append(Insight(descripton: "Consider incentives to shorten \(avgReturn)-day return cycle", insightType: .warning))
         } else {
-            insights.append("⏰ Long return time (\(avgReturn) days) indicates engagement opportunity")
+            insights.append(Insight(descripton: "Long return time (\(avgReturn) days) indicates engagement opportunity", insightType: .warning))
         }
         
         let grade = HealthGrade.from(score: score)
@@ -1577,23 +1602,23 @@ final class AnalyticsViewModel: ObservableObject {
         
         // Prioritize critical and warning insights
         for insight in growth.insights {
-            let priority = insight.contains("🚨") ? 1 : insight.contains("⚠️") ? 2 : insight.contains("🚀") || insight.contains("💎") ? 3 : 4
-            allInsights.append(("Growth", insight, priority))
+            let priority = insight.insightType == .critical ? 1 : insight.insightType == .warning ? 2 : 3
+            allInsights.append(("Growth", insight.descripton, priority))
         }
         
         for insight in operations.insights {
-            let priority = insight.contains("🚨") ? 1 : insight.contains("⚠️") ? 2 : insight.contains("🔥") ? 3 : 4
-            allInsights.append(("Operations", insight, priority))
+            let priority = insight.insightType == .critical ? 1 : insight.insightType == .warning ? 2 : 3
+            allInsights.append(("Operations", insight.descripton, priority))
         }
         
         for insight in experience.insights {
-            let priority = insight.contains("🚨") ? 1 : insight.contains("⚠️") ? 2 : insight.contains("🎯") || insight.contains("🌟") ? 3 : 4
-            allInsights.append(("Experience", insight, priority))
+            let priority = insight.insightType == .critical ? 1 : insight.insightType == .warning ? 2 : 3
+            allInsights.append(("Experience", insight.descripton, priority))
         }
         
         for insight in retention.insights {
-            let priority = insight.contains("🚨") ? 1 : insight.contains("⚠️") ? 2 : insight.contains("💎") || insight.contains("🏆") ? 3 : 4
-            allInsights.append(("Retention", insight, priority))
+            let priority = insight.insightType == .critical ? 1 : insight.insightType == .warning ? 2 : 3
+            allInsights.append(("Retention", insight.descripton, priority))
         }
         
         // Sort by priority and take top 5-7 insights
