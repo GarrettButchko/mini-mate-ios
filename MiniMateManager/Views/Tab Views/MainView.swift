@@ -14,8 +14,7 @@ struct MainView: View {
     @EnvironmentObject var authModel: AuthViewModel
     @EnvironmentObject var viewModel: CourseViewModel
     @EnvironmentObject var viewManager: ViewManager
-    
-    @StateObject private var analyticsVM = AnalyticsViewModel()
+    @EnvironmentObject var analyticsVM: AnalyticsViewModel
     
     @State var showLeaderBoardSheet: Bool = false
     @State var showTournamentSheet: Bool = false
@@ -24,11 +23,10 @@ struct MainView: View {
     @State private var buttonsViewHeight: CGFloat = 0 // State to track the height of the buttons view
     
     @State private var titleHeight: CGFloat = 0 // State to track the height of the title view
-    
-    @State private var healthReport: CourseHealthReport?
-    @State private var isLoadingHealth = false
-    
+
     @State var showHealthRatingSheet: Bool = false
+    
+    let healthReportHeight: CGFloat = 350
     
     var body: some View {
         VStack{
@@ -121,7 +119,7 @@ struct MainView: View {
             ZStack(alignment: .top){
                 ScrollView{
                     VStack (spacing: 16){
-                        if isLoadingHealth {
+                        if analyticsVM.isLoadingHealth {
                             ProgressView("Analyzing course health...")
                                 .frame(height: 375)
                                 .frame(maxWidth: .infinity)
@@ -130,7 +128,7 @@ struct MainView: View {
                                         .subVsColor(makeColor: viewModel.selectedCourse?.scoreCardColor)
                                         .cardShadow()
                                 }
-                        } else if let report = healthReport {
+                        } else if let report = analyticsVM.healthReport {
                             Button{
                                 showHealthRatingSheet = true
                             } label: {
@@ -205,36 +203,9 @@ struct MainView: View {
             .contentMargins([.horizontal, .bottom], 16)
         }
         .background(.bg)
-        .task(id: viewModel.selectedCourse?.id) {
-            await loadHealthData()
-        }
     }
     
-    @MainActor
-    private func loadHealthData() async {
-        guard let course = viewModel.selectedCourse else {
-            healthReport = nil
-            return
-        }
-        
-        withAnimation{
-            isLoadingHealth = true
-        }
-        
-        // Load analytics data
-        analyticsVM.onAppearDailyAnalytics(course: course)
-        analyticsVM.onAppearRetention(course: course)
-        
-        // Wait for data to load
-        try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
-        
-        // Calculate health report
-        healthReport = analyticsVM.calculateCourseHealth()
-        
-        withAnimation{
-            isLoadingHealth = false
-        }
-    }
+    
     
     func mainViewButton(title: String, icon: String? = nil, color: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {

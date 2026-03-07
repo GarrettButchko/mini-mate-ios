@@ -68,6 +68,13 @@ extension Color {
     }
 }
 
+extension Color {
+    /// Returns a 50% opaque version of the provided color,
+    /// or defaults to the custom '.subTwo' asset.
+    static func subTwoVsColor (makeColor: Color?) -> Color {
+        makeColor?.opacity(0.50).mix(with: .subTwo, by: 0.7) ?? .subTwo
+    }
+}
 extension Shape {
     @ViewBuilder
     func subVsColor(makeColor: Color?) -> some View {

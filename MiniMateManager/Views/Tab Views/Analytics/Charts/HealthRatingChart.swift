@@ -13,93 +13,81 @@ struct HealthRatingChart: View {
     let healthReport: CourseHealthReport
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
+            // Header
             HStack {
                 Text("Course Health Rating")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundStyle(.mainOpp)
                 Spacer()
-                InfoButton(infoText: "Overall health score based on Growth (30%), Operations (20%), Experience (20%), and Retention (30%).")
+                InfoButton(infoText: "...")
             }
-            VStack{
-                ZStack {
-                    // Central Label
-                    VStack(spacing: 4) {
-                        Text("\(Int(healthReport.overallScore))%")
-                            .font(.system(size: 30, weight: .bold, design: .rounded))
-                            .foregroundStyle(healthReport.overallGrade.color)
-                        
-                        Text(healthReport.overallGrade.rawValue)
-                            .font(.system(size: 20, weight: .bold, design: .rounded))
-                            .fontWeight(.semibold)
-                            .foregroundStyle(healthReport.overallGrade.color)
-                    }
-                    
-                    
-                    Chart {
-                        SectorMark(
-                            angle: .value("Score", healthReport.overallScore),
-                            innerRadius: .ratio(0.7),
-                            angularInset: 1.0
-                        )
-                        .foregroundStyle(
-                            LinearGradient(
-                                gradient: Gradient(colors: gradientColors),
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .cornerRadius(8)
-                        
-                        SectorMark(
-                            angle: .value("Remaining", 100 - healthReport.overallScore),
-                            innerRadius: .ratio(0.7),
-                            angularInset: 1.0
-                        )
-                        .foregroundStyle(Color.gray.opacity(0.2))
-                        .cornerRadius(8)
-                    }
-                }
-                .frame(height: 130)
-                .background{
-                    Circle()
-                        .subTwoVsColor(makeColor: viewModel.selectedCourse?.scoreCardColor)
-                        .scaledToFit()
-                        .frame(height: 145)
-                }
-                .padding(.bottom, 10)
+            
+            VStack(alignment: .center, spacing: 20) {
                 
-                VStack{
-                    // Quick stats
-                    HStack{
-                        miniStatCard(
-                            title: "Growth",
-                            score: healthReport.growthHealth.score,
-                            grade: healthReport.growthHealth.grade
-                        )
-                        miniStatCard(
-                            title: "Retention",
-                            score: healthReport.retentionHealth.score,
-                            grade: healthReport.retentionHealth.grade
-                        )
+                
+                // 2. Center gauge (semicircle style)
+                VStack(spacing: 10) {
+                    ZStack {
+                        
+                        ZStack{
+                            // Background track
+                            GaugeArcShape(
+                                lineWidth: 12,
+                                startAngle: .degrees(200),
+                                endAngle: .degrees(340)
+                            )
+                            .stroke(
+                                Color.subTwoVsColor(makeColor: viewModel.selectedCourse?.scoreCardColor),
+                                style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                            )
+
+                            
+                            // Active arc
+                            GaugeArcShape(
+                                lineWidth: 12,
+                                startAngle: .degrees(200),
+                                endAngle: .degrees(200 + (140 * (healthReport.overallScore / 100)))
+                            )
+                            .stroke(
+                                LinearGradient(colors: gradientColors, startPoint: .leading, endPoint: .trailing),
+                                style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                            )
+                            
+                            
+                        }
+                        .offset(y: 150)
+                        
+                        VStack(spacing: 2) {
+                            Text("\(Int(healthReport.overallScore))")
+                                .font(.system(size: 40, weight: .semibold, design: .rounded))
+                                .foregroundStyle(healthReport.overallGrade.color)
+                                .lineLimit(1)
+                            
+                            Text(healthReport.overallGrade.rawValue)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(healthReport.overallGrade.color)
+                        }
                     }
-                    HStack{
-                        miniStatCard(
-                            title: "Operations",
-                            score: healthReport.operationsHealth.score,
-                            grade: healthReport.operationsHealth.grade
-                        )
-                        miniStatCard(
-                            title: "Experience",
-                            score: healthReport.experienceHealth.score,
-                            grade: healthReport.experienceHealth.grade
-                        )
+                    .frame(width: 160, height: 110)
+                }
+                .offset(y: 10)
+                HStack{
+                    VStack{
+                        miniStatCard(title: "Growth", score: healthReport.growthHealth.score, grade: healthReport.growthHealth.grade)
+                        miniStatCard(title: "Operations", score: healthReport.operationsHealth.score, grade: healthReport.operationsHealth.grade)
+                    }
+                    VStack{
+                        miniStatCard(title: "Retention", score: healthReport.retentionHealth.score, grade: healthReport.retentionHealth.grade)
+                        miniStatCard(title: "Experience", score: healthReport.experienceHealth.score, grade: healthReport.experienceHealth.grade)
                     }
                 }
             }
+            .frame(maxWidth: .infinity)
         }
         .padding()
+        .frame(height: 375) // Total container height
         .background {
             RoundedRectangle(cornerRadius: 25)
                 .subVsColor(makeColor: viewModel.selectedCourse?.scoreCardColor)
@@ -121,37 +109,59 @@ struct HealthRatingChart: View {
     }
     
     @ViewBuilder
-    private func miniStatCard(title: String, score: Double, grade: HealthGrade) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            VStack{
-                HStack{
-                    Text(title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.mainOpp)
-                        .lineLimit(1)
+    private func miniStatCard(title: String, score: Double, grade: HealthGrade, alignmentRL: HorizontalAlignment = .leading, alignmentUD: VerticalAlignment = .top) -> some View {
+        VStack{
+            
+            //if alignmentUD == .bottom{
+            //    Spacer()
+            //}
+            
+            HStack{
+                if alignmentRL == .trailing{
                     Spacer()
                 }
-                HStack(spacing: 6) { // Slightly reduced spacing to match smaller text
-                    Text("\(Int(score))%")
-                        .font(.headline)
-                        .fontWeight(.bold)
-                        .foregroundStyle(grade.color)
-                        .lineLimit(1)
-                    
-                    Text(grade.rawValue)
-                        .font(.caption)
-                        .lineLimit(1)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background {
-                            Capsule()
-                                .fill(grade.color)
-                        }
+                
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.mainOpp)
+                    .lineLimit(1)
+                
+                if alignmentRL == .leading {
                     Spacer()
                 }
             }
+            HStack(spacing: 6) { // Slightly reduced spacing to match smaller text
+                
+                if alignmentRL == .trailing{
+                    Spacer()
+                }
+                
+                Text("\(Int(score))%")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundStyle(grade.color)
+                    .lineLimit(1)
+                
+                Text(grade.rawValue)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background {
+                        Capsule()
+                            .fill(grade.color)
+                    }
+                
+                if alignmentRL == .leading {
+                    Spacer()
+                }
+            }
+            
+            //if alignmentUD == .top{
+            //    Spacer()
+            //}
         }
         .frame(maxWidth: .infinity)
         .padding()
@@ -162,9 +172,32 @@ struct HealthRatingChart: View {
     }
 }
 
+private struct GaugeArcShape: Shape {
+    let lineWidth: CGFloat
+    let startAngle: Angle
+    let endAngle: Angle
+    
+    func path(in rect: CGRect) -> Path {
+        let radius = min(rect.width, rect.height * 2)
+        let center = CGPoint(x: rect.midX, y: rect.minY) // top-anchored = flipped up
+        
+        var path = Path()
+        path.addArc(
+            center: center,
+            radius: radius,
+            startAngle: startAngle,
+            endAngle: endAngle,
+            clockwise: false // keep true so 160 -> 20 takes the short upper arc
+        )
+        return path
+    }
+}
+
 struct SectionHealthDetailView: View {
     let healthReport: CourseHealthReport
     @State var titleHeight: CGFloat = 0
+    
+    let bottomInset: CGFloat = 40
     
     var body: some View {
         ZStack{
@@ -172,9 +205,9 @@ struct SectionHealthDetailView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(spacing: 12) {
                         sectionCard(healthReport.growthHealth)
-                        sectionCard(healthReport.retentionHealth)
                         sectionCard(healthReport.operationsHealth)
                         sectionCard(healthReport.experienceHealth)
+                        sectionCard(healthReport.retentionHealth)
                     }
                     
                     // Top Insights
@@ -183,22 +216,37 @@ struct SectionHealthDetailView: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Key Insights")
                                     .font(.headline)
-                                    .padding(.top, 8)
                                 
-                                ForEach(Array(healthReport.topInsights.prefix(5).enumerated()), id: \.offset) { _, insight in
-                                    HStack(alignment: .top, spacing: 8) {
-                                        Image(systemName: "lightbulb.fill")
-                                            .font(.caption)
-                                            .foregroundStyle(.yellow)
-                                            .frame(width: 16)
+                                ForEach(Array(healthReport.topInsights.prefix(5).enumerated()), id: \.offset) { _, group in
+                                    HStack(alignment: .center, spacing: 10) {
+                                        // 1. Fixed-width icon container for consistent alignment
+                                        Image(systemName: group.insight.imageName)
+                                            .font(.footnote)
+                                            .foregroundStyle(group.insight.color)
+                                            .frame(width: 20, alignment: .center)
                                         
-                                        Text(insight)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .fixedSize(horizontal: false, vertical: true)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            // 2. The "Tag" or Section Label
+                                            Text(group.section.rawValue.uppercased())
+                                                .font(.caption2.bold())
+                                                .foregroundStyle(group.section.color)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background {
+                                                    RoundedRectangle(cornerRadius: 4)
+                                                        .stroke(group.section.color, lineWidth: 1)
+                                                }
+                                            // 3. The Description
+                                            Text(group.insight.descripton) // Note: Check spelling of 'descripton' in your model!
+                                                .font(.subheadline)
+                                                .foregroundStyle(.secondary)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
                                     }
                                     .padding(.vertical, 4)
                                 }
+                                
+                                
                             }
                             Spacer()
                         }
@@ -209,9 +257,33 @@ struct SectionHealthDetailView: View {
                         }
                     }
                 }
+                Spacer()
+                    .frame(height: bottomInset)
             }
             .contentMargins(.top, titleHeight)
             .contentMargins(16)
+            .mask {
+                VStack(spacing: 0) {
+                    // 1. The 40pt fade-in area
+                    LinearGradient(
+                        colors: [.clear, .black],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: titleHeight + 16) // Match the top content margin + padding
+                    
+                    // 2. The rest of the content (fully visible)
+                    Rectangle()
+                        .fill(.black)
+                    
+                    LinearGradient(
+                        colors: [.black, .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: bottomInset)
+                }
+            }
             
             VStack{
                 HStack {
@@ -231,20 +303,10 @@ struct SectionHealthDetailView: View {
                             }
                     }
                 }
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.main,
-                            Color.clear
-                        ]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .ignoresSafeArea(edges: .top)
-                )
                 Spacer()
             }
         }
+        .ignoresSafeArea()
     }
     
     @ViewBuilder
@@ -315,6 +377,10 @@ struct SectionHealthDetailView: View {
         .background {
             RoundedRectangle(cornerRadius: 12)
                 .fill(.subTwo)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(rating.section.color.opacity(0.3), lineWidth: 1)
+                }
         }
     }
 }

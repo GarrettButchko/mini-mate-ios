@@ -12,7 +12,7 @@ import Foundation
 struct AnalyticsView: View {
     
     @EnvironmentObject var courseVM: CourseViewModel
-    @StateObject var VM = AnalyticsViewModel()
+    @EnvironmentObject var VM: AnalyticsViewModel
     
     let anaRepo = AnalyticsRepository()
     
@@ -67,7 +67,9 @@ struct AnalyticsView: View {
                         Button {
                             anaRepo.uploadDebugDailyDocs(courseID: courseVM.selectedCourse!.id) { success in
                                 if success{
-                                    VM.onAppearDailyAnalytics(course: courseVM.selectedCourse)
+                                    Task {
+                                        await VM.onAppearDailyAnalytics(course: courseVM.selectedCourse)
+                                    }
                                 }
                             }
                         } label: {
@@ -78,7 +80,9 @@ struct AnalyticsView: View {
                             anaRepo.uploadDebugEmails(courseID: courseVM.selectedCourse!.id, count: 100) { success in
                                 if success {
                                     // Refresh the emails after upload
-                                    VM.onAppearRetention(course: courseVM.selectedCourse)
+                                    Task {
+                                        await VM.onAppearRetention(course: courseVM.selectedCourse)
+                                    }
                                 }
                             }
                         } label: {
@@ -114,12 +118,6 @@ struct AnalyticsView: View {
         .onChange(of: VM.range) { old, new in
             withAnimation{
                 VM.onChange(old: old, new: new, course: courseVM.selectedCourse)
-            }
-        }
-        .onAppear{
-            withAnimation{
-                VM.onAppearDailyAnalytics(course: courseVM.selectedCourse)
-                VM.onAppearRetention(course: courseVM.selectedCourse)
             }
         }
     }
@@ -471,37 +469,37 @@ struct AnalyticsView: View {
             
             HStack {
                 ForEach(AnalyticsSection.allCases) { section in
-                    let obj = VM.analyticsObjects[section.rawValue]!
-                    Button {
-                        
-                        withAnimation(.snappy) {
-                            VM.selectedSection = section
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: obj.icon)
+                    if let obj = VM.analyticsObjects[section.rawValue] {
+                        Button {
                             
-                            if VM.selectedSection == section {
-                                Text(section.rawValue)
-                                    .fontWeight(.bold)
-                                    .frame(maxWidth: .infinity)
+                            withAnimation(.snappy) {
+                                VM.selectedSection = section
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: obj.icon)
+                                
+                                if VM.selectedSection == section {
+                                    Text(section.rawValue)
+                                        .fontWeight(.bold)
+                                        .frame(maxWidth: .infinity)
+                                }
                             }
                         }
+                        .id(section)
+                        .foregroundStyle(obj.color)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 16)
+                        .background(
+                            VM.selectedSection == section ? obj.color.opacity(0.2) : .clear
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 25)
+                                .stroke(obj.color.opacity(0.3), lineWidth: 4)
+                                .opacity(VM.selectedSection != section ? 0.5 : 0)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 25))
                     }
-                    .id(section)
-                    .foregroundStyle(obj.color)
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 16)
-                    .background(
-                        VM.selectedSection == section ? obj.color.opacity(0.2) : .clear
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 25)
-                            .stroke(obj.color.opacity(0.3), lineWidth: 4)
-                            .opacity(VM.selectedSection != section ? 0.5 : 0)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 25))
-                    
                 }
             }
             .padding([.horizontal, .top], 16)
@@ -542,7 +540,9 @@ struct AnalyticsView: View {
         if isAnalytics {
             VM.refreshAnalytics(course: courseVM.selectedCourse)
         } else {
-            VM.onAppearRetention(course: courseVM.selectedCourse)
+            Task {
+                await VM.onAppearRetention(course: courseVM.selectedCourse)
+            }
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + refreshCooldown) {

@@ -66,8 +66,9 @@ struct ContentView: View {
 
 struct CourseTabView: View {
     @Environment(\.modelContext) private var context
+    @StateObject private var analyticsVM = AnalyticsViewModel()
     @EnvironmentObject var authModel: AuthViewModel
-    @EnvironmentObject var viewModel: CourseViewModel
+    @EnvironmentObject var VM: CourseViewModel
 
     @State var selectedTab: Int
     
@@ -90,10 +91,14 @@ struct CourseTabView: View {
                 .tag(2)
         }
         .onAppear {
-            viewModel.start()
+            VM.start()
+            Task {
+                await analyticsVM.loadHealthData(course: VM.selectedCourse)
+            }
         }
         .onDisappear {
-            viewModel.stop()
+            VM.stop()
         }
+        .environmentObject(analyticsVM)
     }
 }

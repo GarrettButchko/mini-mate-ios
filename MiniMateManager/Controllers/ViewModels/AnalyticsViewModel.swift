@@ -14,15 +14,25 @@ enum AnalyticsSection: String, CaseIterable, Identifiable {
     case growth = "Growth"
     case operations = "Operations"
     case experience = "Experience"
+    case retention = "Retention"
+    
+    var color: Color {
+        switch self {
+        case .growth:
+            return Color.green
+        case .operations:
+            return Color.purple
+        case .experience:
+            return Color.red
+        case .retention:
+            return Color.blue
+        }
+    }
     
     var id: String { rawValue }
 }
 
-enum InsightType {
-    case good
-    case warning
-    case critical
-}
+
 
 enum ChartTopic {
     case total
@@ -70,6 +80,13 @@ struct GameDurationActivity: Identifiable {
     let avgMinutes: Double
 }
 
+enum InsightType {
+    case good
+    case average
+    case warning
+    case critical
+}
+
 struct Insight {
     let descripton: String
     let insightType: InsightType
@@ -77,6 +94,7 @@ struct Insight {
     var color: Color {
         switch insightType {
         case .good: return .green
+        case .average: return .blue
         case .warning: return .orange
         case .critical: return .red
         }
@@ -85,6 +103,7 @@ struct Insight {
     var imageName: String {
         switch insightType {
         case .good: return "checkmark.circle.fill"
+        case .average: return "exclamationmark.circle.fill"
         case .warning: return "exclamationmark.triangle.fill"
         case .critical: return "x.circle.fill"
         }
@@ -140,7 +159,7 @@ struct CourseHealthReport {
     let operationsHealth: SectionHealthRating
     let experienceHealth: SectionHealthRating
     let retentionHealth: SectionHealthRating
-    let topInsights: [String]
+    let topInsights: [(insight: Insight, section: AnalyticsSection)]
     let timestamp: Date
 }
 
@@ -155,9 +174,6 @@ final class AnalyticsViewModel: ObservableObject {
     @Published var pickedSection: String = "Day Range"
     let pickerSections: [String] = ["Day Range", "Retention"]
     
-    // Course reference for experience metrics
-    @Published var currentCourse: Course?
-    
     // Docs
     @Published var allDailyDocs: [DailyDoc] = []
     
@@ -168,6 +184,9 @@ final class AnalyticsViewModel: ObservableObject {
     var rangeDailyDocs: [DailyDoc] {
         allDailyDocs.filter { range.daysInMainRange.contains($0.dayID) }
     }
+    
+    @Published var healthReport: CourseHealthReport?
+    @Published var isLoadingHealth = false
     
     @Published var allEmails: [String : CourseEmail] = [:]
     
@@ -185,6 +204,33 @@ final class AnalyticsViewModel: ObservableObject {
     // Cached metrics
     @Published var cachedAvgTimeToReturn: Int = 0
     @Published var cached30DayRetention: Double = 0.0
+    
+    // Store current course for experience metrics
+    @Published var currentCourse: Course?
+    
+    func loadHealthData(course: Course? = nil) async {
+        self.currentCourse = course
+        guard let course else {
+            print("No course to load health data for")
+            healthReport = nil
+            return
+        }
+        
+        withAnimation{
+            isLoadingHealth = true
+        }
+        
+        // Load analytics data and wait for both to complete
+        await onAppearDailyAnalytics(course: course)
+        await onAppearRetention(course: course)
+        
+        // Calculate health report after data is loaded
+        healthReport = calculateCourseHealth()
+        
+        withAnimation{
+            isLoadingHealth = false
+        }
+    }
     
     //MARK: Growth
     func getActiveUsers(_ docs: [DailyDoc]) -> Int {
@@ -649,9 +695,9 @@ final class AnalyticsViewModel: ObservableObject {
         return DataPointObject(value: String(holeInOneCount), delta: nil, deltaColor: .yellow)
     }
     
-    /// Helper to get course from docs
-    private func getCourseFromDocs() -> Course? {
-        return currentCourse
+    /// Helper to get course from stored property
+    private func getCourseFromDocs(course: Course? = nil) -> Course? {
+        return course ?? currentCourse
     }
     
     //MARK: Game Duration Metrics
@@ -834,26 +880,21 @@ final class AnalyticsViewModel: ObservableObject {
         )
     ]
     
-    func onAppearDailyAnalytics(course: Course?) {
+    func onAppearDailyAnalytics(course: Course? = nil) async {
         guard let course else { return }
-        
-        currentCourse = course
         
         withAnimation{
             loadingDocs = true
         }
         
+        allDailyDocs = await analyticsRepo.fetchDailyAnalytics(
+            courseID: course.id,
+            range: .last30,
+            existingDocs: allDailyDocs
+        )
         
-        Task {
-            allDailyDocs = await analyticsRepo.fetchDailyAnalytics(
-                courseID: course.id,
-                range: .last30,
-                existingDocs: allDailyDocs
-            )
-            
-            withAnimation{
-                loadingDocs = false
-            }
+        withAnimation{
+            loadingDocs = false
         }
     }
     
@@ -878,22 +919,20 @@ final class AnalyticsViewModel: ObservableObject {
         }
     }
     
-    func onAppearRetention(course: Course?) {
+    func onAppearRetention(course: Course?) async {
         guard let course else { return }
         
         withAnimation{
             loadingEmails = true
         }
         
-        Task {
-            allEmails = await analyticsRepo.fetchEmails(courseID: course.id)
-            
-            // Compute all tier data and metrics once
-            recomputePlayerTiers()
-            
-            withAnimation{
-                loadingEmails = false
-            }
+        allEmails = await analyticsRepo.fetchEmails(courseID: course.id)
+        
+        // Compute all tier data and metrics once
+        recomputePlayerTiers()
+        
+        withAnimation{
+            loadingEmails = false
         }
     }
     
@@ -1164,7 +1203,7 @@ final class AnalyticsViewModel: ObservableObject {
     func calculateCourseHealth() -> CourseHealthReport {
         let growthHealth = calculateGrowthHealth()
         let operationsHealth = calculateOperationsHealth()
-        let experienceHealth = calculateExperienceHealth()
+        let experienceHealth = calculateExperienceHealth(course: currentCourse)
         let retentionHealth = calculateRetentionHealth()
         
         // Calculate weighted overall score
@@ -1213,13 +1252,13 @@ final class AnalyticsViewModel: ObservableObject {
         switch growthRate {
         case 20...:
             score += 40
-            insights.append(Insight(descripton: "Exceptional growth! Active users up \(String(format: "%.1f%%", growthRate))", insightType: .good))
+            insights.append(Insight(descripton: "Exceptional growth! Active users up +\(String(format: "%.1f%%", growthRate))", insightType: .good))
         case 10..<20:
             score += 35
-            insights.append(Insight(descripton: "Strong growth trend with \(String(format: "%.1f%%", growthRate)) increase", insightType: .good))
+            insights.append(Insight(descripton: "Strong growth trend with +\(String(format: "%.1f%%", growthRate)) increase", insightType: .good))
         case 5..<10:
             score += 30
-            insights.append(Insight(descripton: "Steady growth at \(String(format: "%.1f%%", growthRate))", insightType: .good))
+            insights.append(Insight(descripton: "Steady growth at \(String(format: "%.1f%%", growthRate))", insightType: .average))
         case 0..<5:
             score += 20
             insights.append(Insight(descripton: "Slow growth at \(String(format: "%.1f%%", growthRate))", insightType: .warning))
@@ -1244,7 +1283,7 @@ final class AnalyticsViewModel: ObservableObject {
             insights.append(Insight(descripton: "Good new player rate at \(String(format: "%.0f%%", newPlayerPercentage))", insightType: .good))
         case 10..<20:
             score += 20
-            insights.append(Insight(descripton: "Moderate new player acquisition", insightType: .good))
+            insights.append(Insight(descripton: "Moderate new player acquisition", insightType: .average))
         default:
             score += 10
             insights.append(Insight(descripton: "Focus needed on attracting new players", insightType: .warning))
@@ -1299,7 +1338,7 @@ final class AnalyticsViewModel: ObservableObject {
             insights.append(Insight(descripton: "Good activity with \(String(format: "%.0f", avgGamesPerDay)) games/day", insightType: .good))
         case 10..<25:
             score += 25
-            insights.append(Insight(descripton: "Moderate activity level", insightType: .good))
+            insights.append(Insight(descripton: "Moderate activity level", insightType: .average))
         case 5..<10:
             score += 15
             insights.append(Insight(descripton: "Low game volume", insightType: .warning))
@@ -1318,7 +1357,7 @@ final class AnalyticsViewModel: ObservableObject {
             insights.append(Insight(descripton: "Excellent group sizes averaging \(String(format: "%.1f", avgPlayersPerGameValue)) players", insightType: .good))
         case 2..<3:
             score += 25
-            insights.append(Insight(descripton: "Good social play with groups of \(String(format: "%.1f", avgPlayersPerGameValue))", insightType: .good))
+            insights.append(Insight(descripton: "Good social play with groups of \(String(format: "%.1f", avgPlayersPerGameValue))", insightType: .average))
         case 1.5..<2:
             score += 15
             insights.append(Insight(descripton: "Opportunity to encourage group play", insightType: .warning))
@@ -1338,7 +1377,7 @@ final class AnalyticsViewModel: ObservableObject {
             insights.append(Insight(descripton: "Optimal game duration at \(String(format: "%.0f", avgGameMinutes)) minutes", insightType: .good))
         case 10..<15:
             score += 25
-            insights.append(Insight(descripton: "Quick games averaging \(String(format: "%.0f", avgGameMinutes)) minutes", insightType: .good))
+            insights.append(Insight(descripton: "Quick games averaging \(String(format: "%.0f", avgGameMinutes)) minutes", insightType: .average))
         case 45..<60:
             score += 20
             insights.append(Insight(descripton: "Longer games may indicate engagement or pacing issues", insightType: .warning))
@@ -1362,12 +1401,12 @@ final class AnalyticsViewModel: ObservableObject {
     }
     
     /// Calculate Experience section health rating
-    private func calculateExperienceHealth() -> SectionHealthRating {
+    private func calculateExperienceHealth(course: Course? = nil) -> SectionHealthRating {
         var score: Double = 0
         var insights: [Insight] = []
         var metrics: [String: Double] = [:]
         
-        guard let course = currentCourse else {
+        guard let course else {
             return SectionHealthRating(
                 section: .experience,
                 score: 50,
@@ -1400,7 +1439,7 @@ final class AnalyticsViewModel: ObservableObject {
             insights.append(Insight(descripton: "Perfect difficulty balance! Players score near par", insightType: .good))
         case 0.5...1.5:
             score += 30
-            insights.append(Insight(descripton: "Well-balanced challenge for players", insightType: .good))
+            insights.append(Insight(descripton: "Well-balanced challenge for players", insightType: .average))
         case 1.5...2.5:
             score += 20
             insights.append(Insight(descripton: "Course may be slightly too difficult", insightType: .warning))
@@ -1445,7 +1484,7 @@ final class AnalyticsViewModel: ObservableObject {
             insights.append(Insight(descripton: "Excellent player success rate at \(String(format: "%.0f%%", successRate))", insightType: .good))
         case 20..<30:
             score += 30
-            insights.append(Insight(descripton: "Good success rate keeps players engaged", insightType: .good))
+            insights.append(Insight(descripton: "Good success rate keeps players engaged", insightType: .average))
         case 10..<20:
             score += 20
             insights.append(Insight(descripton: "Moderate success rate - room for improvement", insightType: .warning))
@@ -1466,7 +1505,7 @@ final class AnalyticsViewModel: ObservableObject {
                 insights.append(Insight(descripton: "Excellent hole variety creates engaging experience", insightType: .good))
             case 1..<2:
                 score += 25
-                insights.append(Insight(descripton: "Good variety across holes", insightType: .good))
+                insights.append(Insight(descripton: "Good variety across holes", insightType: .average))
             default:
                 score += 15
                 insights.append(Insight(descripton: "Consider adding more variety to hole difficulty", insightType: .warning))
@@ -1512,7 +1551,7 @@ final class AnalyticsViewModel: ObservableObject {
             insights.append(Insight(descripton: "Outstanding 30-day retention at \(String(format: "%.0f%%", retention30Day))", insightType: .good))
         case 25..<40:
             score += 35
-            insights.append(Insight(descripton: "Strong retention rate of \(String(format: "%.0f%%", retention30Day))", insightType: .good))
+            insights.append(Insight(descripton: "Strong retention rate of \(String(format: "%.0f%%", retention30Day))", insightType: .average))
         case 15..<25:
             score += 25
             insights.append(Insight(descripton: "Moderate retention - opportunities exist", insightType: .warning))
@@ -1539,7 +1578,7 @@ final class AnalyticsViewModel: ObservableObject {
             insights.append(Insight(descripton: "Exceptional engaged player base at \(String(format: "%.0f%%", engagedRatio))", insightType: .good))
         case 25..<40:
             score += 25
-            insights.append(Insight(descripton: "Healthy mix of engaged players", insightType: .good))
+            insights.append(Insight(descripton: "Healthy mix of engaged players", insightType: .average))
         case 15..<25:
             score += 15
             insights.append(Insight(descripton: "Focus on moving players to higher tiers", insightType: .warning))
@@ -1558,7 +1597,7 @@ final class AnalyticsViewModel: ObservableObject {
             insights.append(Insight(descripton: "Excellent retention - minimal at-risk players", insightType: .good))
         case 15..<30:
             score += 25
-            insights.append(Insight(descripton: "Manageable at-risk player count", insightType: .good))
+            insights.append(Insight(descripton: "Manageable at-risk player count", insightType: .average))
         case 30..<50:
             score += 15
             insights.append(Insight(descripton: "\(String(format: "%.0f%%", atRiskRatio)) players at risk - re-engagement needed", insightType: .warning))
@@ -1574,7 +1613,7 @@ final class AnalyticsViewModel: ObservableObject {
         if avgReturn < 7 {
             insights.append(Insight(descripton: "Players return quickly (avg \(avgReturn) days)", insightType: .good))
         } else if avgReturn < 14 {
-            insights.append(Insight(descripton: "Good return frequency at \(avgReturn) days", insightType: .good))
+            insights.append(Insight(descripton: "Good return frequency at \(avgReturn) days", insightType: .average))
         } else if avgReturn < 30 {
             insights.append(Insight(descripton: "Consider incentives to shorten \(avgReturn)-day return cycle", insightType: .warning))
         } else {
@@ -1583,7 +1622,7 @@ final class AnalyticsViewModel: ObservableObject {
         
         let grade = HealthGrade.from(score: score)
         return SectionHealthRating(
-            section: .experience,
+            section: .retention,
             score: score,
             grade: grade,
             insights: insights,
@@ -1597,32 +1636,32 @@ final class AnalyticsViewModel: ObservableObject {
         operations: SectionHealthRating,
         experience: SectionHealthRating,
         retention: SectionHealthRating
-    ) -> [String] {
-        var allInsights: [(section: String, insight: String, priority: Int)] = []
+    ) -> [(insight: Insight, section: AnalyticsSection)] {
+        var allInsights: [(insight: Insight, section: AnalyticsSection, priority: Int)] = []
         
         // Prioritize critical and warning insights
         for insight in growth.insights {
             let priority = insight.insightType == .critical ? 1 : insight.insightType == .warning ? 2 : 3
-            allInsights.append(("Growth", insight.descripton, priority))
+            allInsights.append((insight, .growth, priority))
         }
         
         for insight in operations.insights {
             let priority = insight.insightType == .critical ? 1 : insight.insightType == .warning ? 2 : 3
-            allInsights.append(("Operations", insight.descripton, priority))
+            allInsights.append((insight, .operations, priority))
         }
         
         for insight in experience.insights {
             let priority = insight.insightType == .critical ? 1 : insight.insightType == .warning ? 2 : 3
-            allInsights.append(("Experience", insight.descripton, priority))
+            allInsights.append((insight, .experience, priority))
         }
         
         for insight in retention.insights {
             let priority = insight.insightType == .critical ? 1 : insight.insightType == .warning ? 2 : 3
-            allInsights.append(("Retention", insight.descripton, priority))
+            allInsights.append((insight, .retention, priority))
         }
         
         // Sort by priority and take top 5-7 insights
         allInsights.sort { $0.priority < $1.priority }
-        return allInsights.prefix(7).map { "[\($0.section)] \($0.insight)" }
+        return allInsights.prefix(7).map { (insight: $0.insight, section: $0.section) }
     }
 }
