@@ -180,7 +180,7 @@ enum PlayerTier: Equatable {
     
     var color: Color {
         switch self {
-        case .new: return .brown
+        case .new: return .purple
         case .midTier: return .gray
         case .frequent: return .yellow
         case .atRisk: return .red

@@ -90,10 +90,7 @@ struct HostView: View {
                     .ignoresSafeArea(edges: .top)
                 )
                     
-                
-                
                 Spacer()
-                
                 
                 startGameSection
                     .padding(.top)
@@ -109,8 +106,10 @@ struct HostView: View {
                         )
                         .ignoresSafeArea(edges: .bottom)
                     )
+                    
             }
         }
+        .ignoresSafeArea(.keyboard)
         .onAppear {
             VM.setUp(gameModel: gameModel, handler: locationHandler)
         }
@@ -308,6 +307,7 @@ struct HostView: View {
                     .padding(.horizontal)
             )
         }
+        
     }
 }
 

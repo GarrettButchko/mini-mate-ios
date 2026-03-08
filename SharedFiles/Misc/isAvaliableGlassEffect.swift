@@ -34,7 +34,7 @@ extension Shape {
     func ifAGENoDefaultColor() -> some View {
         if #available(iOS 26.0, *) {
             self
-                .fill(.ultraThinMaterial.opacity(0.95))
+                .fill(.thickMaterial.opacity(0.9))
                 .glassEffect(.clear, in: self)
         } else {
             self

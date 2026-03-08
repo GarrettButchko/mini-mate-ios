@@ -11,6 +11,7 @@ import SwiftUI
 struct HealthRatingChart: View {
     @EnvironmentObject var viewModel: CourseViewModel
     let healthReport: CourseHealthReport
+    @State private var animatedScore: Double = 0
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -48,7 +49,7 @@ struct HealthRatingChart: View {
                             GaugeArcShape(
                                 lineWidth: 12,
                                 startAngle: .degrees(200),
-                                endAngle: .degrees(200 + (140 * (healthReport.overallScore / 100)))
+                                endAngle: .degrees(200 + (140 * (max(0, min(animatedScore, 100)) / 100)))
                             )
                             .stroke(
                                 LinearGradient(colors: gradientColors, startPoint: .leading, endPoint: .trailing),
@@ -60,9 +61,7 @@ struct HealthRatingChart: View {
                         .offset(y: 150)
                         
                         VStack(spacing: 2) {
-                            Text("\(Int(healthReport.overallScore))")
-                                .font(.system(size: 40, weight: .semibold, design: .rounded))
-                                .foregroundStyle(healthReport.overallGrade.color)
+                            RollingNumberText(value: animatedScore, font: .system(size: 40, weight: .semibold, design: .rounded), textColor: healthReport.overallGrade.color)
                                 .lineLimit(1)
                             
                             Text(healthReport.overallGrade.rawValue)
@@ -93,10 +92,21 @@ struct HealthRatingChart: View {
                 .subVsColor(makeColor: viewModel.selectedCourse?.scoreCardColor)
                 .cardShadow()
         }
+        .onAppear {
+            animatedScore = 0
+            withAnimation(.easeOut(duration: 1.0)) {
+                animatedScore = healthReport.overallScore
+            }
+        }
+        .onChange(of: healthReport.overallScore) { _, newValue in
+            withAnimation(.easeOut(duration: 0.8)) {
+                animatedScore = newValue
+            }
+        }
     }
     
     private var gradientColors: [Color] {
-        switch healthReport.overallScore {
+        switch animatedScore {
         case 85...:
             return [.green, .green.opacity(0.7)]
         case 70..<85:
@@ -175,11 +185,17 @@ struct HealthRatingChart: View {
 private struct GaugeArcShape: Shape {
     let lineWidth: CGFloat
     let startAngle: Angle
-    let endAngle: Angle
+    var endAngle: Angle   // must be var for animation interpolation
+    
+    // Tell SwiftUI which value should animate between old/new states.
+    var animatableData: Double {
+        get { endAngle.degrees }
+        set { endAngle = .degrees(newValue) }
+    }
     
     func path(in rect: CGRect) -> Path {
         let radius = min(rect.width, rect.height * 2)
-        let center = CGPoint(x: rect.midX, y: rect.minY) // top-anchored = flipped up
+        let center = CGPoint(x: rect.midX, y: rect.minY)
         
         var path = Path()
         path.addArc(
@@ -187,7 +203,7 @@ private struct GaugeArcShape: Shape {
             radius: radius,
             startAngle: startAngle,
             endAngle: endAngle,
-            clockwise: false // keep true so 160 -> 20 takes the short upper arc
+            clockwise: false
         )
         return path
     }

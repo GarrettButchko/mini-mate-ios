@@ -47,6 +47,7 @@ struct MainView: View {
     @State private var analyzerTask: Task<Void, Never>? = nil
     @State private var showLastGameStats = false
     @State private var buttonsViewHeight: CGFloat = 0
+    @State private var isLoading = false
     
     private var userGameIDs: [String] {
         authModel.userModel?.gameIDs ?? []
@@ -497,16 +498,29 @@ struct MainView: View {
                     
                     if course == nil {
                         Button {
-                            gameModel.searchNearby(handler: locationHandler)
+                            gameModel.searchNearby(handler: locationHandler, isLoading: $isLoading)
                         } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "magnifyingglass")
-                                Text("Search Nearby")
+                            HStack(spacing: 8) {
+                                if isLoading {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.8)
+                                    Text("Searching...")
+                                        .fontWeight(.medium)
+                                } else {
+                                    Image(systemName: "magnifyingglass")
+                                        .font(.body.weight(.semibold))
+                                    Text("Search Nearby")
+                                        .fontWeight(.semibold)
+                                }
                             }
-                            .frame(width: 180, height: 50)
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                            .frame(width: 160, height: 50)
+                            .background(
+                                RoundedRectangle(cornerRadius: 15)
+                                    .fill(Color.blue)
+                            )
+                            .foregroundStyle(.white)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
                         }
                         .buttonStyle(.plain)
                         .transition(.move(edge: .trailing).combined(with: .opacity).combined(with: .blurReplace))
@@ -514,7 +528,7 @@ struct MainView: View {
                         // Retry Button
                         Button(action: {
                             withAnimation(){
-                                gameModel.retry(isRotating: $isRotating, handler: locationHandler)
+                                gameModel.retry(isRotating: $isRotating, handler: locationHandler, isLoading: $isLoading)
                             }
                         }) {
                             Image(systemName: "arrow.trianglehead.2.clockwise")

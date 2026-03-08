@@ -108,16 +108,18 @@ final class HostViewModel: ObservableObject {
         resetTimer(gameModel)
     }
     
-    func searchNearby(gameModel: GameViewModel, handler: LocationHandler) {
+    func searchNearby(gameModel: GameViewModel, handler: LocationHandler){
         gameModel.setHasLoaded(false)
-        gameModel.findClosestLocationAndLoadCourse(locationHandler: handler)
+        Task{
+            await gameModel.findClosestLocationAndLoadCourse(locationHandler: handler)
+        }
         resetTimer(gameModel)
     }
     
     func retry(gameModel: GameViewModel, handler: LocationHandler) {
         isRotating = true
-        searchNearby(gameModel: gameModel, handler: handler)
         
+        searchNearby(gameModel: gameModel, handler: handler)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             self.isRotating = false
         }
@@ -130,16 +132,18 @@ final class HostViewModel: ObservableObject {
         showTextAndButtons = false
     }
     
-    func setUp(gameModel: GameViewModel, handler: LocationHandler) {
+    func setUp(gameModel: GameViewModel, handler: LocationHandler){
         generateQRCode(from: gameModel.gameValue.id)
         courseFind(gameModel: gameModel, handler: handler)
     }
     
-    func courseFind(gameModel: GameViewModel, handler: LocationHandler ) {
+    func courseFind(gameModel: GameViewModel, handler: LocationHandler ){
         guard showLocationButton else { return }
         
         if gameModel.getCourse() == nil && !gameModel.getHasLoaded() {
-            gameModel.findClosestLocationAndLoadCourse(locationHandler: handler)
+            Task {
+                await gameModel.findClosestLocationAndLoadCourse(locationHandler: handler)
+            }
             gameModel.setHasLoaded(true)
         }
     }

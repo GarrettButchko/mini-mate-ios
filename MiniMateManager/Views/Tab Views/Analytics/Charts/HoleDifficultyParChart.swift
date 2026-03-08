@@ -12,6 +12,7 @@ struct HoleHeatmapData: Identifiable {
     let id = UUID()
     let holeNumber: Int
     let relativeToPar: Double // e.g., +1.2 or -0.3
+    let holePar: Int
 }
 
 struct HoleDifficultyParChart: View {
@@ -139,6 +140,10 @@ struct HoleStatusRow: View {
             Text("Hole \(data.holeNumber)")
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(.mainOpp)
+            
+            Text("Par \(data.holePar)")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
             
             Spacer()
             

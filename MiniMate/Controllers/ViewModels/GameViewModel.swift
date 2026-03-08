@@ -701,31 +701,32 @@ final class GameViewModel: ObservableObject, Observable {
     
     // MARK: Course
 
-    func findClosestLocationAndLoadCourse(locationHandler: LocationHandler) {
+    @MainActor
+    func findClosestLocationAndLoadCourse(locationHandler: LocationHandler) async {
         guard !hasLoaded else { return }
 
-        // Use a Task to move the heavy lifting off the Main Thread
-        Task(priority: .userInitiated) {
-            // 1. Wait for location without blocking the UI
-            while locationHandler.userLocation == nil {
-                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s sleep
-            }
+        // 1. Wait for location without blocking the UI
+        while locationHandler.userLocation == nil {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s sleep
+        }
 
-            // 2. Perform the heavy MapKit search
+        // 2. Perform the heavy MapKit search
+        await withCheckedContinuation { continuation in
             locationHandler.findClosestMiniGolf { closestPlace in
-                guard let closestPlace = closestPlace else { return }
+                guard let closestPlace = closestPlace else {
+                    continuation.resume()
+                    return
+                }
 
-                // 3. Switch back to Main for UI and Firebase
-                Task { @MainActor in
-                    let courseID = CourseIDGenerator.generateCourseID(from: closestPlace.toDTO())
-                    
-                    // Now fetch the course
-                    self.courseRepo.fetchCourse(id: courseID) { course in
-                        withAnimation {
-                            self.course = course
-                        }
-                        self.hasLoaded = true
+                let courseID = CourseIDGenerator.generateCourseID(from: closestPlace.toDTO())
+                
+                // 3. Fetch the course
+                self.courseRepo.fetchCourse(id: courseID) { course in
+                    withAnimation {
+                        self.course = course
                     }
+                    self.hasLoaded = true
+                    continuation.resume()
                 }
             }
         }
@@ -734,23 +735,32 @@ final class GameViewModel: ObservableObject, Observable {
     
     func setUp(handler: LocationHandler) {
         if getCourse() == nil && !getHasLoaded() {
-            findClosestLocationAndLoadCourse(locationHandler: handler)
-            setHasLoaded(true)
+            Task {
+                await findClosestLocationAndLoadCourse(locationHandler: handler)
+            }
         }
     }
     
-    func searchNearby(handler: LocationHandler) {
+    func searchNearby(handler: LocationHandler, isLoading: Binding<Bool>) {
+        withAnimation() {
+            isLoading.wrappedValue = true
+        }
         setHasLoaded(false)
-        findClosestLocationAndLoadCourse(locationHandler: handler)
+        Task {
+            await findClosestLocationAndLoadCourse(locationHandler: handler)
+            withAnimation() {
+                isLoading.wrappedValue = false
+            }
+        }
     }
     
     func exit(handler: LocationHandler){
         resetCourse()
     }
     
-    func retry(isRotating: Binding<Bool>, handler: LocationHandler) {
+    func retry(isRotating: Binding<Bool>, handler: LocationHandler, isLoading: Binding<Bool>) {
         isRotating.wrappedValue = true
-        searchNearby(handler: handler)
+        searchNearby(handler: handler, isLoading: isLoading)
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             isRotating.wrappedValue = false

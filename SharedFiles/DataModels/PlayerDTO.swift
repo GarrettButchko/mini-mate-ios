@@ -15,6 +15,7 @@ struct PlayerDTO: Codable, Identifiable, Equatable {
     var inGame: Bool
     var holes: [HoleDTO]
     var email: String?
+    var ballColorDT: String?
 }
 
 extension PlayerDTO {

@@ -204,11 +204,9 @@ struct MainTabView: View {
             // Launch background tasks that don't block UI
             // Using Task (not detached) to stay on main actor for ModelContext
             Task(priority: .userInitiated) {
+                await iapManager.initialize()
                 
                 guard let id = authModel.currentUserIdentifier else { return }
-                
-                // Initialize IAP manager first
-                await iapManager.initialize()
                 
                 // Load user data
                 let userRepo = UserRepository(context: context)
@@ -231,5 +229,6 @@ struct MainTabView: View {
                 }
             }
         }
+        .environmentObject(iapManager)
     }
 }

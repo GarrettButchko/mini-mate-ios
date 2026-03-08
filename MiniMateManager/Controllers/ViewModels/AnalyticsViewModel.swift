@@ -269,6 +269,8 @@ final class AnalyticsViewModel: ObservableObject {
         return players > 0 ? Double(players) / Double(totalGames) : 0
     }
     
+    
+    
     func deltaErrorCalc(delta: inout Double, positiveGood: Bool) -> (deltaS: String?, deltaC: Color?) {
         // Only zero out delta if we have no delta data at all
         // Otherwise, calculate with whatever data we have
@@ -307,10 +309,6 @@ final class AnalyticsViewModel: ObservableObject {
         guard prev != 0 else { return 0 }
         return ((current - prev) / prev) * 100
     }
-    
-    
-    
-    
     
     // Prime (Data and delta and color)
     func activeUsersPrime() -> DataPointObject {
@@ -380,6 +378,35 @@ final class AnalyticsViewModel: ObservableObject {
                     count = doc.returningPlayers
                 }
                 result.append(PlayerActivity(date: currentDate, count: count))
+            } else {
+                // No data for this day, add zero
+                result.append(PlayerActivity(date: currentDate, count: 0))
+            }
+            
+            currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate)!
+        }
+        
+        return result
+    }
+    
+    func getDataForGamesPerDay() -> [PlayerActivity] {
+        // 1. Sort the source data first so the line draws from left to right
+        let sortedDocs = rangeDailyDocs.sorted { $0.dayID < $1.dayID }
+        
+        // 2. Create a dictionary for quick lookup of existing data
+        let docsByDateString = Dictionary(uniqueKeysWithValues: sortedDocs.map { ($0.dayID, $0) })
+        
+        // 3. Generate all dates in the range and fill in missing days with count 0
+        var result: [PlayerActivity] = []
+        var currentDate = Calendar.current.startOfDay(for: range.startDate)
+        let endDate = Calendar.current.startOfDay(for: range.endDate)
+        
+        while currentDate <= endDate {
+            let dateString = formatDateToDateString(currentDate)
+            
+            if let doc = docsByDateString[dateString] {
+                // Data exists for this day - use gamesPlayed
+                result.append(PlayerActivity(date: currentDate, count: doc.gamesPlayed))
             } else {
                 // No data for this day, add zero
                 result.append(PlayerActivity(date: currentDate, count: 0))
@@ -518,7 +545,7 @@ final class AnalyticsViewModel: ObservableObject {
             let par = Double(course.pars[index])
             let offset = avgStrokes - par
             
-            return HoleHeatmapData(holeNumber: holeNum, relativeToPar: offset)
+            return HoleHeatmapData(holeNumber: holeNum, relativeToPar: offset, holePar: course.pars[index])
         }
         .sorted(by: { $0.holeNumber < $1.holeNumber })
     }
@@ -544,6 +571,23 @@ final class AnalyticsViewModel: ObservableObject {
     }
     
     //MARK: Experience Metrics
+    
+    func avgGamesPerDay(_ docs: [DailyDoc]) -> Double {
+        let totalGames = docs.reduce(0) { $0 + $1.gamesPlayed }
+        let avgGamesPerDay = Double(totalGames) / max(1, Double(rangeDailyDocs.count))
+        
+        return avgGamesPerDay
+    }
+    
+    func avgGamesPerDayPrime() -> DataPointObject {
+        let rangeData = avgGamesPerDay(rangeDailyDocs)
+        let deltaData = avgGamesPerDay(deltaDailyDocs)
+        var delta = calcDelta(deltaData, rangeData)
+        
+        let data = deltaErrorCalc(delta: &delta, positiveGood: true)
+        
+        return DataPointObject(value: String(format: "%.2f", rangeData), delta: data.deltaS, deltaColor: data.deltaC)
+    }
     
     /// Calculate average strokes relative to par across all holes
     func getAvgRelativeToPar() -> DataPointObject {

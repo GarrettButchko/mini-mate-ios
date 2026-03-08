@@ -40,6 +40,7 @@ struct CourseSearchResultsView: View {
     @EnvironmentObject var courseViewModel: CourseViewModel
     @EnvironmentObject var locationHandler: LocationHandler
     @State private var showRetryButton = false
+    @State var titleHeight: CGFloat = 30
     
     var body: some View {
         ZStack {
@@ -91,10 +92,25 @@ struct CourseSearchResultsView: View {
                         .fill(.clear)
                         .frame(height: 4)
                 }
+                .mask(
+                    VStack(spacing: 0){
+                        // 1. The 40pt fade-in area
+                        LinearGradient(
+                            colors: [.clear, .black],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .frame(height: titleHeight)
+                        
+                        Rectangle()
+                            .fill(.black)
+                    }
+                )
                 .contentMargins(.horizontal, 16)
                 .contentMargins(.top, 54)
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
+                
             }
             
             VStack{
@@ -115,17 +131,14 @@ struct CourseSearchResultsView: View {
                 }
                 .padding()
                 .padding(.bottom, 16)
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.courseSub.opacity(0.7),
-                            Color.clear
-                        ]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .ignoresSafeArea(edges: .top)
-                )
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear
+                            .task(id: proxy.size) {
+                                titleHeight = proxy.size.height // Capture the size and monitor changes
+                            }
+                    }
+                }
                 Spacer()
             }
         }
@@ -138,6 +151,8 @@ struct CourseResultView: View {
     @EnvironmentObject var locationHandler: LocationHandler
     @EnvironmentObject var courseViewModel: CourseViewModel
     @StateObject var viewModel = LookAroundViewModel()
+    
+    @State var titleHeight: CGFloat = 30
     
     var body: some View {
         ZStack {
@@ -175,6 +190,22 @@ struct CourseResultView: View {
                     }
                 }
             }
+            .mask{
+                VStack(spacing: 0) {
+                    // 1. The 40pt fade-in area
+                    LinearGradient(
+                        colors: [.clear, .black],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: titleHeight) // Match the top content margin + padding
+                    
+                    // 2. The rest of the content (fully visible)
+                    Rectangle()
+                        .fill(.black)
+                }
+            }
+                
             .contentMargins([.horizontal, .bottom], 16)
             .contentMargins(.top, 62)
             .scrollContentBackground(.hidden)
@@ -184,17 +215,14 @@ struct CourseResultView: View {
                 CourseResultViewHeader()
                     .padding()
                     .padding(.bottom, 16)
-                    .background(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.courseSub.opacity(0.7),
-                                Color.clear
-                            ]),
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .ignoresSafeArea(edges: .top)
-                    )
+                    .background {
+                        GeometryReader { proxy in
+                            Color.clear
+                                .task(id: proxy.size) {
+                                    titleHeight = proxy.size.height // Capture the size and monitor changes
+                                }
+                        }
+                    }
                 Spacer()
             }
         }

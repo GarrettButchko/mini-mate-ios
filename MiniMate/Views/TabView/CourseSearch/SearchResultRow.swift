@@ -57,10 +57,16 @@ struct SearchResultRow: View {
                 Spacer()
                 
                 if isSupported{
-                    LogoIcon()
-                        .scaledToFit()
-                        .foregroundStyle(.purple)
-                        .frame(width: 24, height: 24)
+                    ZStack{
+                        Circle()
+                            .fill(.purple.opacity(0.3))
+                            .frame(width: 24, height: 24)
+                        
+                        LogoIcon()
+                            .scaledToFit()
+                            .foregroundStyle(.mainOpp)
+                            .frame(width: 17, height: 17)
+                    }
                 }
             }
         }

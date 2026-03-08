@@ -14,6 +14,8 @@ struct ExpandedPlayerTierContent: View {
     let onCopyToClipboard: () -> Void
     let onDownloadCSV: () -> Void
     
+    @State private var showCopiedCheck = false
+    
     var body: some View {
         VStack(spacing: 12) {
             // Email list
@@ -45,18 +47,29 @@ struct ExpandedPlayerTierContent: View {
             // Action buttons
             VStack(spacing: 8) {
                 // Copy to Clipboard button
-                Button(action: onCopyToClipboard) {
+                Button(action: {
+                    onCopyToClipboard()
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        showCopiedCheck = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation {
+                            showCopiedCheck = false
+                        }
+                    }
+                }) {
                     HStack(spacing: 8) {
-                        Image(systemName: "doc.on.doc")
+                        Image(systemName: showCopiedCheck ? "checkmark.circle.fill" : "doc.on.doc")
                             .font(.subheadline)
-                        Text("Copy All Emails")
+                            .symbolEffect(.bounce, value: showCopiedCheck)
+                        Text(showCopiedCheck ? "Copied!" : "Copy All Emails")
                             .font(.subheadline)
                             .fontWeight(.medium)
                         Spacer()
                     }
                     .frame(maxWidth: .infinity)
                     .padding(10)
-                    .background(.subThree)
+                    .background(showCopiedCheck ? Color.green : Color.subThree)
                     .foregroundStyle(.white)
                     .cornerRadius(10)
                 }

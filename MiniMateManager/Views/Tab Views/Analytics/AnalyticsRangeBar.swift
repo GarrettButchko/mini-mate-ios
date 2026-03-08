@@ -42,16 +42,20 @@ struct AnalyticsRangeBar: View {
             Button {
                 showCustomSheet = true
             } label: {
-                Text("Custom Range")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 25)
-                            .fill(Color.blue.opacity(0.9))
-                    )
-                    .foregroundStyle(.white)
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.subheadline)
+                    Text("Custom Range")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 25)
+                        .fill(Color.blue.opacity(0.9))
+                )
+                .foregroundStyle(.white)
             }
         }
         .sheet(isPresented: $showCustomSheet) {

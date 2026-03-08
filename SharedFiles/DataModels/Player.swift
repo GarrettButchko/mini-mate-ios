@@ -17,6 +17,7 @@ final class Player: Identifiable, Equatable {
     var name: String
     var photoURL: URL?
     var email: String?
+    var ballColorDT: String? = nil
 
     @Relationship(deleteRule: .nullify)
     var game: Game?
@@ -31,7 +32,8 @@ final class Player: Identifiable, Equatable {
         photoURL: URL? = nil,
         inGame: Bool = false,
         holes: [Hole] = [],
-        email: String? = nil
+        email: String? = nil,
+        ballColorDT: String? = nil
     ) {
         self.id = id
         self.userId = userId
@@ -40,6 +42,7 @@ final class Player: Identifiable, Equatable {
         self.inGame = inGame
         self.holes = holes
         self.email = email
+        self.ballColorDT = ballColorDT
     }
 }
 
@@ -66,7 +69,8 @@ extension Player {
             totalStrokes: totalStrokes,
             inGame: inGame,
             holes: holes.map { $0.toDTO() },
-            email: email
+            email: email,
+            ballColorDT: ballColorDT
         )
     }
 
@@ -78,7 +82,8 @@ extension Player {
             photoURL: dto.photoURL,
             inGame: dto.inGame,
             holes: dto.holes.map { Hole.fromDTO($0) },
-            email: dto.email
+            email: dto.email,
+            ballColorDT: dto.ballColorDT
         )
     }
 }

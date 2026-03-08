@@ -13,7 +13,7 @@ struct ProView: View {
     @State private var errorMessage: String?
     @Binding var showSheet: Bool
     @EnvironmentObject var authModel: AuthViewModel
-    @StateObject var iapManager = IAPManager()
+    @EnvironmentObject var iapManager: IAPManager
     
     let benefits = [
         "Ad-free experience",
@@ -79,7 +79,11 @@ struct ProView: View {
             
             Button {
                 Task {
-                    await iapManager.purchase(iapManager.products[0], authModel: authModel, showSheet: $showSheet)
+                    guard let product = iapManager.products.first else {
+                        // Optional: show an alert/toast or trigger a product reload here
+                        return
+                    }
+                    let _ = await iapManager.purchase(product, authModel: authModel, showSheet: $showSheet)
                 }
             } label: {
                 Text("Upgrade Now")

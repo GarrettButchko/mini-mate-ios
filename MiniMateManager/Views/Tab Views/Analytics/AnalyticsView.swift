@@ -198,9 +198,6 @@ struct AnalyticsView: View {
                     .cardShadow()
             }
             
-            DataCard(data: VM.avgPlayersPerGamePrime(), title: "Avg Players Per Game", infoText: "The number of total plays divided by the number of total visits. (Counts a player once per day. If a player visits on multiple days, each day is counted.)", color: .sub, cornerRadius: 25)
-                .cardShadow()
-            
             VStack(spacing: 8){
                 HStack{
                     Text("Trend")
@@ -293,27 +290,15 @@ struct AnalyticsView: View {
             
             VStack(spacing: 8){
                 HStack{
-                    Text("Hole Stats")
+                    Text("Games Per Day Trend")
                         .font(.title2)
                         .fontWeight(.bold)
                     Spacer()
                 }
                 
-                // SECTION 1: HARDNESS
-                let hardnessData = VM.getHoleDifficultyData()
+                DataCard(data: VM.avgGamesPerDayPrime(), title: "Avg Games Per Day", infoText: "The average number of games played per day.", color: .subTwo, cornerRadius: 17)
                 
-                VStack(spacing: 16) {
-                    HoleDifficultyChart(difficultyData: VM.getHoleDifficultyData())
-                    HoleHardnessPreviewList(difficultyData: hardnessData)
-                }
-                .padding()
-                .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
-                
-                HStack{
-                    DataCard(data: VM.getEasiestHole(), title: "Easiest", infoText: "The hole which has the the lowest average strokes per plays", color: .subTwo, cornerRadius: 17)
-                    
-                    DataCard(data: VM.getHardestHole(), title: "Hardest", infoText: "The hole which has the the highest average strokes per plays", color: .subTwo, cornerRadius: 17)
-                }
+                GamesPerDayChart(VM: VM)
             }
             .padding()
             .background {
@@ -322,6 +307,8 @@ struct AnalyticsView: View {
                     .cardShadow()
             }
             
+            DataCard(data: VM.avgPlayersPerGamePrime(), title: "Avg Players Per Game", infoText: "The number of total plays divided by the number of total visits. (Counts a player once per day. If a player visits on multiple days, each day is counted.)", color: .sub, cornerRadius: 25)
+                .cardShadow()
             
             VStack(spacing: 8){
                 HStack{
@@ -350,6 +337,51 @@ struct AnalyticsView: View {
                     .fill(.sub)
                     .cardShadow()
             }
+            
+            // SECTION 3: Game Duration & Engagement
+            VStack(spacing: 8){
+                HStack{
+                    Text("Game Duration")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Spacer()
+                }
+                
+                HStack{
+                    DataCard(data: VM.getAvgGameDuration(), title: "Avg Duration", infoText: "Average time players spend per game.", color: .subTwo, cornerRadius: 17)
+                    
+                    DataCard(data: VM.getTotalPlayTime(), title: "Total Time", infoText: "Total play time across all games in this period.", color: .subTwo, cornerRadius: 17)
+                }
+                
+                HStack{
+                    DataCard(data: VM.getFastestGameTime(), title: "Fastest Game", infoText: "Shortest game duration recorded.", color: .subTwo, cornerRadius: 17)
+                    
+                    DataCard(data: VM.getSlowestGameTime(), title: "Longest Game", infoText: "Longest game duration recorded.", color: .subTwo, cornerRadius: 17)
+                }
+                
+                VStack{
+                    HStack(alignment: .center) {
+                        Text("Game Duration Trend")
+                            .foregroundStyle(.mainOpp)
+                            .font(.system(size: 14, weight: .semibold))
+                        Spacer()
+                        InfoButton(infoText: "Shows the duration of the games over time.")
+                    }
+                    .padding(.bottom, 16)
+                    GameDurationTrendChart(VM: VM)
+                }
+                
+                
+                    .frame(height: 200)
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
+            }
+            .padding()
+            .background {
+                RoundedRectangle(cornerRadius: 25)
+                    .fill(.sub)
+                    .cardShadow()
+            }
         }
     }
     
@@ -358,6 +390,38 @@ struct AnalyticsView: View {
 
             if let course = courseVM.selectedCourse {
                 // SECTION 1: Par Performance Overview
+                
+                VStack(spacing: 8){
+                    HStack{
+                        Text("Hole Difficulty")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        Spacer()
+                    }
+                    
+                    // SECTION 1: HARDNESS
+                    let hardnessData = VM.getHoleDifficultyData()
+                    
+                    VStack(spacing: 16) {
+                        HoleDifficultyChart(difficultyData: VM.getHoleDifficultyData())
+                        HoleHardnessPreviewList(difficultyData: hardnessData)
+                    }
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
+                    
+                    HStack{
+                        DataCard(data: VM.getEasiestHole(), title: "Easiest", infoText: "The hole which has the the lowest average strokes per plays", color: .subTwo, cornerRadius: 17)
+                        
+                        DataCard(data: VM.getHardestHole(), title: "Hardest", infoText: "The hole which has the the highest average strokes per plays", color: .subTwo, cornerRadius: 17)
+                    }
+                }
+                .padding()
+                .background {
+                    RoundedRectangle(cornerRadius: 25)
+                        .fill(.sub)
+                        .cardShadow()
+                }
+                
                 VStack(spacing: 8){
                     HStack{
                         Text("Par Performance")
@@ -406,51 +470,6 @@ struct AnalyticsView: View {
                     }
                     
                     DataCard(data: VM.getHoleInOneCount(), title: "Total Holes-in-One", infoText: "Total number of holes completed in one stroke during this period.", color: .subTwo, cornerRadius: 17)
-                }
-                .padding()
-                .background {
-                    RoundedRectangle(cornerRadius: 25)
-                        .fill(.sub)
-                        .cardShadow()
-                }
-                
-                // SECTION 3: Game Duration & Engagement
-                VStack(spacing: 8){
-                    HStack{
-                        Text("Game Duration")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        Spacer()
-                    }
-                    
-                    HStack{
-                        DataCard(data: VM.getAvgGameDuration(), title: "Avg Duration", infoText: "Average time players spend per game.", color: .subTwo, cornerRadius: 17)
-                        
-                        DataCard(data: VM.getTotalPlayTime(), title: "Total Time", infoText: "Total play time across all games in this period.", color: .subTwo, cornerRadius: 17)
-                    }
-                    
-                    HStack{
-                        DataCard(data: VM.getFastestGameTime(), title: "Fastest Game", infoText: "Shortest game duration recorded.", color: .subTwo, cornerRadius: 17)
-                        
-                        DataCard(data: VM.getSlowestGameTime(), title: "Longest Game", infoText: "Longest game duration recorded.", color: .subTwo, cornerRadius: 17)
-                    }
-                    
-                    VStack{
-                        HStack(alignment: .center) {
-                            Text("Game Duration Trend")
-                                .foregroundStyle(.mainOpp)
-                                .font(.system(size: 14, weight: .semibold))
-                            Spacer()
-                            InfoButton(infoText: "Shows the duration of the games over time.")
-                        }
-                        .padding(.bottom, 16)
-                        GameDurationTrendChart(VM: VM)
-                    }
-                    
-                    
-                        .frame(height: 200)
-                        .padding()
-                        .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
                 }
                 .padding()
                 .background {
