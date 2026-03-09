@@ -15,7 +15,7 @@ struct HoleDifficultyData: Identifiable {
 }
 
 struct HoleDifficultyChart: View {
-    let difficultyData: [HoleDifficultyData]
+    @Binding var difficultyData: [HoleDifficultyData]
     
     var body: some View {
         VStack(spacing: 0) {
@@ -123,7 +123,7 @@ struct HoleHardnessRow: View {
 }
 
 struct HoleHardnessPreviewList: View {
-    let difficultyData: [HoleDifficultyData]
+    @Binding var difficultyData: [HoleDifficultyData]
     @State private var isExpanded = false
     
     // The "Hardest" holes (highest average strokes)

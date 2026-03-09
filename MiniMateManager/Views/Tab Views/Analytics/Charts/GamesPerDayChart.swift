@@ -10,13 +10,12 @@ import SwiftUI
 
 struct GamesPerDayChart: View {
     
-    let data: [PlayerActivity]
+    @EnvironmentObject var VM: AnalyticsViewModel
+    
+    @State var data: [PlayerActivity] = []
+    
     let lineColor: Color = .purple
     
-    init(VM: AnalyticsViewModel) {
-        self.data = VM.getDataForGamesPerDay()
-    }
-
     var body: some View {
         Chart {
             ForEach(data) { item in
@@ -39,6 +38,9 @@ struct GamesPerDayChart: View {
                     )
                 )
             }
+        }
+        .task{
+            data = await VM.getDataForGamesPerDay()
         }
         .chartPlotStyle { plot in
             plot

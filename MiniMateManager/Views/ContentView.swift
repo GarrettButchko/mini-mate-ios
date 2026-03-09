@@ -67,6 +67,7 @@ struct ContentView: View {
 struct CourseTabView: View {
     @Environment(\.modelContext) private var context
     @StateObject private var analyticsVM = AnalyticsViewModel()
+    @StateObject private var leaderboardVM = LeaderBoardViewModel()
     @EnvironmentObject var authModel: AuthViewModel
     @EnvironmentObject var VM: CourseViewModel
 
@@ -100,5 +101,6 @@ struct CourseTabView: View {
             VM.stop()
         }
         .environmentObject(analyticsVM)
+        .environmentObject(leaderboardVM)
     }
 }

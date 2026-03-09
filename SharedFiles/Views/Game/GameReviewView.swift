@@ -123,8 +123,8 @@ struct GameReviewView: View {
         .background {
             RoundedRectangle(cornerRadius: 25)
                 .subVsColor(makeColor: viewModel.course?.scoreCardColor)
+                .cardShadow()
         }
-        .cardShadow()
     }
     
     /// Player Row

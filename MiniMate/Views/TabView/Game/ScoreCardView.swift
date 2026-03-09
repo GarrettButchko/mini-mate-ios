@@ -139,9 +139,9 @@ struct ScoreCardView: View {
         .background{
             RoundedRectangle(cornerRadius: 25)
                 .subVsColor(makeColor: gameModel.getCourse()?.scoreCardColor)
+                .cardShadow()
         }
         .padding(.vertical)
-        .cardShadow()
     }
     
     

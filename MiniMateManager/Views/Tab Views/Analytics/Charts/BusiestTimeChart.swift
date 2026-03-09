@@ -16,7 +16,9 @@ struct HourData: Identifiable {
 }
 
 struct BusiestTimesChart: View {
-    let data: [HourData]
+    @EnvironmentObject var VM: AnalyticsViewModel
+    
+    @State var data: [HourData] = []
     
     // Define the weekday labels to match your screenshot
     let dayLabels = ["", "Sun", "", "Tues", "", "Thurs", "", "Sat"]
@@ -41,6 +43,9 @@ struct BusiestTimesChart: View {
                     .foregroundStyle(by: .value("Count", item.count))
                     .cornerRadius(6) // Makes the "pill" shape
                 }
+            }
+            .task{
+                data = await VM.prepareChartData()
             }
             // 1. Color Scale (Light green to Dark green)
             .chartForegroundStyleScale(

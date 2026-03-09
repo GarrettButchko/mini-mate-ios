@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FirebaseAuth
+import MarqueeText
 
 struct MainView: View {
     @Environment(\.modelContext) private var context
@@ -23,7 +24,7 @@ struct MainView: View {
     @State private var buttonsViewHeight: CGFloat = 0 // State to track the height of the buttons view
     
     @State private var titleHeight: CGFloat = 0 // State to track the height of the title view
-
+    
     @State var showHealthRatingSheet: Bool = false
     
     let healthReportHeight: CGFloat = 350
@@ -50,9 +51,15 @@ struct MainView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         
-                        Text(viewModel.selectedCourse?.name ?? "No Course Selected")
-                            .font(.title2)
-                            .fontWeight(.semibold)
+                        MarqueeText(
+                            text: viewModel.selectedCourse?.name ?? "No Course Selected",
+                            font: UIFont.preferredFont(forTextStyle: .title2),
+                            leftFade: 16,
+                            rightFade: 16,
+                            startDelay: 2,
+                            alignment: .leading
+                        )
+                        .fontWeight(.semibold)
                     }
                     .background {
                         GeometryReader { proxy in
@@ -168,13 +175,20 @@ struct MainView: View {
                 
                 HStack(spacing: 14){
                     mainViewButton(title: "Leaderboard", icon: "flag.pattern.checkered", color: Color.green) {
-                        // MARK: TODO
+                        showLeaderBoardSheet = true
                     }
-                        
+                    .sheet(isPresented: $showLeaderBoardSheet) {
+                        LeaderBoardView()
+                            .presentationDragIndicator(.visible)
+                    }
+                    
                     mainViewButton(title: "Tournament", icon: "medal", color: Color.orange) {
-                        // MARK: TODO
+                            showTournamentSheet = true
                     }
-                    .disabled(true)
+                    .sheet(isPresented: $showTournamentSheet) {
+                        TournamentView()
+                            .presentationDragIndicator(.visible)
+                    }
                 }
                 .padding()
                 .background(content: {
@@ -205,24 +219,27 @@ struct MainView: View {
         .background(.bg)
     }
     
-    
-    
-    func mainViewButton(title: String, icon: String? = nil, color: Color, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack {
-                if let icon = icon {
-                    Image(systemName: icon)
+    func mainViewButton(title: String, icon: String? = nil, color: Color, disabled: Bool = false, action: @escaping () -> Void) -> some View {
+        Group{
+            Button(action: action) {
+                HStack {
+                    if let icon = icon {
+                        Image(systemName: icon)
+                    }
+                    Text(title)
+                        .fontWeight(.semibold)
                 }
-                Text(title)
-                    .fontWeight(.semibold)
+                .padding(10)
+                .frame(maxWidth: .infinity, minHeight: 60)
+                .background {
+                    RoundedRectangle(cornerRadius: 17)
+                        .foregroundStyle(color)
+                }
+                .foregroundColor(.white)
+                .opacity(disabled ? 0.6 : 1.0)
             }
-            .padding(10)
-            .frame(maxWidth: .infinity, minHeight: 60)
-            .background {
-                RoundedRectangle(cornerRadius: 17)
-                    .foregroundStyle(color)
-            }
-            .foregroundColor(.white)
+            .disabled(disabled)
         }
     }
+    
 }

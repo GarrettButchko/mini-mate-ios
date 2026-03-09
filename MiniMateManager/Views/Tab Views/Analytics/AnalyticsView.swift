@@ -298,7 +298,7 @@ struct AnalyticsView: View {
                 
                 DataCard(data: VM.avgGamesPerDayPrime(), title: "Avg Games Per Day", infoText: "The average number of games played per day.", color: .subTwo, cornerRadius: 17)
                 
-                GamesPerDayChart(VM: VM)
+                GamesPerDayChart()
             }
             .padding()
             .background {
@@ -324,7 +324,7 @@ struct AnalyticsView: View {
                     DataCard(data: VM.getBusiestDay(), title: "Busiest Day", infoText: "Based on the number of games played that day.", color: .subTwo, cornerRadius: 17)
                 }
                 
-                BusiestTimesChart(data: VM.prepareChartData())
+                BusiestTimesChart()
                     .padding(.horizontal)
                     .background {
                         RoundedRectangle(cornerRadius: 17)
@@ -399,15 +399,7 @@ struct AnalyticsView: View {
                         Spacer()
                     }
                     
-                    // SECTION 1: HARDNESS
-                    let hardnessData = VM.getHoleDifficultyData()
-                    
-                    VStack(spacing: 16) {
-                        HoleDifficultyChart(difficultyData: VM.getHoleDifficultyData())
-                        HoleHardnessPreviewList(difficultyData: hardnessData)
-                    }
-                    .padding()
-                    .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
+                    HoleDifficultyCharts()
                     
                     HStack{
                         DataCard(data: VM.getEasiestHole(), title: "Easiest", infoText: "The hole which has the the lowest average strokes per plays", color: .subTwo, cornerRadius: 17)
@@ -436,16 +428,8 @@ struct AnalyticsView: View {
                         DataCard(data: VM.getMostBeatenPar(), title: "Best Hole", infoText: "Hole where players most frequently beat par.", color: .subTwo, cornerRadius: 17)
                     }
                     
-                    let heatmapData = VM.getHoleHeatmapForParData(course: course)
-                    
-                    VStack(spacing: 16) {
-                        HoleDifficultyParChart(difficultyData: heatmapData)
-                            .frame(height: 100)
-                        
-                        HolePreviewList(allHoles: heatmapData)
-                    }
-                    .padding()
-                    .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
+                    HoleDifficultyParCharts(course: course)
+
                 }
                 .padding()
                 .background {
@@ -570,8 +554,51 @@ struct AnalyticsView: View {
     }
 }
 
+struct HoleDifficultyCharts: View {
+    @EnvironmentObject var VM: AnalyticsViewModel
+    @State var difficultyData: [HoleDifficultyData] = []
+    
+    var body: some View {
+        // SECTION 1: HARDNESS
+        VStack(spacing: 16) {
+            HoleDifficultyChart(difficultyData: $difficultyData)
+            HoleHardnessPreviewList(difficultyData: $difficultyData)
+        }
+        .padding()
+        .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
+        .task{
+            difficultyData = await VM.getHoleDifficultyData()
+        }
+    }
+}
 
-struct InfoButton: View {
+struct HoleDifficultyParCharts: View {
+    @EnvironmentObject var VM: AnalyticsViewModel
+    @State var difficultyData: [HoleHeatmapData] = []
+    let course: Course
+    
+    init(course: Course) {
+        self.course = course
+    }
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            HoleDifficultyParChart(difficultyData: $difficultyData)
+                .frame(height: 100)
+            
+            HolePreviewList(allHoles: $difficultyData)
+        }
+        .padding()
+        .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
+        .task{
+            difficultyData = await VM.getHoleHeatmapForParData(course: course)
+        }
+    }
+}
+
+
+
+   struct InfoButton: View {
     
     @State var showInfo: Bool = false
     let infoText: String
@@ -594,3 +621,5 @@ struct InfoButton: View {
         }
     }
 }
+
+

@@ -205,30 +205,55 @@ final class AnalyticsViewModel: ObservableObject {
     @Published var cachedAvgTimeToReturn: Int = 0
     @Published var cached30DayRetention: Double = 0.0
     
+    // Cache hole combined results to avoid repeated expensive calculations
+    @Published var cachedHoleCombined: [String: Double] = [:]
+    
     // Store current course for experience metrics
     @Published var currentCourse: Course?
+    
+    // Date formatter instances (reuse to avoid creating new instances repeatedly)
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+    
+    private let monthDayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter
+    }()
     
     func loadHealthData(course: Course? = nil) async {
         self.currentCourse = course
         guard let course else {
             print("No course to load health data for")
-            healthReport = nil
+            await MainActor.run {
+                healthReport = nil
+            }
             return
         }
         
-        withAnimation{
-            isLoadingHealth = true
+        await MainActor.run {
+            withAnimation {
+                isLoadingHealth = true
+            }
         }
         
         // Load analytics data and wait for both to complete
         await onAppearDailyAnalytics(course: course)
         await onAppearRetention(course: course)
         
-        // Calculate health report after data is loaded
-        healthReport = calculateCourseHealth()
+        // Calculate health report on background thread to avoid blocking UI
+        let report = await Task.detached(priority: .userInitiated) {
+            await self.calculateCourseHealthBackground()
+        }.value
         
-        withAnimation{
-            isLoadingHealth = false
+        await MainActor.run {
+            healthReport = report
+            withAnimation {
+                isLoadingHealth = false
+            }
         }
     }
     
@@ -351,71 +376,92 @@ final class AnalyticsViewModel: ObservableObject {
         return DataPointObject(value: String(format: "%.2f / 1", rangeUsers), delta: data.deltaS, deltaColor: data.deltaC)
     }
     
-    func getDataForGrowthTrend() -> [PlayerActivity] {
-        // 1. Sort the source data first so the line draws from left to right
-        let sortedDocs = rangeDailyDocs.sorted { $0.dayID < $1.dayID }
+    func getDataForGrowthTrend() async -> [PlayerActivity] {
+        // Get snapshot of data
+        let rangeDocs = await MainActor.run { rangeDailyDocs }
+        let rangeObj = await MainActor.run { range }
+        let chartTopic = await MainActor.run { growthChartTopic }
         
-        // 2. Create a dictionary for quick lookup of existing data
-        let docsByDateString = Dictionary(uniqueKeysWithValues: sortedDocs.map { ($0.dayID, $0) })
-        
-        // 3. Generate all dates in the range and fill in missing days with count 0
-        var result: [PlayerActivity] = []
-        var currentDate = Calendar.current.startOfDay(for: range.startDate)
-        let endDate = Calendar.current.startOfDay(for: range.endDate)
-        
-        while currentDate <= endDate {
-            let dateString = formatDateToDateString(currentDate)
+        // Compute on background thread
+        return await Task.detached(priority: .userInitiated) {
+            // 1. Sort the source data first so the line draws from left to right
+            let sortedDocs = rangeDocs.sorted { $0.dayID < $1.dayID }
             
-            if let doc = docsByDateString[dateString] {
-                // Data exists for this day
-                let count: Int
-                switch growthChartTopic {
-                case .total:
-                    count = doc.totalCount
-                case .first:
-                    count = doc.newPlayers
-                case .returning:
-                    count = doc.returningPlayers
+            // 2. Create a dictionary for quick lookup of existing data
+            let docsByDateString = Dictionary(uniqueKeysWithValues: sortedDocs.map { ($0.dayID, $0) })
+            
+            // 3. Generate all dates in the range and fill in missing days with count 0
+            var result: [PlayerActivity] = []
+            var currentDate = await Calendar.current.startOfDay(for: rangeObj.startDate)
+            let endDate = await Calendar.current.startOfDay(for: rangeObj.endDate)
+            
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            
+            while currentDate <= endDate {
+                let dateString = formatter.string(from: currentDate)
+                
+                if let doc = docsByDateString[dateString] {
+                    // Data exists for this day
+                    let count: Int
+                    switch chartTopic {
+                    case .total:
+                        count = await doc.totalCount
+                    case .first:
+                        count = doc.newPlayers
+                    case .returning:
+                        count = doc.returningPlayers
+                    }
+                    result.append(PlayerActivity(date: currentDate, count: count))
+                } else {
+                    // No data for this day, add zero
+                    result.append(PlayerActivity(date: currentDate, count: 0))
                 }
-                result.append(PlayerActivity(date: currentDate, count: count))
-            } else {
-                // No data for this day, add zero
-                result.append(PlayerActivity(date: currentDate, count: 0))
+                
+                currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate)!
             }
             
-            currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate)!
-        }
-        
-        return result
+            return result
+        }.value
     }
     
-    func getDataForGamesPerDay() -> [PlayerActivity] {
-        // 1. Sort the source data first so the line draws from left to right
-        let sortedDocs = rangeDailyDocs.sorted { $0.dayID < $1.dayID }
+    func getDataForGamesPerDay() async -> [PlayerActivity] {
+        // Get snapshot of data
+        let rangeDocs = await MainActor.run { rangeDailyDocs }
+        let rangeObj = await MainActor.run { range }
         
-        // 2. Create a dictionary for quick lookup of existing data
-        let docsByDateString = Dictionary(uniqueKeysWithValues: sortedDocs.map { ($0.dayID, $0) })
-        
-        // 3. Generate all dates in the range and fill in missing days with count 0
-        var result: [PlayerActivity] = []
-        var currentDate = Calendar.current.startOfDay(for: range.startDate)
-        let endDate = Calendar.current.startOfDay(for: range.endDate)
-        
-        while currentDate <= endDate {
-            let dateString = formatDateToDateString(currentDate)
+        // Compute on background thread
+        return await Task.detached(priority: .userInitiated) {
+            // 1. Sort the source data first so the line draws from left to right
+            let sortedDocs = rangeDocs.sorted { $0.dayID < $1.dayID }
             
-            if let doc = docsByDateString[dateString] {
-                // Data exists for this day - use gamesPlayed
-                result.append(PlayerActivity(date: currentDate, count: doc.gamesPlayed))
-            } else {
-                // No data for this day, add zero
-                result.append(PlayerActivity(date: currentDate, count: 0))
+            // 2. Create a dictionary for quick lookup of existing data
+            let docsByDateString = Dictionary(uniqueKeysWithValues: sortedDocs.map { ($0.dayID, $0) })
+            
+            // 3. Generate all dates in the range and fill in missing days with count 0
+            var result: [PlayerActivity] = []
+            var currentDate = await Calendar.current.startOfDay(for: rangeObj.startDate)
+            let endDate = await Calendar.current.startOfDay(for: rangeObj.endDate)
+            
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            
+            while currentDate <= endDate {
+                let dateString = formatter.string(from: currentDate)
+                
+                if let doc = docsByDateString[dateString] {
+                    // Data exists for this day - use gamesPlayed
+                    result.append(PlayerActivity(date: currentDate, count: doc.gamesPlayed))
+                } else {
+                    // No data for this day, add zero
+                    result.append(PlayerActivity(date: currentDate, count: 0))
+                }
+                
+                currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate)!
             }
             
-            currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate)!
-        }
-        
-        return result
+            return result
+        }.value
     }
     
     //MARK: Operations
@@ -498,6 +544,11 @@ final class AnalyticsViewModel: ObservableObject {
     }
     
     func getHoleCombined() -> [String: Double] {
+        // Return cached value if available and not stale
+        if !cachedHoleCombined.isEmpty {
+            return cachedHoleCombined
+        }
+        
         var combinedTotalStrokes: [String: Int] = [:]
         var combinedPlays: [String: Int] = [:]
         
@@ -515,59 +566,77 @@ final class AnalyticsViewModel: ObservableObject {
             return dict[hole.key] = Double(hole.value) / Double(combinedPlays[hole.key] ?? 1)
         }
         
+        // Cache the result
+        cachedHoleCombined = avgStrokesPerHole
+        
         return avgStrokesPerHole
     }
     
-    func getHoleDifficultyData() -> [HoleDifficultyData]{
+    /// Invalidate hole combined cache (call when data changes)
+    private func invalidateHoleCombinedCache() {
+        cachedHoleCombined = [:]
+    }
+    
+    func getHoleDifficultyData() async -> [HoleDifficultyData] {
         // In your Parent View / ViewModel
         let results = getHoleCombined()
         
-        // Convert [String: Double] to [HoleDifficultyData] sorted by hole number
-        let chartData = results.compactMap { (key, value) -> HoleDifficultyData? in
-            guard let holeNum = Int(key) else { return nil }
-            return HoleDifficultyData(holeNumber: holeNum, averageStrokes: value)
-        }.sorted(by: { $0.holeNumber < $1.holeNumber })
-        
-        // Pass chartData to HoleDifficultyChart(difficultyData: chartData)
-        return chartData
+        // Compute on background thread
+        return await Task.detached(priority: .userInitiated) {
+            // Convert [String: Double] to [HoleDifficultyData] sorted by hole number
+            let chartData = results.compactMap { (key, value) -> HoleDifficultyData? in
+                guard let holeNum = Int(key) else { return nil }
+                return HoleDifficultyData(holeNumber: holeNum, averageStrokes: value)
+            }.sorted(by: { $0.holeNumber < $1.holeNumber })
+            
+            return chartData
+        }.value
     }
     
-    func getHoleHeatmapForParData(course: Course) -> [HoleHeatmapData] {
+    func getHoleHeatmapForParData(course: Course) async -> [HoleHeatmapData] {
         let combinedResults = getHoleCombined() // [String: Double] (HoleID: AvgStrokes)
         
-        return combinedResults.compactMap { (key, avgStrokes) -> HoleHeatmapData? in
-            guard let holeNum = Int(key) else { return nil }
-            
-            // Ensure we don't go out of bounds of the pars array (Index is holeNum - 1)
-            let index = holeNum - 1
-            guard index >= 0 && index < course.pars.count else { return nil }
-            
-            let par = Double(course.pars[index])
-            let offset = avgStrokes - par
-            
-            return HoleHeatmapData(holeNumber: holeNum, relativeToPar: offset, holePar: course.pars[index])
-        }
-        .sorted(by: { $0.holeNumber < $1.holeNumber })
+        // Compute on background thread
+        return await Task.detached(priority: .userInitiated) {
+            return combinedResults.compactMap { (key, avgStrokes) -> HoleHeatmapData? in
+                guard let holeNum = Int(key) else { return nil }
+                
+                // Ensure we don't go out of bounds of the pars array (Index is holeNum - 1)
+                let index = holeNum - 1
+                guard index >= 0 && index < course.pars.count else { return nil }
+                
+                let par = Double(course.pars[index])
+                let offset = avgStrokes - par
+                
+                return HoleHeatmapData(holeNumber: holeNum, relativeToPar: offset, holePar: course.pars[index])
+            }
+            .sorted(by: { $0.holeNumber < $1.holeNumber })
+        }.value
     }
     
-    func prepareChartData() -> [HourData] {
+    func prepareChartData() async -> [HourData] {
+        // Get snapshot of data
+        let rangeDocs = await MainActor.run { rangeDailyDocs }
         
-        var chartData: [HourData] = []
-        
-        // Loop through each day (1-7)
-        for day in 1...7 {
-            // Find docs that match this weekday
-            let dayDocs = rangeDailyDocs.filter { $0.weekDay == day }
+        // Compute on background thread
+        return await Task.detached(priority: .userInitiated) {
+            var chartData: [HourData] = []
             
-            // Loop through each hour (0-23)
-            for hour in 0...23 {
-                // Sum up all games played at this hour across all filtered docs
-                let totalForHour = dayDocs.reduce(0) { $0 + ($1.hourlyCounts["\(hour)"] ?? 0) }
+            // Loop through each day (1-7)
+            for day in 1...7 {
+                // Find docs that match this weekday
+                let dayDocs = rangeDocs.filter { $0.weekDay == day }
                 
-                chartData.append(HourData(weekday: day, hour: hour, count: totalForHour))
+                // Loop through each hour (0-23)
+                for hour in 0...23 {
+                    // Sum up all games played at this hour across all filtered docs
+                    let totalForHour = dayDocs.reduce(0) { $0 + ($1.hourlyCounts["\(hour)"] ?? 0) }
+                    
+                    chartData.append(HourData(weekday: day, hour: hour, count: totalForHour))
+                }
             }
-        }
-        return chartData
+            return chartData
+        }.value
     }
     
     //MARK: Experience Metrics
@@ -858,34 +927,44 @@ final class AnalyticsViewModel: ObservableObject {
     }
     
     /// Generate time-series data for duration trend chart
-    func getDataForDurationTrend() -> [GameDurationActivity] {
-        // Sort the source data first
-        let sortedDocs = rangeDailyDocs.sorted { $0.dayID < $1.dayID }
+    func getDataForDurationTrend() async -> [GameDurationActivity] {
+        // Get snapshot of data
+        let rangeDocs = await MainActor.run { rangeDailyDocs }
+        let rangeObj = await MainActor.run { range }
         
-        // Create a dictionary for quick lookup
-        let docsByDateString = Dictionary(uniqueKeysWithValues: sortedDocs.map { ($0.dayID, $0) })
-        
-        // Generate all dates in the range
-        var result: [GameDurationActivity] = []
-        var currentDate = Calendar.current.startOfDay(for: range.startDate)
-        let endDate = Calendar.current.startOfDay(for: range.endDate)
-        
-        while currentDate <= endDate {
-            let dateString = formatDateToDateString(currentDate)
+        // Compute on background thread
+        return await Task.detached(priority: .userInitiated) {
+            // Sort the source data first
+            let sortedDocs = rangeDocs.sorted { $0.dayID < $1.dayID }
             
-            if let doc = docsByDateString[dateString], doc.gamesPlayed > 0 {
-                let avgSeconds = Double(doc.totalRoundSeconds) / Double(doc.gamesPlayed)
-                let avgMinutes = avgSeconds / 60.0
-                result.append(GameDurationActivity(date: currentDate, avgMinutes: avgMinutes))
-            } else {
-                // No data for this day, add zero
-                result.append(GameDurationActivity(date: currentDate, avgMinutes: 0))
+            // Create a dictionary for quick lookup
+            let docsByDateString = Dictionary(uniqueKeysWithValues: sortedDocs.map { ($0.dayID, $0) })
+            
+            // Generate all dates in the range
+            var result: [GameDurationActivity] = []
+            var currentDate = await Calendar.current.startOfDay(for: rangeObj.startDate)
+            let endDate = await Calendar.current.startOfDay(for: rangeObj.endDate)
+            
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            
+            while currentDate <= endDate {
+                let dateString = formatter.string(from: currentDate)
+                
+                if let doc = docsByDateString[dateString], doc.gamesPlayed > 0 {
+                    let avgSeconds = Double(doc.totalRoundSeconds) / Double(doc.gamesPlayed)
+                    let avgMinutes = avgSeconds / 60.0
+                    result.append(GameDurationActivity(date: currentDate, avgMinutes: avgMinutes))
+                } else {
+                    // No data for this day, add zero
+                    result.append(GameDurationActivity(date: currentDate, avgMinutes: 0))
+                }
+                
+                currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate)!
             }
             
-            currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate)!
-        }
-        
-        return result
+            return result
+        }.value
     }
     
     func postive(good: Bool, _ delta: Double, ) -> Color {
@@ -927,8 +1006,10 @@ final class AnalyticsViewModel: ObservableObject {
     func onAppearDailyAnalytics(course: Course? = nil) async {
         guard let course else { return }
         
-        withAnimation{
-            loadingDocs = true
+        await MainActor.run {
+            withAnimation {
+                loadingDocs = true
+            }
         }
         
         allDailyDocs = await analyticsRepo.fetchDailyAnalytics(
@@ -937,15 +1018,20 @@ final class AnalyticsViewModel: ObservableObject {
             existingDocs: allDailyDocs
         )
         
-        withAnimation{
-            loadingDocs = false
+        // Invalidate cache when data changes
+        invalidateHoleCombinedCache()
+        
+        await MainActor.run {
+            withAnimation {
+                loadingDocs = false
+            }
         }
     }
     
     func refreshAnalytics(course: Course?) {
         guard let course else { return }
         
-        withAnimation{
+        withAnimation {
             loadingDocs = true
         }
         
@@ -957,7 +1043,10 @@ final class AnalyticsViewModel: ObservableObject {
                 existingDocs: []
             )
             
-            withAnimation{
+            // Invalidate cache when data changes
+            invalidateHoleCombinedCache()
+            
+            withAnimation {
                 loadingDocs = false
             }
         }
@@ -1024,6 +1113,9 @@ final class AnalyticsViewModel: ObservableObject {
                 existingDocs: allDailyDocs
             )
             
+            // Invalidate cache when data changes
+            invalidateHoleCombinedCache()
+            
             loadingDocs = false
         }
     }
@@ -1046,24 +1138,18 @@ final class AnalyticsViewModel: ObservableObject {
     /// - Parameter date: Date object to format
     /// - Returns: Formatted date string in "MMM d" format
     func formatDateToMonthDay(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
+        return monthDayFormatter.string(from: date)
     }
     
     /// Converts a Date object to "yyyy-MM-dd" format
     /// - Parameter date: Date object to format
     /// - Returns: Formatted date string in "yyyy-MM-dd" format
     func formatDateToDateString(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+        return dateFormatter.string(from: date)
     }
     
     func formatDateStringToMonthDay(_ dateString: String) -> Date {
-        let inputFormatter = DateFormatter()
-        inputFormatter.dateFormat = "yyyy-MM-dd"
-        return inputFormatter.date(from: dateString)!
+        return dateFormatter.date(from: dateString)!
     }
     
     func getDateRangeString() -> String {
@@ -1120,10 +1206,7 @@ final class AnalyticsViewModel: ObservableObject {
     private func isRecentlyActive(_ lastPlayedString: String?, days: Int) -> Bool {
         guard let lastPlayedString = lastPlayedString else { return false }
         
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        
-        guard let lastPlayedDate = formatter.date(from: lastPlayedString) else { return false }
+        guard let lastPlayedDate = dateFormatter.date(from: lastPlayedString) else { return false }
         
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -1166,17 +1249,14 @@ final class AnalyticsViewModel: ObservableObject {
         
         guard !returningPlayers.isEmpty else { return 0 }
         
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        
         var totalDays = 0
         var count = 0
         
         for (_, data) in returningPlayers {
             guard let firstSeenStr = data.firstSeen,
                   let secondSeenStr = data.secondSeen,
-                  let firstSeenDate = formatter.date(from: firstSeenStr),
-                  let secondSeenDate = formatter.date(from: secondSeenStr) else {
+                  let firstSeenDate = dateFormatter.date(from: firstSeenStr),
+                  let secondSeenDate = dateFormatter.date(from: secondSeenStr) else {
                 continue
             }
             
@@ -1206,16 +1286,13 @@ final class AnalyticsViewModel: ObservableObject {
         let totalPlayers = allEmails.count
         guard totalPlayers > 0 else { return 0.0 }
         
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        
         var retainedWithin30 = 0
         
         for (_, data) in allEmails {
             guard let firstStr = data.firstSeen,
                   let secondStr = data.secondSeen,
-                  let firstDate = formatter.date(from: firstStr),
-                  let secondDate = formatter.date(from: secondStr) else {
+                  let firstDate = dateFormatter.date(from: firstStr),
+                  let secondDate = dateFormatter.date(from: secondStr) else {
                 continue
             }
             
@@ -1241,6 +1318,64 @@ final class AnalyticsViewModel: ObservableObject {
     }
     
     //MARK: - Health Rating System
+    
+    /// Calculate comprehensive health rating on background thread
+    private func calculateCourseHealthBackground() async -> CourseHealthReport {
+        // Get snapshot of data to avoid accessing @Published on background thread
+        let rangeDocs = await MainActor.run { rangeDailyDocs }
+        let deltaDocs = await MainActor.run { deltaDailyDocs }
+        let emails = await MainActor.run { allEmails }
+        let course = await MainActor.run { currentCourse }
+        let avgReturn = await MainActor.run { cachedAvgTimeToReturn }
+        let retention30 = await MainActor.run { cached30DayRetention }
+        let newPlayers = await MainActor.run { cachedNewPlayers }
+        let midTier = await MainActor.run { cachedMidTierPlayers }
+        let frequent = await MainActor.run { cachedFrequentPlayers }
+        let atRisk = await MainActor.run { cachedAtRiskPlayers }
+        
+        // Perform calculations off main thread
+        let growthHealth = calculateGrowthHealthBackground(rangeDocs: rangeDocs, deltaDocs: deltaDocs)
+        let operationsHealth = calculateOperationsHealthBackground(rangeDocs: rangeDocs)
+        let experienceHealth = calculateExperienceHealthBackground(rangeDocs: rangeDocs, course: course)
+        let retentionHealth = calculateRetentionHealthBackground(
+            emails: emails,
+            avgReturn: avgReturn,
+            retention30: retention30,
+            newPlayers: newPlayers,
+            midTier: midTier,
+            frequent: frequent,
+            atRisk: atRisk
+        )
+        
+        // Calculate weighted overall score
+        let overallScore = (
+            growthHealth.score * 0.30 +
+            operationsHealth.score * 0.20 +
+            experienceHealth.score * 0.20 +
+            retentionHealth.score * 0.30
+        )
+        
+        let overallGrade = HealthGrade.from(score: overallScore)
+        
+        // Compile top insights
+        let topInsights = compileTopInsights(
+            growth: growthHealth,
+            operations: operationsHealth,
+            experience: experienceHealth,
+            retention: retentionHealth
+        )
+        
+        return CourseHealthReport(
+            overallScore: overallScore,
+            overallGrade: overallGrade,
+            growthHealth: growthHealth,
+            operationsHealth: operationsHealth,
+            experienceHealth: experienceHealth,
+            retentionHealth: retentionHealth,
+            topInsights: topInsights,
+            timestamp: Date()
+        )
+    }
     
     /// Calculate comprehensive health rating for the entire course
     /// - Returns: CourseHealthReport with overall and section-specific health metrics
@@ -1283,13 +1418,18 @@ final class AnalyticsViewModel: ObservableObject {
     
     /// Calculate Growth section health rating
     private func calculateGrowthHealth() -> SectionHealthRating {
+        return calculateGrowthHealthBackground(rangeDocs: rangeDailyDocs, deltaDocs: deltaDailyDocs)
+    }
+    
+    /// Calculate Growth section health rating on background thread
+    private func calculateGrowthHealthBackground(rangeDocs: [DailyDoc], deltaDocs: [DailyDoc]) -> SectionHealthRating {
         var score: Double = 0
         var insights: [Insight] = []
         var metrics: [String: Double] = [:]
         
         // Metric 1: Active user growth (40 points)
-        let activeUsers = getActiveUsers(rangeDailyDocs)
-        let activeUsersDelta = getActiveUsers(deltaDailyDocs)
+        let activeUsers = rangeDocs.reduce(0) { $0 + $1.totalCount }
+        let activeUsersDelta = deltaDocs.reduce(0) { $0 + $1.totalCount }
         let growthRate = activeUsersDelta > 0 ? calcDelta(activeUsersDelta, activeUsers) : 0
         metrics["growthRate"] = growthRate
         
@@ -1315,7 +1455,8 @@ final class AnalyticsViewModel: ObservableObject {
         }
         
         // Metric 2: New player acquisition (30 points)
-        let newPlayerPercentage = firstTimePercOfTotal() * 100
+        let firstTimeUsers = rangeDocs.reduce(0) { $0 + $1.newPlayers }
+        let newPlayerPercentage = activeUsers > 0 ? (Double(firstTimeUsers) / Double(activeUsers)) * 100 : 0
         metrics["newPlayerRate"] = newPlayerPercentage
         
         switch newPlayerPercentage {
@@ -1334,7 +1475,8 @@ final class AnalyticsViewModel: ObservableObject {
         }
         
         // Metric 3: Returning player ratio (30 points)
-        let returningPercentage = returningPercOfTotal() * 100
+        let returningUsers = rangeDocs.reduce(0) { $0 + $1.returningPlayers }
+        let returningPercentage = activeUsers > 0 ? (Double(returningUsers) / Double(activeUsers)) * 100 : 0
         metrics["returningPlayerRate"] = returningPercentage
         
         switch returningPercentage {
@@ -1364,13 +1506,18 @@ final class AnalyticsViewModel: ObservableObject {
     
     /// Calculate Operations section health rating
     private func calculateOperationsHealth() -> SectionHealthRating {
+        return calculateOperationsHealthBackground(rangeDocs: rangeDailyDocs)
+    }
+    
+    /// Calculate Operations section health rating on background thread
+    private func calculateOperationsHealthBackground(rangeDocs: [DailyDoc]) -> SectionHealthRating {
         var score: Double = 0
         var insights: [Insight] = []
         var metrics: [String: Double] = [:]
         
         // Metric 1: Game volume (40 points)
-        let totalGames = rangeDailyDocs.reduce(0) { $0 + $1.gamesPlayed }
-        let avgGamesPerDay = Double(totalGames) / max(1, Double(rangeDailyDocs.count))
+        let totalGames = rangeDocs.reduce(0) { $0 + $1.gamesPlayed }
+        let avgGamesPerDay = Double(totalGames) / max(1, Double(rangeDocs.count))
         metrics["avgGamesPerDay"] = avgGamesPerDay
         
         switch avgGamesPerDay {
@@ -1392,7 +1539,8 @@ final class AnalyticsViewModel: ObservableObject {
         }
         
         // Metric 2: Course utilization (30 points)
-        let avgPlayersPerGameValue = avgPlayersPerGame(rangeDailyDocs)
+        let totalPlayers = rangeDocs.reduce(0) { $0 + $1.totalCount }
+        let avgPlayersPerGameValue = totalGames > 0 ? Double(totalPlayers) / Double(totalGames) : 0
         metrics["avgPlayersPerGame"] = avgPlayersPerGameValue
         
         switch avgPlayersPerGameValue {
@@ -1411,7 +1559,7 @@ final class AnalyticsViewModel: ObservableObject {
         }
         
         // Metric 3: Game duration efficiency (30 points)
-        let totalSeconds = rangeDailyDocs.reduce(0) { $0 + $1.totalRoundSeconds }
+        let totalSeconds = rangeDocs.reduce(0) { $0 + $1.totalRoundSeconds }
         let avgGameMinutes = totalGames > 0 ? Double(totalSeconds) / Double(totalGames) / 60.0 : 0
         metrics["avgGameMinutes"] = avgGameMinutes
         
@@ -1446,6 +1594,11 @@ final class AnalyticsViewModel: ObservableObject {
     
     /// Calculate Experience section health rating
     private func calculateExperienceHealth(course: Course? = nil) -> SectionHealthRating {
+        return calculateExperienceHealthBackground(rangeDocs: rangeDailyDocs, course: course)
+    }
+    
+    /// Calculate Experience section health rating on background thread
+    private func calculateExperienceHealthBackground(rangeDocs: [DailyDoc], course: Course? = nil) -> SectionHealthRating {
         var score: Double = 0
         var insights: [Insight] = []
         var metrics: [String: Double] = [:]
@@ -1460,8 +1613,25 @@ final class AnalyticsViewModel: ObservableObject {
             )
         }
         
+        // Compute hole combined locally
+        var combinedTotalStrokes: [String: Int] = [:]
+        var combinedPlays: [String: Int] = [:]
+        
+        for doc in rangeDocs {
+            for (holeID, strokes) in doc.holeAnalytics.totalStrokesPerHole {
+                combinedTotalStrokes[holeID, default: 0] += strokes
+            }
+            
+            for (holeID, plays) in doc.holeAnalytics.playsPerHole {
+                combinedPlays[holeID, default: 0] += plays
+            }
+        }
+        
+        let holeCombined: [String: Double] = combinedTotalStrokes.reduce(into: [:]) { dict, hole in
+            return dict[hole.key] = Double(hole.value) / Double(combinedPlays[hole.key] ?? 1)
+        }
+        
         // Metric 1: Course difficulty balance (35 points)
-        let holeCombined = getHoleCombined()
         var totalOffset: Double = 0
         var validHoleCount = 0
         
@@ -1501,7 +1671,7 @@ final class AnalyticsViewModel: ObservableObject {
         var totalHolesPlayed = 0
         var underParCount = 0
         
-        for doc in rangeDailyDocs {
+        for doc in rangeDocs {
             for (holeID, totalStrokes) in doc.holeAnalytics.totalStrokesPerHole {
                 guard let holeNum = Int(holeID),
                       holeNum > 0,
@@ -1570,11 +1740,32 @@ final class AnalyticsViewModel: ObservableObject {
     
     /// Calculate Retention section health rating
     private func calculateRetentionHealth() -> SectionHealthRating {
+        return calculateRetentionHealthBackground(
+            emails: allEmails,
+            avgReturn: cachedAvgTimeToReturn,
+            retention30: cached30DayRetention,
+            newPlayers: cachedNewPlayers,
+            midTier: cachedMidTierPlayers,
+            frequent: cachedFrequentPlayers,
+            atRisk: cachedAtRiskPlayers
+        )
+    }
+    
+    /// Calculate Retention section health rating on background thread
+    private func calculateRetentionHealthBackground(
+        emails: [String: CourseEmail],
+        avgReturn: Int,
+        retention30: Double,
+        newPlayers: [String: CourseEmail],
+        midTier: [String: CourseEmail],
+        frequent: [String: CourseEmail],
+        atRisk: [String: CourseEmail]
+    ) -> SectionHealthRating {
         var score: Double = 0
         var insights: [Insight] = []
         var metrics: [String: Double] = [:]
         
-        let totalPlayers = Double(allEmails.count)
+        let totalPlayers = Double(emails.count)
         guard totalPlayers > 0 else {
             return SectionHealthRating(
                 section: .experience,
@@ -1586,7 +1777,7 @@ final class AnalyticsViewModel: ObservableObject {
         }
         
         // Metric 1: 30-day retention rate (40 points)
-        let retention30Day = cached30DayRetention * 100
+        let retention30Day = retention30 * 100
         metrics["retention30Day"] = retention30Day
         
         switch retention30Day {
@@ -1608,10 +1799,10 @@ final class AnalyticsViewModel: ObservableObject {
         }
         
         // Metric 2: Player tier distribution (30 points)
-        let frequentCount = Double(cachedFrequentPlayers.count)
-        let midTierCount = Double(cachedMidTierPlayers.count)
-        let _ = Double(cachedNewPlayers.count)
-        let atRiskCount = Double(cachedAtRiskPlayers.count)
+        let frequentCount = Double(frequent.count)
+        let midTierCount = Double(midTier.count)
+        let _ = Double(newPlayers.count)
+        let atRiskCount = Double(atRisk.count)
         
         let engagedRatio = (frequentCount + midTierCount) / totalPlayers * 100
         metrics["engagedPlayerRatio"] = engagedRatio
@@ -1651,7 +1842,6 @@ final class AnalyticsViewModel: ObservableObject {
         }
         
         // Add insight about avg return time
-        let avgReturn = cachedAvgTimeToReturn
         metrics["avgReturnDays"] = Double(avgReturn)
         
         if avgReturn < 7 {

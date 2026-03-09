@@ -7,7 +7,6 @@
 
 import Foundation
 import SwiftUI
-import Foundation
 import FirebaseFirestore
 
 
@@ -139,7 +138,7 @@ final class CourseLeaderboardRepository {
             let newBest = min(oldBest, entry.totalStrokes)
             
             tx.setData([
-                "id": entry.id,
+                "id": entry.userId,
                 "userId": entry.userId,
                 "name": entry.name,
                 "photoURL": entry.photoURL as Any,
@@ -170,7 +169,7 @@ final class CourseLeaderboardRepository {
             let newBest = min(oldBest, entry.totalStrokes)
             
             tx.setData([
-                "id": entry.id,
+                "id": entry.userId,
                 "userId": entry.userId,
                 "name": entry.name,
                 "photoURL": entry.photoURL as Any,
@@ -184,10 +183,12 @@ final class CourseLeaderboardRepository {
         }
     }
     
-    func sumbitScore(courseID: String, player: Player, completion: @escaping (Bool) -> Void) {
-        
-        let entry = player.toDTO().convertToLBREP()!
-        
+    func submitScore(courseID: String, player: Player, completion: @escaping (Bool) -> Void) {
+        guard let entry = player.toDTO().convertToLBREP() else {
+            DispatchQueue.main.async { completion(false) }
+            return
+        }
+
         submitScoreAllTime(courseID: courseID, entry: entry) { complete in
             if complete {
                 self.submitScoreWeekly(courseID: courseID, entry: entry) { complete2 in
@@ -197,8 +198,5 @@ final class CourseLeaderboardRepository {
                 completion(false)
             }
         }
-        
-        
     }
 }
-

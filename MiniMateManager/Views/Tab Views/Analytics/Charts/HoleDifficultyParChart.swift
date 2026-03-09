@@ -16,7 +16,7 @@ struct HoleHeatmapData: Identifiable {
 }
 
 struct HoleDifficultyParChart: View {
-    let difficultyData: [HoleHeatmapData] // Using the new relative data
+    @Binding var difficultyData: [HoleHeatmapData] // Using the new relative data
     
     var body: some View {
         VStack(spacing: 0) {
@@ -82,7 +82,7 @@ func createDate(day: Int) -> Date {
 }
 
 struct HolePreviewList: View {
-    let allHoles: [HoleHeatmapData]
+    @Binding var allHoles: [HoleHeatmapData]
     @State private var isExpanded = false
     
     // Identifies the holes that deviate most from Par (Hardest & Easiest)
