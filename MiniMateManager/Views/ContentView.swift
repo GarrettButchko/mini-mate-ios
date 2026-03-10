@@ -101,6 +101,10 @@ struct CourseTabView: View {
             VM.stop()
         }
         .environmentObject(analyticsVM)
+        .environmentObject(analyticsVM.growthVM)
+        .environmentObject(analyticsVM.operationsVM)
+        .environmentObject(analyticsVM.experienceVM)
+        .environmentObject(analyticsVM.retentionVM)
         .environmentObject(leaderboardVM)
     }
 }

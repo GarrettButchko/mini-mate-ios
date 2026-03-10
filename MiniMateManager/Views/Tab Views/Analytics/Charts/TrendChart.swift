@@ -9,7 +9,7 @@ import Charts
 import SwiftUI
 
 struct PlayerTrendChart: View {
-    @EnvironmentObject var VM: AnalyticsViewModel
+    @EnvironmentObject var VM: GrowthViewModel
     
     // Mimicking the dates and curve from your screenshot
     @State var data: [PlayerActivity] = [
@@ -22,7 +22,7 @@ struct PlayerTrendChart: View {
     
     var lineColor: Color = .purple
     
-    init(VM: AnalyticsViewModel){
+    init(VM: GrowthViewModel){
         lineColor = VM.growthChartTopic.color
     }
 
@@ -112,78 +112,13 @@ struct PlayerTrendChart: View {
     }
 }
 
-struct PlayerSummaryChart: View {
-    @State var data: [PlayerActivity] = []
-    let lineColor: Color
-    @EnvironmentObject var VM: AnalyticsViewModel
-    
-    
-    init(VM: AnalyticsViewModel) {
-        self.lineColor = VM.growthChartTopic.color
-    }
-    
-    var body: some View {
-        
-        Chart {
-            ForEach(data) { item in
-                AreaMark(
-                    x: .value("Day", item.date),
-                    y: .value("Players", item.count)
-                )
-                .interpolationMethod(.monotone) // More performant for large arrays
-                .foregroundStyle(
-                    .linearGradient(
-                        colors: [lineColor.opacity(0.5), lineColor.opacity(0.05)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-            }
-        }
-        .task{
-            data = await VM.getDataForGrowthTrend()
-        }
-        // Hide the axes to keep it "Premium" and clean (empty closure removes space)
-        .chartXAxis {
-        }
-        .chartYAxis {
-        }
-        .overlay(alignment: .center) {
-            // Informational Overlay
-            VStack(spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.title)
-                    .symbolRenderingMode(.multicolor)
-                
-                Text("Select a range between 9 and 30 days to view daily trends.")
-                    .font(.headline)
-                    .foregroundStyle(.mainOpp)
-                
-                Text("\(data.count - 1) Days")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding()
-            .background(.ultraThinMaterial)
-            .cornerRadius(12)
-        }
-        .frame(height: 220)
-        .padding()
-        .padding(.top)
-        .background {
-            RoundedRectangle(cornerRadius: 17)
-                .fill(.subTwo)
-        }
-    }
-}
-
 struct GameDurationTrendChart: View {
-    @EnvironmentObject var VM: AnalyticsViewModel
+    @EnvironmentObject var VM: OperationsViewModel
     
     @State var data: [GameDurationActivity] = []
     var lineColor: Color = .cyan
     
-    init(VM: AnalyticsViewModel){
+    init(VM: OperationsViewModel){
         self.lineColor = .cyan
     }
     

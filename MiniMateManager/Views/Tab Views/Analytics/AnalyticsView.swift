@@ -280,7 +280,7 @@ struct AnalyticsView: View {
 }
 
 struct HoleDifficultyCharts: View {
-    @EnvironmentObject var VM: AnalyticsViewModel
+    @EnvironmentObject var VM: ExperienceViewModel
     @State var difficultyData: [HoleDifficultyData] = []
     
     var body: some View {
@@ -298,7 +298,7 @@ struct HoleDifficultyCharts: View {
 }
 
 struct HoleDifficultyParCharts: View {
-    @EnvironmentObject var VM: AnalyticsViewModel
+    @EnvironmentObject var VM: ExperienceViewModel
     @State var difficultyData: [HoleHeatmapData] = []
     let course: Course
     

@@ -190,23 +190,17 @@ final class AnalyticsViewModel: ObservableObject {
     
     @Published var allEmails: [String : CourseEmail] = [:]
     
-    @Published var growthChartTopic: ChartTopic = .total
-    
     @Published var loadingDocs: Bool = true
     @Published var loadingEmails: Bool = true
     
-    // Cached tier data - computed once and reused
-    @Published var cachedNewPlayers: [String: CourseEmail] = [:]
-    @Published var cachedMidTierPlayers: [String: CourseEmail] = [:]
-    @Published var cachedFrequentPlayers: [String: CourseEmail] = [:]
-    @Published var cachedAtRiskPlayers: [String: CourseEmail] = [:]
-    
-    // Cached metrics
-    @Published var cachedAvgTimeToReturn: Int = 0
-    @Published var cached30DayRetention: Double = 0.0
-    
     // Store current course for experience metrics
     @Published var currentCourse: Course?
+    
+    // Child View Models
+    @Published var growthVM = GrowthViewModel()
+    @Published var operationsVM = OperationsViewModel()
+    @Published var experienceVM = ExperienceViewModel()
+    @Published var retentionVM = RetentionViewModel()
     
     // Date formatter instances (reuse to avoid creating new instances repeatedly)
     private let dateFormatter: DateFormatter = {
@@ -220,6 +214,54 @@ final class AnalyticsViewModel: ObservableObject {
         formatter.dateFormat = "MMM d"
         return formatter
     }()
+    
+    init() {
+        // Set up synchronization between parent and child VMs
+        setupChildViewModels()
+    }
+    
+    private func setupChildViewModels() {
+        // Synchronize data to child view models whenever allDailyDocs changes
+        $allDailyDocs
+            .sink { [weak self] docs in
+                guard let self = self else { return }
+                let rangeDocs = docs.filter { self.range.daysInMainRange.contains($0.dayID) }
+                let deltaDocs = docs.filter { self.range.daysInDeltaRange.contains($0.dayID) }
+                
+                self.growthVM.rangeDailyDocs = rangeDocs
+                self.growthVM.deltaDailyDocs = deltaDocs
+                self.operationsVM.rangeDailyDocs = rangeDocs
+                self.operationsVM.deltaDailyDocs = deltaDocs
+                self.experienceVM.rangeDailyDocs = rangeDocs
+            }
+            .store(in: &cancellables)
+        
+        $range
+            .sink { [weak self] range in
+                guard let self = self else { return }
+                self.growthVM.range = range
+                self.operationsVM.range = range
+                
+                // Update filtered docs when range changes
+                let rangeDocs = self.allDailyDocs.filter { range.daysInMainRange.contains($0.dayID) }
+                let deltaDocs = self.allDailyDocs.filter { range.daysInDeltaRange.contains($0.dayID) }
+                
+                self.growthVM.rangeDailyDocs = rangeDocs
+                self.growthVM.deltaDailyDocs = deltaDocs
+                self.operationsVM.rangeDailyDocs = rangeDocs
+                self.operationsVM.deltaDailyDocs = deltaDocs
+                self.experienceVM.rangeDailyDocs = rangeDocs
+            }
+            .store(in: &cancellables)
+        
+        $currentCourse
+            .assign(to: &experienceVM.$currentCourse)
+        
+        $allEmails
+            .assign(to: &retentionVM.$allEmails)
+    }
+    
+    private var cancellables = Set<AnyCancellable>()
     
     func loadHealthData(course: Course? = nil) async {
         self.currentCourse = course
@@ -252,708 +294,6 @@ final class AnalyticsViewModel: ObservableObject {
                 isLoadingHealth = false
             }
         }
-    }
-    
-    //MARK: Growth
-    func getActiveUsers(_ docs: [DailyDoc]) -> Int {
-        docs.reduce(0) { $0 + $1.totalCount }
-    }
-    
-    func getFirstTimeUsers(_ docs: [DailyDoc]) -> Int {
-        docs.reduce(0) { $0 + $1.newPlayers }
-    }
-    
-    func firstTimePercOfTotal() -> Double {
-        let value = getFirstTimeUsers(rangeDailyDocs)
-        
-        guard value > 0 else { return 0 }
-        
-        return Double(value) / Double(getActiveUsers(rangeDailyDocs))
-    }
-    
-    func getReturningUsers(_ docs: [DailyDoc]) -> Int {
-        docs.reduce(0) { $0 + $1.returningPlayers }
-    }
-    
-    func returningPercOfTotal() -> Double {
-        let value = getReturningUsers(rangeDailyDocs)
-        
-        guard value > 0 else { return 0 }
-        
-        return Double(value) / Double(getActiveUsers(rangeDailyDocs))
-    }
-    
-    func avgPlayersPerGame(_ docs: [DailyDoc]) -> Double {
-        
-        let totalGames = docs.reduce(0) { $0 + $1.gamesPlayed }
-        let players = getActiveUsers(docs)
-        
-        return players > 0 ? Double(players) / Double(totalGames) : 0
-    }
-    
-    
-    
-    func deltaErrorCalc(delta: inout Double, positiveGood: Bool) -> (deltaS: String?, deltaC: Color?) {
-        // Only zero out delta if we have no delta data at all
-        // Otherwise, calculate with whatever data we have
-        
-        if deltaDailyDocs.isEmpty || (rangeDailyDocs.count != deltaDailyDocs.count && rangeDailyDocs.count != deltaDailyDocs.count + 1 && rangeDailyDocs.count != deltaDailyDocs.count - 1) || (delta > 999 || delta < -999) {
-            delta = 0
-        }
-        
-        let isDeltaPositive = delta > 0
-        
-        var deltaString = String(format: "%.1f%%", delta)
-        
-        if isDeltaPositive {
-            deltaString = "+" + deltaString
-        }
-        
-        if delta == 0 {
-            return(nil, nil)
-        } else {
-            return(deltaString, postive(good: positiveGood, delta))
-        }
-    }
-    
-    // Delta Calc
-    func calcDelta(_ prev: Int, _ current: Int) -> Double {
-        guard prev != 0 else { return 0 }
-        return (Double(current - prev) / Double(prev)) * 100
-    }
-    
-    func calcDelta(_ prev: Int64, _ current: Int64) -> Double {
-        guard prev != 0 else { return 0 }
-        return (Double(current - prev) / Double(prev)) * 100
-    }
-    
-    func calcDelta(_ prev: Double, _ current: Double) -> Double {
-        guard prev != 0 else { return 0 }
-        return ((current - prev) / prev) * 100
-    }
-    
-    // Prime (Data and delta and color)
-    func activeUsersPrime() -> DataPointObject {
-        let rangeUsers = getActiveUsers(rangeDailyDocs)
-        let deltaUsers = getActiveUsers(deltaDailyDocs)
-        var delta = calcDelta(deltaUsers, rangeUsers)
-        
-        let data = deltaErrorCalc(delta: &delta, positiveGood: true)
-        
-        return DataPointObject(value: String(rangeUsers), delta: data.deltaS, deltaColor: data.deltaC)
-    }
-    
-    func firstTimePrime() -> DataPointObject {
-        let rangeUsers = getFirstTimeUsers(rangeDailyDocs)
-        let deltaUsers = getFirstTimeUsers(deltaDailyDocs)
-        var delta = calcDelta(deltaUsers, rangeUsers)
-        
-        let data = deltaErrorCalc(delta: &delta, positiveGood: true)
-        
-        return DataPointObject(value: String(rangeUsers), delta: data.deltaS, deltaColor: data.deltaC)
-    }
-    
-    func returningPrime() -> DataPointObject {
-        let rangeUsers = getReturningUsers(rangeDailyDocs)
-        let deltaUsers = getReturningUsers(deltaDailyDocs)
-        var delta = calcDelta(deltaUsers, rangeUsers)
-        
-        let data = deltaErrorCalc(delta: &delta, positiveGood: true)
-        
-        return DataPointObject(value: String(rangeUsers), delta: data.deltaS, deltaColor: data.deltaC)
-    }
-    
-    func avgPlayersPerGamePrime() -> DataPointObject {
-        let rangeUsers = avgPlayersPerGame(rangeDailyDocs)
-        let deltaUsers = avgPlayersPerGame(deltaDailyDocs)
-        var delta = calcDelta(deltaUsers, rangeUsers)
-        
-        let data = deltaErrorCalc(delta: &delta, positiveGood: true)
-        
-        return DataPointObject(value: String(format: "%.2f / 1", rangeUsers), delta: data.deltaS, deltaColor: data.deltaC)
-    }
-    
-    func getDataForGrowthTrend() async -> [PlayerActivity] {
-        // Get snapshot of data
-        let rangeDocs = await MainActor.run { rangeDailyDocs }
-        let rangeObj = await MainActor.run { range }
-        let chartTopic = await MainActor.run { growthChartTopic }
-        
-        // Compute on background thread
-        return await Task.detached(priority: .userInitiated) {
-            // 1. Sort the source data first so the line draws from left to right
-            let sortedDocs = rangeDocs.sorted { $0.dayID < $1.dayID }
-            
-            // 2. Create a dictionary for quick lookup of existing data
-            let docsByDateString = Dictionary(uniqueKeysWithValues: sortedDocs.map { ($0.dayID, $0) })
-            
-            // 3. Generate all dates in the range and fill in missing days with count 0
-            var result: [PlayerActivity] = []
-            var currentDate = await Calendar.current.startOfDay(for: rangeObj.startDate)
-            let endDate = await Calendar.current.startOfDay(for: rangeObj.endDate)
-            
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            
-            while currentDate <= endDate {
-                let dateString = formatter.string(from: currentDate)
-                
-                if let doc = docsByDateString[dateString] {
-                    // Data exists for this day
-                    let count: Int
-                    switch chartTopic {
-                    case .total:
-                        count = await doc.totalCount
-                    case .first:
-                        count = doc.newPlayers
-                    case .returning:
-                        count = doc.returningPlayers
-                    }
-                    result.append(PlayerActivity(date: currentDate, count: count))
-                } else {
-                    // No data for this day, add zero
-                    result.append(PlayerActivity(date: currentDate, count: 0))
-                }
-                
-                currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate)!
-            }
-            
-            return result
-        }.value
-    }
-    
-    func getDataForGamesPerDay() async -> [PlayerActivity] {
-        // Get snapshot of data
-        let rangeDocs = await MainActor.run { rangeDailyDocs }
-        let rangeObj = await MainActor.run { range }
-        
-        // Compute on background thread
-        return await Task.detached(priority: .userInitiated) {
-            // 1. Sort the source data first so the line draws from left to right
-            let sortedDocs = rangeDocs.sorted { $0.dayID < $1.dayID }
-            
-            // 2. Create a dictionary for quick lookup of existing data
-            let docsByDateString = Dictionary(uniqueKeysWithValues: sortedDocs.map { ($0.dayID, $0) })
-            
-            // 3. Generate all dates in the range and fill in missing days with count 0
-            var result: [PlayerActivity] = []
-            var currentDate = await Calendar.current.startOfDay(for: rangeObj.startDate)
-            let endDate = await Calendar.current.startOfDay(for: rangeObj.endDate)
-            
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            
-            while currentDate <= endDate {
-                let dateString = formatter.string(from: currentDate)
-                
-                if let doc = docsByDateString[dateString] {
-                    // Data exists for this day - use gamesPlayed
-                    result.append(PlayerActivity(date: currentDate, count: doc.gamesPlayed))
-                } else {
-                    // No data for this day, add zero
-                    result.append(PlayerActivity(date: currentDate, count: 0))
-                }
-                
-                currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate)!
-            }
-            
-            return result
-        }.value
-    }
-    
-    //MARK: Operations
-    func getBusiestHour() -> DataPointObject {
-        
-        let fragments: [[String: Int]] = rangeDailyDocs.map(\.hourlyCounts)
-        // 1. Initialize a dict with all hours set to 0
-        var combinedCounts: [String: Int] = (0...23).reduce(into: [:]) { dict, hour in
-            dict["\(hour)"] = 0
-        }
-        
-        // 2. Merge your data into the master dict
-        for fragment in fragments {
-            for (hour, count) in fragment {
-                combinedCounts[hour, default: 0] += count
-            }
-        }
-        
-        var busiestHour: Int = 0
-        
-        if let busiest = combinedCounts.max(by: { $0.value < $1.value }) {
-            busiestHour = Int(busiest.key) ?? 0
-        }
-        
-        var suffix = ""
-        var displayHour = busiestHour
-        
-        switch busiestHour {
-        case 0:
-            displayHour = 12
-            suffix = "am"
-        case 1...11:
-            suffix = "am"
-        case 12:
-            suffix = "pm"
-        case 13...23:
-            displayHour = busiestHour - 12
-            suffix = "pm"
-        default:
-            suffix = "err"
-        }
-        
-        let valueString = "\(displayHour)\(suffix)"
-        
-        return DataPointObject(value: valueString, delta: nil, deltaColor: .mainOpp)
-    }
-    
-    func getBusiestDay() -> DataPointObject {
-        
-        // 1. Sum up games played by weekday
-        let weeklyVolume = rangeDailyDocs.reduce(into: [Int: Int]()) { dict, doc in
-            dict[doc.weekDay, default: 0] += doc.gamesPlayed
-        }
-        
-        var valueString: String = "Err"
-        
-        // 2. To find the "Busiest Day" string (e.g., "Sat")
-        if let busiestDayInt = weeklyVolume.max(by: { $0.value < $1.value })?.key {
-            let dayLabels = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-            let busiestDayLabel = dayLabels[busiestDayInt]
-            valueString = busiestDayLabel.capitalized
-        }
-        
-        return DataPointObject(value: valueString, deltaColor: .mainOpp)
-        
-    }
-    
-    func getHardestHole() -> DataPointObject {
-        let avgStrokesPerHole = getHoleCombined()
-        
-        let hardestHoleID = avgStrokesPerHole.max(by: { $0.value < $1.value })?.key ?? "Err"
-        return DataPointObject(value: "Hole \(hardestHoleID)", delta: nil, deltaColor: .mainOpp)
-    }
-    
-    func getEasiestHole() -> DataPointObject {
-        let avgStrokesPerHole = getHoleCombined()
-        
-        let easiestHoleID = avgStrokesPerHole.min(by: { $0.value < $1.value })?.key ?? "Err"
-        return DataPointObject(value: "Hole \(easiestHoleID)", delta: nil, deltaColor: .mainOpp)
-    }
-    
-    func getHoleCombined() -> [String: Double] {
-        
-        var combinedTotalStrokes: [String: Int] = [:]
-        var combinedPlays: [String: Int] = [:]
-        
-        for doc in rangeDailyDocs {
-            for (holeID, strokes) in doc.holeAnalytics.totalStrokesPerHole {
-                combinedTotalStrokes[holeID, default: 0] += strokes
-            }
-            
-            for (holeID, plays) in doc.holeAnalytics.playsPerHole {
-                combinedPlays[holeID, default: 0] += plays
-            }
-        }
-        
-        let avgStrokesPerHole: [String: Double] = combinedTotalStrokes.reduce(into: [:]) { dict, hole in
-            return dict[hole.key] = Double(hole.value) / Double(combinedPlays[hole.key] ?? 1)
-        }
-        
-        return avgStrokesPerHole
-    }
-    
-    func getHoleDifficultyData() async -> [HoleDifficultyData] {
-        // In your Parent View / ViewModel
-        let results = getHoleCombined()
-        
-        // Compute on background thread
-        return await Task.detached(priority: .userInitiated) {
-            // Convert [String: Double] to [HoleDifficultyData] sorted by hole number
-            let chartData = results.compactMap { (key, value) -> HoleDifficultyData? in
-                guard let holeNum = Int(key) else { return nil }
-                return HoleDifficultyData(holeNumber: holeNum, averageStrokes: value)
-            }.sorted(by: { $0.holeNumber < $1.holeNumber })
-            
-            return chartData
-        }.value
-    }
-    
-    func getHoleHeatmapForParData(course: Course) async -> [HoleHeatmapData] {
-        let combinedResults = getHoleCombined() // [String: Double] (HoleID: AvgStrokes)
-        
-        // Compute on background thread
-        return await Task.detached(priority: .userInitiated) {
-            return combinedResults.compactMap { (key, avgStrokes) -> HoleHeatmapData? in
-                guard let holeNum = Int(key) else { return nil }
-                
-                // Ensure we don't go out of bounds of the pars array (Index is holeNum - 1)
-                let index = holeNum - 1
-                guard index >= 0 && index < course.pars.count else { return nil }
-                
-                let par = Double(course.pars[index])
-                let offset = avgStrokes - par
-                
-                return HoleHeatmapData(holeNumber: holeNum, relativeToPar: offset, holePar: course.pars[index])
-            }
-            .sorted(by: { $0.holeNumber < $1.holeNumber })
-        }.value
-    }
-    
-    func prepareChartData() async -> [HourData] {
-        // Get snapshot of data
-        let rangeDocs = await MainActor.run { rangeDailyDocs }
-        
-        // Compute on background thread
-        return await Task.detached(priority: .userInitiated) {
-            var chartData: [HourData] = []
-            
-            // Loop through each day (1-7)
-            for day in 1...7 {
-                // Find docs that match this weekday
-                let dayDocs = rangeDocs.filter { $0.weekDay == day }
-                
-                // Loop through each hour (0-23)
-                for hour in 0...23 {
-                    // Sum up all games played at this hour across all filtered docs
-                    let totalForHour = dayDocs.reduce(0) { $0 + ($1.hourlyCounts["\(hour)"] ?? 0) }
-                    
-                    chartData.append(HourData(weekday: day, hour: hour, count: totalForHour))
-                }
-            }
-            return chartData
-        }.value
-    }
-    
-    //MARK: Experience Metrics
-    
-    func avgGamesPerDay(_ docs: [DailyDoc]) -> Double {
-        let totalGames = docs.reduce(0) { $0 + $1.gamesPlayed }
-        let avgGamesPerDay = Double(totalGames) / max(1, Double(rangeDailyDocs.count))
-        
-        return avgGamesPerDay
-    }
-    
-    func avgGamesPerDayPrime() -> DataPointObject {
-        let rangeData = avgGamesPerDay(rangeDailyDocs)
-        let deltaData = avgGamesPerDay(deltaDailyDocs)
-        var delta = calcDelta(deltaData, rangeData)
-        
-        let data = deltaErrorCalc(delta: &delta, positiveGood: true)
-        
-        return DataPointObject(value: String(format: "%.2f", rangeData), delta: data.deltaS, deltaColor: data.deltaC)
-    }
-    
-    /// Calculate average strokes relative to par across all holes
-    func getAvgRelativeToPar() -> DataPointObject {
-        guard let course = getCourseFromDocs() else {
-            return DataPointObject(value: "N/A", delta: nil, deltaColor: .mainOpp)
-        }
-        
-        let holeCombined = getHoleCombined()
-        var totalOffset: Double = 0
-        var validHoleCount = 0
-        
-        for (holeID, avgStrokes) in holeCombined {
-            guard let holeNum = Int(holeID),
-                  holeNum > 0,
-                  holeNum <= course.pars.count else { continue }
-            
-            let par = Double(course.pars[holeNum - 1])
-            totalOffset += (avgStrokes - par)
-            validHoleCount += 1
-        }
-        
-        guard validHoleCount > 0 else {
-            return DataPointObject(value: "N/A", delta: nil, deltaColor: .mainOpp)
-        }
-        
-        let avgOffset = totalOffset / Double(validHoleCount)
-        let sign = avgOffset > 0 ? "+" : ""
-        let valueString = String(format: "%@%.2f", sign, avgOffset)
-        
-        return DataPointObject(value: valueString, delta: nil, deltaColor: avgOffset <= 0 ? .green : .red)
-    }
-    
-    /// Find the hole where players beat par most frequently
-    func getMostBeatenPar() -> DataPointObject {
-        guard let course = getCourseFromDocs() else {
-            return DataPointObject(value: "N/A", delta: nil, deltaColor: .mainOpp)
-        }
-        
-        let holeCombined = getHoleCombined()
-        var bestHole = 0
-        var bestOffset: Double = .greatestFiniteMagnitude
-        
-        for (holeID, avgStrokes) in holeCombined {
-            guard let holeNum = Int(holeID),
-                  holeNum > 0,
-                  holeNum <= course.pars.count else { continue }
-            
-            let par = Double(course.pars[holeNum - 1])
-            let offset = avgStrokes - par
-            
-            if offset < bestOffset {
-                bestOffset = offset
-                bestHole = holeNum
-            }
-        }
-        
-        guard bestHole > 0 else {
-            return DataPointObject(value: "N/A", delta: nil, deltaColor: .mainOpp)
-        }
-        
-        return DataPointObject(value: "Hole \(bestHole)", delta: nil, deltaColor: .mainOpp)
-    }
-    
-    /// Calculate percentage of holes completed under par
-    func getUnderParPercentage() -> DataPointObject {
-        guard let course = getCourseFromDocs() else {
-            return DataPointObject(value: "N/A", delta: nil, deltaColor: .mainOpp)
-        }
-        
-        var totalHolesPlayed = 0
-        var underParCount = 0
-        
-        for doc in rangeDailyDocs {
-            for (holeID, totalStrokes) in doc.holeAnalytics.totalStrokesPerHole {
-                guard let holeNum = Int(holeID),
-                      holeNum > 0,
-                      holeNum <= course.pars.count,
-                      let plays = doc.holeAnalytics.playsPerHole[holeID],
-                      plays > 0 else { continue }
-                
-                let par = Double(course.pars[holeNum - 1])
-                let avgStrokes = Double(totalStrokes) / Double(plays)
-                
-                if avgStrokes < par {
-                    underParCount += plays
-                }
-                totalHolesPlayed += plays
-            }
-        }
-        
-        guard totalHolesPlayed > 0 else {
-            return DataPointObject(value: "0%", delta: nil, deltaColor: .mainOpp)
-        }
-        
-        let percentage = (Double(underParCount) / Double(totalHolesPlayed)) * 100
-        return DataPointObject(value: String(format: "%.1f%%", percentage), delta: nil, deltaColor: .mainOpp)
-    }
-    
-    /// Calculate percentage of holes completed over par
-    func getOverParPercentage() -> DataPointObject {
-        guard let course = getCourseFromDocs() else {
-            return DataPointObject(value: "N/A", delta: nil, deltaColor: .mainOpp)
-        }
-        
-        var totalHolesPlayed = 0
-        var overParCount = 0
-        
-        for doc in rangeDailyDocs {
-            for (holeID, totalStrokes) in doc.holeAnalytics.totalStrokesPerHole {
-                guard let holeNum = Int(holeID),
-                      holeNum > 0,
-                      holeNum <= course.pars.count,
-                      let plays = doc.holeAnalytics.playsPerHole[holeID],
-                      plays > 0 else { continue }
-                
-                let par = Double(course.pars[holeNum - 1])
-                let avgStrokes = Double(totalStrokes) / Double(plays)
-                
-                if avgStrokes > par {
-                    overParCount += plays
-                }
-                totalHolesPlayed += plays
-            }
-        }
-        
-        guard totalHolesPlayed > 0 else {
-            return DataPointObject(value: "0%", delta: nil, deltaColor: .mainOpp)
-        }
-        
-        let percentage = (Double(overParCount) / Double(totalHolesPlayed)) * 100
-        return DataPointObject(value: String(format: "%.1f%%", percentage), delta: nil, deltaColor: .mainOpp)
-    }
-    
-    /// Count total number of holes-in-one
-    func getHoleInOneCount() -> DataPointObject {
-        var holeInOneCount = 0
-        
-        for doc in rangeDailyDocs {
-            // Check if there's a holeInOne count or if we need to look at strokes == 1
-            for (holeID, totalStrokes) in doc.holeAnalytics.totalStrokesPerHole {
-                guard let plays = doc.holeAnalytics.playsPerHole[holeID] else { continue }
-                
-                if totalStrokes == plays { // All plays were holes-in-one
-                    holeInOneCount += plays
-                }
-            }
-        }
-        
-        return DataPointObject(value: String(holeInOneCount), delta: nil, deltaColor: .yellow)
-    }
-    
-    /// Helper to get course from stored property
-    private func getCourseFromDocs(course: Course? = nil) -> Course? {
-        return course ?? currentCourse
-    }
-    
-    //MARK: Game Duration Metrics
-    
-    /// Calculate average game duration in minutes
-    func getAvgGameDuration() -> DataPointObject {
-        let totalGames = rangeDailyDocs.reduce(0) { $0 + $1.gamesPlayed }
-        let totalSeconds = rangeDailyDocs.reduce(0) { $0 + $1.totalRoundSeconds }
-        let totalGamesDelta = deltaDailyDocs.reduce(0) { $0 + $1.gamesPlayed }
-        let totalSecondsDelta = deltaDailyDocs.reduce(0) { $0 + $1.totalRoundSeconds }
-        
-        guard totalGames > 0 else {
-            return DataPointObject(value: "N/A", delta: nil, deltaColor: .mainOpp)
-        }
-        
-        let avgSeconds = Double(totalSeconds) / Double(totalGames)
-        let minutes = Int(avgSeconds / 60)
-        let avgSecondsDelta = Double(totalSecondsDelta) / Double(totalGamesDelta)
-        let minutesDelta: Int = {
-            let value = avgSecondsDelta / 60.0
-            guard value.isFinite else { return 0 }
-            return Int(value)
-        }()
-        
-        var delta = calcDelta(minutes, minutesDelta)
-        let data = deltaErrorCalc(delta: &delta, positiveGood: false)
-        
-        return DataPointObject(value: "\(minutes) min", delta: data.deltaS, deltaColor: data.deltaC)
-    }
-    
-    /// Calculate total play time across all games
-    func getTotalPlayTime() -> DataPointObject {
-        let totalSeconds = rangeDailyDocs.reduce(0) { $0 + $1.totalRoundSeconds }
-        let totalSecondsDelta = deltaDailyDocs.reduce(0) { $0 + $1.totalRoundSeconds }
-        
-        let hours = Int(totalSeconds / 3600)
-        let hoursDelta = Int(totalSecondsDelta / 3600)
-        
-        var delta = calcDelta(hours, hoursDelta)
-        let data = deltaErrorCalc(delta: &delta, positiveGood: false)
-        
-        if hours < 1 {
-            let minutes = Int(totalSeconds / 60)
-            return DataPointObject(value: "\(minutes) min", delta: data.deltaS, deltaColor: data.deltaC)
-        } else if hours < 24 {
-            return DataPointObject(value: "\(hours) hrs", delta: data.deltaS, deltaColor: data.deltaC)
-        } else {
-            let days = hours / 24
-            let remainingHours = hours % 24
-            return DataPointObject(value: "\(days)d \(remainingHours)h", delta: data.deltaS, deltaColor: data.deltaC)
-        }
-    }
-    
-    /// Find the fastest game duration
-    func getFastestGameTime() -> DataPointObject {
-        var fastestSeconds: Int64 = .max
-        
-        for doc in rangeDailyDocs {
-            guard doc.gamesPlayed > 0 else { continue }
-            let avgForDay = doc.totalRoundSeconds / Int64(doc.gamesPlayed)
-            if avgForDay < fastestSeconds && avgForDay > 0 {
-                fastestSeconds = avgForDay
-            }
-        }
-        
-        var fastestSecondsDelta: Int64 = .max
-        
-        for doc in deltaDailyDocs {
-            guard doc.gamesPlayed > 0 else { continue }
-            let avgForDay = doc.totalRoundSeconds / Int64(doc.gamesPlayed)
-            if avgForDay < fastestSeconds && avgForDay > 0 {
-                fastestSecondsDelta = avgForDay
-            }
-        }
-        
-        var delta = calcDelta(fastestSeconds, fastestSecondsDelta)
-        let data = deltaErrorCalc(delta: &delta, positiveGood: false)
-        
-        guard fastestSeconds != .max && fastestSeconds > 0 else {
-            return DataPointObject(value: "N/A", delta: nil, deltaColor: .mainOpp)
-        }
-        
-        let minutes = Int(fastestSeconds / 60)
-        return DataPointObject(value: "\(minutes) min", delta: data.deltaS, deltaColor: data.deltaC)
-    }
-    
-    /// Find the longest game duration
-    func getSlowestGameTime() -> DataPointObject {
-        var slowestSeconds: Int64 = 0
-        
-        for doc in rangeDailyDocs {
-            guard doc.gamesPlayed > 0 else { continue }
-            let avgForDay = doc.totalRoundSeconds / Int64(doc.gamesPlayed)
-            if avgForDay > slowestSeconds {
-                slowestSeconds = avgForDay
-            }
-        }
-        
-        var slowestSecondsDelta: Int64 = 0
-        
-        for doc in rangeDailyDocs {
-            guard doc.gamesPlayed > 0 else { continue }
-            let avgForDay = doc.totalRoundSeconds / Int64(doc.gamesPlayed)
-            if avgForDay > slowestSeconds {
-                slowestSecondsDelta = avgForDay
-            }
-        }
-        
-        var delta = calcDelta(slowestSeconds, slowestSecondsDelta)
-        let data = deltaErrorCalc(delta: &delta, positiveGood: false)
-        
-        guard slowestSeconds > 0 else {
-            return DataPointObject(value: "N/A", delta: nil, deltaColor: .mainOpp)
-        }
-        
-        let minutes = Int(slowestSeconds / 60)
-        return DataPointObject(value: "\(minutes) min", delta: data.deltaS, deltaColor: data.deltaC)
-    }
-    
-    /// Generate time-series data for duration trend chart
-    func getDataForDurationTrend() async -> [GameDurationActivity] {
-        // Get snapshot of data
-        let rangeDocs = await MainActor.run { rangeDailyDocs }
-        let rangeObj = await MainActor.run { range }
-        
-        // Compute on background thread
-        return await Task.detached(priority: .userInitiated) {
-            // Sort the source data first
-            let sortedDocs = rangeDocs.sorted { $0.dayID < $1.dayID }
-            
-            // Create a dictionary for quick lookup
-            let docsByDateString = Dictionary(uniqueKeysWithValues: sortedDocs.map { ($0.dayID, $0) })
-            
-            // Generate all dates in the range
-            var result: [GameDurationActivity] = []
-            var currentDate = await Calendar.current.startOfDay(for: rangeObj.startDate)
-            let endDate = await Calendar.current.startOfDay(for: rangeObj.endDate)
-            
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            
-            while currentDate <= endDate {
-                let dateString = formatter.string(from: currentDate)
-                
-                if let doc = docsByDateString[dateString], doc.gamesPlayed > 0 {
-                    let avgSeconds = Double(doc.totalRoundSeconds) / Double(doc.gamesPlayed)
-                    let avgMinutes = avgSeconds / 60.0
-                    result.append(GameDurationActivity(date: currentDate, avgMinutes: avgMinutes))
-                } else {
-                    // No data for this day, add zero
-                    result.append(GameDurationActivity(date: currentDate, avgMinutes: 0))
-                }
-                
-                currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate)!
-            }
-            
-            return result
-        }.value
     }
     
     func postive(good: Bool, _ delta: Double, ) -> Color {
@@ -1044,41 +384,11 @@ final class AnalyticsViewModel: ObservableObject {
         
         allEmails = await analyticsRepo.fetchEmails(courseID: course.id)
         
-        // Compute all tier data and metrics once
-        recomputePlayerTiers()
+        // Compute all tier data and metrics once using retentionVM
+        retentionVM.recomputePlayerTiers()
         
         withAnimation{
             loadingEmails = false
-        }
-    }
-    
-    /// Recompute all player tier caches in one pass
-    /// This is called once after fetching emails to avoid repeated calculations
-    private func recomputePlayerTiers() {
-        // Calculate avgTimeToReturn once and reuse it
-        let avgDays = avgTimeToReturn()
-        cachedAvgTimeToReturn = avgDays
-        cached30DayRetention = calculate30DayRetention()
-        
-        // Filter players into tiers using the precomputed avgDays
-        cachedNewPlayers = allEmails.filter { $0.value.playCount == 1 }
-        
-        cachedMidTierPlayers = allEmails.filter { email, data in
-            let isInPlayRange = (2...5).contains(data.playCount)
-            let isActive = isRecentlyActive(data.lastPlayed, days: avgDays)
-            return isInPlayRange && isActive
-        }
-        
-        cachedFrequentPlayers = allEmails.filter { email, data in
-            let isHighPlayCount = data.playCount > 5
-            let isActive = isRecentlyActive(data.lastPlayed, days: avgDays)
-            return isHighPlayCount && isActive
-        }
-        
-        cachedAtRiskPlayers = allEmails.filter { email, data in
-            let hasPlayedBefore = data.playCount > 1
-            let isInactive = !isRecentlyActive(data.lastPlayed, days: avgDays)
-            return hasPlayedBefore && isInactive
         }
     }
     
@@ -1140,161 +450,10 @@ final class AnalyticsViewModel: ObservableObject {
         return "\(startS) - \(endS)"
     }
     
-    //MARK: Retention Tier Filtering
-    
-    /// Filter players into the "New" tier (🎉)
-    /// Criteria: playCount == 1
-    func getNewPlayers() -> [String: CourseEmail] {
-        allEmails.filter { $0.value.playCount == 1 }
-    }
-    
-    /// Filter players into the "Mid-Tier" tier (🥈)
-    /// Criteria: playCount between 2-5 AND active within last 38 days
-    func getMidTierPlayers() -> [String: CourseEmail] {
-        allEmails.filter { email, data in
-            let isInPlayRange = (2...5).contains(data.playCount)
-            let isActive = isRecentlyActive(data.lastPlayed, days: avgTimeToReturn())
-            return isInPlayRange && isActive
-        }
-    }
-    
-    /// Filter players into the "Frequent" tier (💎)
-    /// Criteria: playCount > 5 AND active within last 38 days
-    func getFrequentPlayers() -> [String: CourseEmail] {
-        allEmails.filter { email, data in
-            let isHighPlayCount = data.playCount > 5
-            let isActive = isRecentlyActive(data.lastPlayed, days: avgTimeToReturn())
-            return isHighPlayCount && isActive
-        }
-    }
-    
-    /// Filter players into the "At Risk" tier (⚠️)
-    /// Criteria: playCount > 1 AND lastPlayed is more than 38 days ago
-    func getAtRiskPlayers() -> [String: CourseEmail] {
-        allEmails.filter { email, data in
-            let hasPlayedBefore = data.playCount > 1
-            let isInactive = !isRecentlyActive(data.lastPlayed, days: avgTimeToReturn())
-            return hasPlayedBefore && isInactive
-        }
-    }
-    
-    /// Determine if a player is active within a specified number of days
-    /// - Parameters:
-    ///   - lastPlayedString: Date string in "yyyy-MM-dd" format
-    ///   - days: Number of days to check (e.g., 38)
-    /// - Returns: True if the player was active within the specified days, false otherwise
-    private func isRecentlyActive(_ lastPlayedString: String?, days: Int) -> Bool {
-        guard let lastPlayedString = lastPlayedString else { return false }
-        
-        guard let lastPlayedDate = dateFormatter.date(from: lastPlayedString) else { return false }
-        
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let cutoffDate = calendar.date(byAdding: .day, value: -days, to: today) ?? today
-        
-        return lastPlayedDate >= cutoffDate
-    }
-    
-    //MARK: CSV Generation
-    
-    /// Generate a CSV file from an array of email addresses
-    /// - Parameter emails: Array of email addresses to include in CSV
-    /// - Returns: URL to the temporary CSV file, or nil if generation fails
-    func generateCSVFile(from emails: [String]) -> URL? {
-        var csvContent = "Email\n"
-        
-        for email in emails {
-            csvContent += "\(email)\n"
-        }
-        
-        do {
-            let tempDirectory = FileManager.default.temporaryDirectory
-            let fileName = "players_\(UUID().uuidString).csv"
-            let fileURL = tempDirectory.appendingPathComponent(fileName)
-            
-            try csvContent.write(to: fileURL, atomically: true, encoding: .utf8)
-            return fileURL
-        } catch {
-            print("❌ Failed to generate CSV file: \(error)")
-            return nil
-        }
-    }
-    
-    //MARK: Retention Metrics
-    
-    /// Calculate average days between firstSeen and secondSeen for returning players
-    /// - Returns: Average number of days, or 0 if no returning players
-    func avgTimeToReturn() -> Int {
-        let returningPlayers = allEmails.filter { $0.value.secondSeen != nil }
-        
-        guard !returningPlayers.isEmpty else { return 0 }
-        
-        var totalDays = 0
-        var count = 0
-        
-        for (_, data) in returningPlayers {
-            guard let firstSeenStr = data.firstSeen,
-                  let secondSeenStr = data.secondSeen,
-                  let firstSeenDate = dateFormatter.date(from: firstSeenStr),
-                  let secondSeenDate = dateFormatter.date(from: secondSeenStr) else {
-                continue
-            }
-            
-            let daysBetween = Calendar.current.dateComponents([.day], from: firstSeenDate, to: secondSeenDate).day ?? 0
-            totalDays += daysBetween
-            count += 1
-        }
-        
-        return count > 0 ? totalDays / count : 0
-    }
-    
-    /// Get average time to return as a DataPointObject for UI display
-    /// - Returns: DataPointObject with average days formatted
-    func getAvgTimeToReturn() -> DataPointObject {
-        let avgDays = avgTimeToReturn()
-        return DataPointObject(
-            value: "\(avgDays)",
-            delta: nil,
-            deltaColor: nil
-        )
-    }
-    
-    /// Calculate 30-day retention percentage
-    /// Criteria: % of players whose firstSeen is in range AND secondSeen <= firstSeen + 30 days
-    /// - Returns: Percentage as a Double (0.0 to 1.0)
-    func calculate30DayRetention() -> Double {
-        let totalPlayers = allEmails.count
-        guard totalPlayers > 0 else { return 0.0 }
-        
-        var retainedWithin30 = 0
-        
-        for (_, data) in allEmails {
-            guard let firstStr = data.firstSeen,
-                  let secondStr = data.secondSeen,
-                  let firstDate = dateFormatter.date(from: firstStr),
-                  let secondDate = dateFormatter.date(from: secondStr) else {
-                continue
-            }
-            
-            let daysBetween = Calendar.current.dateComponents([.day], from: firstDate, to: secondDate).day ?? 0
-            
-            if daysBetween <= 30 {
-                retainedWithin30 += 1
-            }
-        }
-        
-        return Double(retainedWithin30) / Double(totalPlayers)
-    }
-    
-    /// Get 30-day retention as a DataPointObject for UI display
-    /// - Returns: DataPointObject with percentage formatted
-    func get30DayRetention() -> DataPointObject {
-        let retentionPercentage = calculate30DayRetention() * 100
-        return DataPointObject(
-            value: String(format: "%.0f%%", retentionPercentage),
-            delta: nil,
-            deltaColor: nil
-        )
+    // Helper function for delta calculation used by health system
+    private func calcDelta(_ prev: Int, _ current: Int) -> Double {
+        guard prev != 0 else { return 0 }
+        return (Double(current - prev) / Double(prev)) * 100
     }
     
     //MARK: - Health Rating System
@@ -1306,12 +465,12 @@ final class AnalyticsViewModel: ObservableObject {
         let deltaDocs = await MainActor.run { deltaDailyDocs }
         let emails = await MainActor.run { allEmails }
         let course = await MainActor.run { currentCourse }
-        let avgReturn = await MainActor.run { cachedAvgTimeToReturn }
-        let retention30 = await MainActor.run { cached30DayRetention }
-        let newPlayers = await MainActor.run { cachedNewPlayers }
-        let midTier = await MainActor.run { cachedMidTierPlayers }
-        let frequent = await MainActor.run { cachedFrequentPlayers }
-        let atRisk = await MainActor.run { cachedAtRiskPlayers }
+        let avgReturn = await MainActor.run { retentionVM.cachedAvgTimeToReturn }
+        let retention30 = await MainActor.run { retentionVM.cached30DayRetention }
+        let newPlayers = await MainActor.run { retentionVM.cachedNewPlayers }
+        let midTier = await MainActor.run { retentionVM.cachedMidTierPlayers }
+        let frequent = await MainActor.run { retentionVM.cachedFrequentPlayers }
+        let atRisk = await MainActor.run { retentionVM.cachedAtRiskPlayers }
         
         // Perform calculations off main thread
         let growthHealth = calculateGrowthHealthBackground(rangeDocs: rangeDocs, deltaDocs: deltaDocs)
@@ -1722,12 +881,12 @@ final class AnalyticsViewModel: ObservableObject {
     private func calculateRetentionHealth() -> SectionHealthRating {
         return calculateRetentionHealthBackground(
             emails: allEmails,
-            avgReturn: cachedAvgTimeToReturn,
-            retention30: cached30DayRetention,
-            newPlayers: cachedNewPlayers,
-            midTier: cachedMidTierPlayers,
-            frequent: cachedFrequentPlayers,
-            atRisk: cachedAtRiskPlayers
+            avgReturn: retentionVM.cachedAvgTimeToReturn,
+            retention30: retentionVM.cached30DayRetention,
+            newPlayers: retentionVM.cachedNewPlayers,
+            midTier: retentionVM.cachedMidTierPlayers,
+            frequent: retentionVM.cachedFrequentPlayers,
+            atRisk: retentionVM.cachedAtRiskPlayers
         )
     }
     

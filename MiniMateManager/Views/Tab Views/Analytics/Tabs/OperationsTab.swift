@@ -9,7 +9,7 @@ import SwiftUI
 
 struct OperationsTab: View {
     
-    @EnvironmentObject var VM: AnalyticsViewModel
+    @EnvironmentObject var VM: OperationsViewModel
 
     var body: some View {
         VStack(spacing: 16){
@@ -34,6 +34,7 @@ struct OperationsTab: View {
                     }
                     .padding(.bottom, 16)
                     GamesPerDayChart()
+                        .id(VM.rangeDailyDocs.count)
                 }
                 .frame(height: 240)
                 .padding()
@@ -72,6 +73,7 @@ struct OperationsTab: View {
                         RoundedRectangle(cornerRadius: 17)
                             .fill(.subTwo)
                     }
+                    .id(VM.rangeDailyDocs.count)
             }
             .padding()
             .background {
@@ -111,6 +113,7 @@ struct OperationsTab: View {
                     }
                     .padding(.bottom, 16)
                     GameDurationTrendChart(VM: VM)
+                        .id(VM.rangeDailyDocs.count)
                 }
                 
                 

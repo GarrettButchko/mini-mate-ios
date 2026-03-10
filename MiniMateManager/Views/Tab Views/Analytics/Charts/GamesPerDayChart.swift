@@ -10,7 +10,7 @@ import SwiftUI
 
 struct GamesPerDayChart: View {
     
-    @EnvironmentObject var VM: AnalyticsViewModel
+    @EnvironmentObject var VM: OperationsViewModel
     
     @State var data: [PlayerActivity] = []
     

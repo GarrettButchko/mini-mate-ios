@@ -9,14 +9,15 @@ import SwiftUI
 import UIKit
 
 struct RetentionView: View {
-    @EnvironmentObject var VM: AnalyticsViewModel
+    @EnvironmentObject var VM: RetentionViewModel
+    @EnvironmentObject var analyticsVM: AnalyticsViewModel
     @State private var shareURL: URL?
     @State private var showShareSheet = false
     
     var body: some View {
         ScrollView(.vertical) {
             VStack(spacing: 16) {
-                if VM.loadingEmails {
+                if analyticsVM.loadingEmails {
                     loadingState
                         .transition(.opacity)
                 } else {
@@ -191,7 +192,7 @@ enum PlayerTier: Equatable {
 struct PlayerTierCard: View {
     let tier: PlayerTier
     let players: [String: CourseEmail]
-    let VM: AnalyticsViewModel
+    let VM: RetentionViewModel
     @Binding var shareURL: URL?
     @Binding var showShareSheet: Bool
     

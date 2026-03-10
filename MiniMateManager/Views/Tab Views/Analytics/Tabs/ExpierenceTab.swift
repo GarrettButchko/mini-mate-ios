@@ -8,7 +8,7 @@ import SwiftUI
 
 struct ExpierenceTab: View {
     @EnvironmentObject var courseVM: CourseViewModel
-    @EnvironmentObject var VM: AnalyticsViewModel
+    @EnvironmentObject var VM: ExperienceViewModel
     
     var body: some View {
         VStack(spacing: 16){

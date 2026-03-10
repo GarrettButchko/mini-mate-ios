@@ -7,7 +7,7 @@
 
 import SwiftUI
 struct GrowthTab: View {
-    @EnvironmentObject var VM: AnalyticsViewModel
+    @EnvironmentObject var VM: GrowthViewModel
     
     var body: some View {
         VStack(spacing: 16){
@@ -96,6 +96,7 @@ struct GrowthTab: View {
                 PlayerTrendChart(VM: VM)
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
                     .id(VM.growthChartTopic) // Force re-render when topic changes
+                    .id(VM.rangeDailyDocs.count)
             }
             .padding()
             .background {

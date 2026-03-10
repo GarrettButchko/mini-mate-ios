@@ -16,7 +16,7 @@ struct HourData: Identifiable {
 }
 
 struct BusiestTimesChart: View {
-    @EnvironmentObject var VM: AnalyticsViewModel
+    @EnvironmentObject var VM: OperationsViewModel
     
     @State var data: [HourData] = []
     
