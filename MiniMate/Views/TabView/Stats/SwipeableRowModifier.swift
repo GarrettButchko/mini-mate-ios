@@ -67,6 +67,8 @@ struct SwipeableRowModifier: ViewModifier {
     @State private var lastOffsetX: CGFloat = 0
     @State private var hasVibrated = false
     @State private var isPressed = false
+    @State private var isDragging = false
+    
     var id: String
     
     let pausePoint: CGFloat = -100
@@ -103,6 +105,7 @@ struct SwipeableRowModifier: ViewModifier {
             .offset(x: offsetX)
             .simultaneousGesture(dragGesture)
             .onTapGesture {
+                guard !isDragging else { return }
                 if editingID != id {
                     isPressed = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
@@ -194,6 +197,7 @@ struct SwipeableRowModifier: ViewModifier {
     var dragGesture: some Gesture {
         DragGesture(minimumDistance: 20)
             .onChanged { value in
+                if !isDragging { isDragging = true }
                 let totalOffset = lastOffsetX + value.translation.width
                 let clamped = min(resetPoint, max(totalOffset, deletePoint - 80))
                 if clamped != offsetX {
@@ -212,6 +216,7 @@ struct SwipeableRowModifier: ViewModifier {
                 }
             }
             .onEnded { value in
+                defer { isDragging = false }
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                     if offsetX < deletePoint {
                         deleteFunction?()

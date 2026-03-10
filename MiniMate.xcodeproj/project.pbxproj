@@ -125,6 +125,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Views/TabView/MainView/ProfileView.swift,
+				Views/TabView/Stats/SwipeableRowModifier.swift,
 			);
 			target = 21E19BB12EE4A3CE005C1193 /* MiniMate Manager */;
 		};

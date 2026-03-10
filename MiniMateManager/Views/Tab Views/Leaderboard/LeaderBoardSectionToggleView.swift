@@ -10,26 +10,12 @@ struct LeaderBoardSectionToggleView: View {
     @Binding var pickedSection: leaderboardSection
 
     var body: some View {
-        Menu {
+        Picker("Section", selection: $pickedSection) {
             ForEach(leaderboardSection.allCases, id: \.self) { section in
-                Button(section.rawValue) {
-                    pickedSection = section
-                }
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: pickedSection.sfSymbol)
-                    .frame(width: 16)
-                Text(pickedSection.rawValue)
-                    .lineLimit(1)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .foregroundStyle(.white)
-            .background {
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(.blue)
+                Label(section.rawValue, systemImage: section.sfSymbol)
+                    .tag(section)
             }
         }
+        .pickerStyle(.segmented)
     }
 }

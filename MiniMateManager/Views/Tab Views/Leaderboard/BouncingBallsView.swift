@@ -6,190 +6,142 @@
 //
 
 import SwiftUI
-import Combine
-
-// MARK: - UserDefaults Extension for Motion Preference
-extension UserDefaults {
-    private static let noMotionModeKey = "com.minimate.noMotionMode"
-    
-    var noMotionMode: Bool {
-        get { bool(forKey: Self.noMotionModeKey) }
-        set { set(newValue, forKey: Self.noMotionModeKey) }
-    }
-}
-
-class BallPhysics: NSObject, ObservableObject {
-    struct Ball {
-        let id: Int
-        let rank: Int
-        let color: Color
-        var x: CGFloat
-        var y: CGFloat
-        var velocityX: CGFloat
-        var velocityY: CGFloat
-        let radius: CGFloat
-    }
-    
-    @Published var balls: [Ball]
-    
-    let containerWidth: CGFloat
-    let containerHeight: CGFloat
-    
-    private var displayLink: CADisplayLink?
-    
-    init(containerWidth: CGFloat, containerHeight: CGFloat) {
-        self.containerWidth = containerWidth
-        self.containerHeight = containerHeight
-        
-        self.balls = [
-            Ball(id: 0, rank: 2, color: .gray, x: containerWidth * 0.25, y: containerHeight * 0.6, velocityX: 1, velocityY: 2, radius: 40),
-            Ball(id: 1, rank: 1, color: .yellow, x: containerWidth * 0.5, y: containerHeight * 0.3, velocityX: -1.5, velocityY: -1, radius: 60),
-            Ball(id: 2, rank: 3, color: .brown, x: containerWidth * 0.75, y: containerHeight * 0.7, velocityX: 0.75, velocityY: 1.5, radius: 20)
-        ]
-        
-        super.init()
-    }
-    
-    func startAnimation() {
-        guard !UserDefaults.standard.noMotionMode else { return }
-        displayLink = CADisplayLink(target: self, selector: #selector(update))
-        displayLink?.add(to: .main, forMode: .common)
-    }
-    
-    func stopAnimation() {
-        displayLink?.invalidate()
-        displayLink = nil
-    }
-    
-    @objc private func update() {
-        updateBalls()
-    }
-    
-    private func updateBalls() {
-        for i in 0..<balls.count {
-            // Update position
-            balls[i].x += balls[i].velocityX
-            balls[i].y += balls[i].velocityY
-            
-            // Bounce off walls
-            if balls[i].x - balls[i].radius <= 0 {
-                balls[i].x = balls[i].radius
-                balls[i].velocityX = abs(balls[i].velocityX) * 1
-            }
-            if balls[i].x + balls[i].radius >= containerWidth {
-                balls[i].x = containerWidth - balls[i].radius
-                balls[i].velocityX = -abs(balls[i].velocityX) * 1
-            }
-            
-            if balls[i].y - balls[i].radius <= 0 {
-                balls[i].y = balls[i].radius
-                balls[i].velocityY = abs(balls[i].velocityY) * 1
-            }
-            if balls[i].y + balls[i].radius >= containerHeight {
-                balls[i].y = containerHeight - balls[i].radius
-                balls[i].velocityY = -abs(balls[i].velocityY) * 1
-            }
-            
-            // Ball to ball collision
-            for j in (i + 1)..<balls.count {
-                let dx = balls[j].x - balls[i].x
-                let dy = balls[j].y - balls[i].y
-                let distance = sqrt(dx * dx + dy * dy)
-                let minDistance = balls[i].radius + balls[j].radius
-                
-                if distance < minDistance && distance > 0 {
-                    let angle = atan2(dy, dx)
-                    let sin = sin(angle)
-                    let cos = cos(angle)
-                    
-                    // Swap velocities along collision axis
-                    let vx1 = balls[i].velocityX * cos + balls[i].velocityY * sin
-                    let vy1 = balls[i].velocityY * cos - balls[i].velocityX * sin
-                    let vx2 = balls[j].velocityX * cos + balls[j].velocityY * sin
-                    let vy2 = balls[j].velocityY * cos - balls[j].velocityX * sin
-                    
-                    balls[i].velocityX = vx2 * cos - vy1 * sin
-                    balls[i].velocityY = vy1 * cos + vx2 * sin
-                    balls[j].velocityX = vx1 * cos - vy2 * sin
-                    balls[j].velocityY = vy2 * cos + vx1 * sin
-                    
-                    // Separate balls
-                    let overlap = (minDistance - distance) / 2
-                    balls[i].x -= overlap * cos
-                    balls[i].y -= overlap * sin
-                    balls[j].x += overlap * cos
-                    balls[j].y += overlap * sin
-                }
-            }
-        }
-        
-        DispatchQueue.main.async {
-            self.objectWillChange.send()
-        }
-    }
-}
 
 struct BouncingBallsView: View {
-    @StateObject private var physics: BallPhysics
-    @State private var noMotionMode: Bool = UserDefaults.standard.noMotionMode
-    
+    private let containerHeight: CGFloat
     let topThreePlayers: [LeaderboardEntry]
     
-    init(containerWidth: CGFloat = UIScreen.main.bounds.width - 40, containerHeight: CGFloat = 200, topThreePlayers: [LeaderboardEntry] = []) {
-        _physics = StateObject(wrappedValue: BallPhysics(containerWidth: containerWidth, containerHeight: containerHeight))
-        self.topThreePlayers = topThreePlayers
+    init(containerWidth: CGFloat = UIScreen.main.bounds.width - 40, containerHeight: CGFloat = 220, topThreePlayers: [LeaderboardEntry] = []) {
+        self.containerHeight = containerHeight
+        self.topThreePlayers = Array(topThreePlayers.prefix(3))
     }
     
     var body: some View {
-        Group{
-            ZStack {
-                // Balls
-                ForEach(physics.balls, id: \.id) { ball in
-                    VStack(spacing: 0) {
-                        topRankBubble(player: topThreePlayers[ball.rank - 1], rank: ball.rank, color: ball.color)
-                    }
-                    .position(x: ball.x, y: ball.y)
+        Group {
+            if topThreePlayers.isEmpty {
+                podiumEmptyState
+            } else {
+                HStack(alignment: .bottom, spacing: 12) {
+                    podiumSlot(for: 2)
+                    podiumSlot(for: 1)
+                    podiumSlot(for: 3)
                 }
+                .frame(maxWidth: .infinity)
+                .frame(height: containerHeight, alignment: .bottom)
             }
-            .frame(height: physics.containerHeight)
-            .clipped()
-            .onAppear {
-                physics.startAnimation()
-            }
-            .onDisappear {
-                physics.stopAnimation()
-            }
-            
         }
     }
     
-    private func topRankBubble(player: LeaderboardEntry, rank: Int, color: Color) -> some View {
-        VStack {
-            ZStack {
+    private var podiumEmptyState: some View {
+        RoundedRectangle(cornerRadius: 24, style: .continuous)
+            .fill(.main.opacity(0.06))
+            .overlay {
+                Text("Leaderboard updates will show here")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 20)
+            }
+            .frame(height: containerHeight * 0.8)
+    }
+    
+    @ViewBuilder
+    private func podiumSlot(for rank: Int) -> some View {
+        if let player = player(for: rank) {
+            podiumColumn(player: player, rank: rank)
+                .frame(maxWidth: .infinity, alignment: .bottom)
+        } else {
+            Color.clear
+                .frame(maxWidth: .infinity)
+        }
+    }
+    
+    private func podiumColumn(player: LeaderboardEntry, rank: Int) -> some View {
+        VStack(spacing: 8) {
+            ZStack() {
                 Circle()
-                    .fill(color.opacity(0.15))
+                    .fill(podiumColor(for: rank).opacity(0.16))
                     .frame(width: bubbleSize(rank: rank), height: bubbleSize(rank: rank))
+                
                 Image("logoOpp")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: bubbleSize(rank: rank) * 0.9, height: bubbleSize(rank: rank) * 0.9)
-                Text("\(medalEmoji(for: rank)) \(player.name)")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(.mainOpp)
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 8)
-                    .background {
-                        Capsule()
-                            .fill(.main.opacity(0.6))
-                    }
-                    .offset(y: bubbleSize(rank: rank) * 0.30)
+                    .frame(width: bubbleSize(rank: rank) * 0.82, height: bubbleSize(rank: rank) * 0.82)
             }
+            
+            VStack(spacing: 2) {
+                Text(player.name)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.mainOpp)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.9)
+                
+                Text("\(player.totalStrokes) strokes")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+            }
+            .frame(maxWidth: .infinity)
+            
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(podiumColor(for: rank).opacity(rank == 1 ? 0.26 : 0.18))
+                .overlay {
+                    VStack(spacing: 2) {
+                        Text("#\(rank)")
+                            .font(.system(size: 18, weight: .heavy))
+                            .foregroundStyle(.mainOpp)
+                        Text(rankTitle(for: rank))
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 4)
+                }
+                .frame(height: podiumHeight(rank: rank))
         }
     }
     
-    private func bubbleSize(rank: Int) -> CGFloat {
-        CGFloat(abs(rank - 4) * 50)
+    private func player(for rank: Int) -> LeaderboardEntry? {
+        let index = rank - 1
+        guard topThreePlayers.indices.contains(index) else { return nil }
+        return topThreePlayers[index]
     }
+    
+    private func bubbleSize(rank: Int) -> CGFloat {
+        switch rank {
+        case 1: return 85
+        case 2: return 70
+        case 3: return 55
+        default: return 60
+        }
+    }
+    
+    private func podiumHeight(rank: Int) -> CGFloat {
+        switch rank {
+        case 1: return 92
+        case 2: return 70
+        case 3: return 56
+        default: return 56
+        }
+    }
+    
+    private func podiumColor(for rank: Int) -> Color {
+        switch rank {
+        case 1: return .yellow
+        case 2: return .gray
+        case 3: return .brown
+        default: return .gray
+        }
+    }
+    
+    private func rankTitle(for rank: Int) -> String {
+        switch rank {
+        case 1: return "First"
+        case 2: return "Second"
+        case 3: return "Third"
+        default: return "Top"
+        }
+    }
+    
     private func medalEmoji(for rank: Int) -> String {
         switch rank {
         case 1: return "🥇"
@@ -198,9 +150,4 @@ struct BouncingBallsView: View {
         default: return "🏅"
         }
     }
-}
-
-#Preview {
-    BouncingBallsView()
-        .background(.bg)
 }

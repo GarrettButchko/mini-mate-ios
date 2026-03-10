@@ -25,6 +25,8 @@ struct AnalyticsRangeBar: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.mainOpp)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                     Spacer()
                     Image(systemName: "chevron.down")
                         .font(.caption)

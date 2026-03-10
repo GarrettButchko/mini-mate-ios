@@ -13,6 +13,8 @@ struct LeaderBoardView: View {
     
     @State private var titleHeight: CGFloat = 40
     
+    @State var editingPlayerID: String? = nil
+    
     var body: some View {
         ZStack{
             mainContent
@@ -40,12 +42,6 @@ struct LeaderBoardView: View {
                 }
                 
                 Spacer()
-                
-                HStack {
-                    Spacer()
-                    LeaderBoardSectionToggleView(pickedSection: $VM.pickedSection)
-                }
-                .padding(.bottom, 20)
             }
             .padding(.horizontal, 20)
         }
@@ -53,24 +49,45 @@ struct LeaderBoardView: View {
     }
     // MARK: - Sections
     private var mainContent: some View {
-        Group {
-            if VM.pickedSection == .weekly {
-                leaderBoard(data: VM.weeklyLeaderboard)
-            } else {
-                leaderBoard(data: VM.allTimeLeaderboard)
+        VStack {
+            Group {
+                if VM.pickedSection == .weekly {
+                    leaderBoard(data: $VM.weeklyLeaderboard)
+                        .id("weekly")
+                        .transition(.opacity.combined(with: .move(edge: .leading)))
+                } else {
+                    leaderBoard(data: $VM.allTimeLeaderboard)
+                        .id("allTime")
+                        .transition(.opacity.combined(with: .move(edge: .trailing)))
+                }
             }
+
+            LeaderBoardSectionToggleView(pickedSection: $VM.pickedSection)
         }
+        .animation(.easeInOut, value: VM.pickedSection)
+        .padding(.bottom)
     }
     
-    private func leaderBoard(data: [LeaderboardEntry]) -> some View {
+    private func leaderBoard(data: Binding<[LeaderboardEntry]>) -> some View {
         VStack{
-            BouncingBallsView(topThreePlayers: Array(data.prefix(3)))
+            BouncingBallsView(topThreePlayers: Array(data.wrappedValue.prefix(3)))
             ScrollView{
                 VStack{
                     ForEach(data) { player in
                         let rank = data.firstIndex(where: { $0.id == player.id })! + 1
                         if rank <= 25 && rank >= 4{
-                            PlayerRow(player: player, rank: rank)
+                            GeometryReader { proxy in
+                                HStack(alignment: .center){
+                                    PlayerRow(player: player.wrappedValue, rank: rank)
+                                        .frame(width: proxy.size.width)
+                                        .transition(.opacity.combined(with: .blurReplace))
+                                        .swipeMod(editingID: $editingPlayerID, id: String(rank), buttonPressFunction: {}) {
+                                            print("Delete Func Here for \(rank)")
+                                        }
+                                }
+                            }
+                            .frame(height: 40)
+                            
                             
                             if rank != 25 {
                                 Divider().background(.mainOpp.opacity(0.1))
@@ -84,7 +101,6 @@ struct LeaderBoardView: View {
                 RoundedRectangle(cornerRadius: 25)
                     .fill(.sub)
             )
-            .padding(.bottom)
         }
     }
 }
@@ -94,20 +110,24 @@ struct PlayerRow: View {
     let rank: Int
     
     var body: some View {
-        HStack {
+        HStack(alignment: .center){
             ZStack {
                 Circle()
                     .fill(.subTwo)
                     .frame(width: 32, height: 32)
                 Text("\(rank)")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.subThree)
+                    .foregroundColor(.mainOpp)
             }
             
             Text("\(player.name)")
                 .font(.system(size: 16, weight: .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.9)
             
-            Spacer()
+            Rectangle()
+                .fill(.clear)
+                .frame(maxWidth: .infinity, minHeight: 32)
             
             VStack(alignment: .trailing, spacing: 0) {
                 Text("\(player.totalStrokes)")

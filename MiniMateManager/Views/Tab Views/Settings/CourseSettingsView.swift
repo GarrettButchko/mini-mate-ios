@@ -315,42 +315,48 @@ struct SocialLinksSectionView: View {
         Section("Social Links") {
             if let course = courseViewModel.selectedCourse {
                 ForEach(course.socialLinks.indices, id: \.self) { index in
-                    VStack(spacing: 12) {
-                        // Platform Picker
-                        Picker("Platform", selection: Binding(
-                            get: {
-                                courseViewModel.selectedCourse?.socialLinks[index].platform ?? .instagram
-                            },
-                            set: { newValue in
-                                courseViewModel.selectedCourse?.socialLinks[index].platform = newValue
-                                courseViewModel.immediateSave()
+                    // Check if index is still valid to prevent out-of-range crashes
+                    if index < courseViewModel.selectedCourse?.socialLinks.count ?? 0 {
+                        VStack(spacing: 12) {
+                            // Platform Picker
+                            Picker("Platform", selection: Binding(
+                                get: {
+                                    courseViewModel.selectedCourse?.socialLinks[index].platform ?? .instagram
+                                },
+                                set: { newValue in
+                                    guard index < courseViewModel.selectedCourse?.socialLinks.count ?? 0 else { return }
+                                    courseViewModel.selectedCourse?.socialLinks[index].platform = newValue
+                                    courseViewModel.immediateSave()
+                                }
+                            )) {
+                                ForEach(SocialPlatform.allCases) { platform in
+                                    Text(platform.rawValue.capitalized)
+                                        .tag(platform)
+                                }
                             }
-                        )) {
-                            ForEach(SocialPlatform.allCases) { platform in
-                                Text(platform.rawValue.capitalized)
-                                    .tag(platform)
-                            }
+                            .pickerStyle(.menu)
+                        
+                            TextField("URL", text: Binding(
+                                get: {
+                                    guard index < courseViewModel.selectedCourse?.socialLinks.count ?? 0 else { return "" }
+                                    return courseViewModel.selectedCourse?.socialLinks[index].url ?? ""
+                                },
+                                set: { newValue in
+                                    guard index < courseViewModel.selectedCourse?.socialLinks.count ?? 0 else { return }
+                                    courseViewModel.selectedCourse?.socialLinks[index].url = newValue
+                                    courseViewModel.debouncedSave()
+                                }
+                            ))
+                            .textContentType(.URL)
+                            .keyboardType(.URL)
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                    .fill(Color(.subTwo))
+                            )
                         }
-                        .pickerStyle(.menu)
-                    
-                        TextField("URL", text: Binding(
-                            get: {
-                                courseViewModel.selectedCourse?.socialLinks[index].url ?? ""
-                            },
-                            set: { newValue in
-                                courseViewModel.selectedCourse?.socialLinks[index].url = newValue
-                                courseViewModel.debouncedSave()
-                            }
-                        ))
-                        .textContentType(.URL)
-                        .keyboardType(.URL)
-                        .padding(12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                .fill(Color(.subTwo))
-                        )
+                        .padding(.vertical, 8)
                     }
-                    .padding(.vertical, 8)
                 }
                 .onDelete { indexSet in
                     courseViewModel.selectedCourse?.socialLinks.remove(atOffsets: indexSet)
