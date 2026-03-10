@@ -25,9 +25,10 @@ struct LeaderBoardSectionToggleView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
+            .foregroundStyle(.white)
             .background {
                 RoundedRectangle(cornerRadius: 25)
-                    .fill(.sub)
+                    .fill(.blue)
             }
         }
     }

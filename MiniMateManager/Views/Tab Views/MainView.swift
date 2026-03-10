@@ -11,6 +11,7 @@ import MarqueeText
 
 struct MainView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     
     @EnvironmentObject var authModel: AuthViewModel
     @EnvironmentObject var viewModel: CourseViewModel
@@ -51,16 +52,23 @@ struct MainView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         
-                        MarqueeText(
-                            text: viewModel.selectedCourse?.name ?? "No Course Selected",
-                            font: UIFont.preferredFont(forTextStyle: .title2),
-                            leftFade: 16,
-                            rightFade: 16,
-                            startDelay: 2,
-                            alignment: .leading
-                        )
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: 200, alignment: .leading)
+                        if dynamicTypeSize >= .large {
+                            MarqueeText(
+                                text: viewModel.selectedCourse?.name ?? "No Course Selected",
+                                font: UIFont.preferredFont(forTextStyle: .title2),
+                                leftFade: 8,
+                                rightFade: 8,
+                                startDelay: 2,
+                                alignment: .leading
+                            )
+                            .fontWeight(.semibold)
+                        } else {
+                            Text(viewModel.selectedCourse?.name ?? "No Course Selected")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
                     }
                     .background {
                         GeometryReader { proxy in

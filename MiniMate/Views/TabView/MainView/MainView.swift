@@ -201,9 +201,6 @@ struct MainView: View {
     
     private func actionButtonsSection(course: Course?) -> some View {
         VStack {
-            
-            
-            
             VStack {
                 headerControls
                 gameModeButtons

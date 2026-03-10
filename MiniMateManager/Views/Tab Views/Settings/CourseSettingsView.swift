@@ -552,17 +552,51 @@ struct ParConfigurationSectionView: View {
     var body: some View {
         Section("Par Configuration") {
             if let pars = courseViewModel.selectedCourse?.pars, pars.count > 0 {
-                ForEach(Array(pars.enumerated()), id: \.offset) { index, par in
+                // Par Preview
+                VStack(spacing: 12) {
                     HStack {
-                        Text("Hole \(index + 1):")
+                        Text("Par Preview")
                         Spacer()
-                        
-                        NumberPickerView(
-                            selectedNumber: courseViewModel.parBinding(index: index),
-                            minNumber: 0,
-                            maxNumber: 10
-                        )
-                        .frame(width: 75)
+                    }
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(Array(pars.enumerated()), id: \.offset) { index, par in
+                                VStack(spacing: 4) {
+                                    Text("H\(index + 1)")
+                                        .font(.caption2)
+                                        .fontWeight(.semibold)
+                                    Text("\(par)")
+                                        .font(.headline)
+                                }
+                                .frame(width: 40, height: 50)
+                                .background(.subThree)
+                                .cornerRadius(8)
+                                .foregroundStyle(.white)
+                            }
+                        }
+                    }
+                }
+                .padding(.vertical, 8)
+                
+                // Toggle to show/hide detailed configuration
+                Toggle("Show Configuration", isOn: $viewModel.showParConfiguration)
+                    .toggleStyle(SwitchToggleStyle())
+                
+                // Detailed Par Configuration
+                if viewModel.showParConfiguration {
+                    ForEach(Array(pars.enumerated()), id: \.offset) { index, par in
+                        HStack {
+                            Text("Hole \(index + 1):")
+                            Spacer()
+                            
+                            NumberPickerView(
+                                selectedNumber: courseViewModel.parBinding(index: index),
+                                minNumber: 0,
+                                maxNumber: 10
+                            )
+                            .frame(width: 75)
+                        }
                     }
                 }
             }

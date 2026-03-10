@@ -43,6 +43,9 @@ class CourseSettingsViewModel: ObservableObject {
     @Published var showPassword: Bool = false
     @Published var showChangePasswordAlert: Bool = false
     
+    // Par Configuration related
+    @Published var showParConfiguration: Bool = false
+    
     // MARK: - Dependencies
     private let courseRepo = CourseRepository()
     private var saveWorkItem: DispatchWorkItem?
