@@ -814,7 +814,11 @@ final class AnalyticsViewModel: ObservableObject {
         let avgSeconds = Double(totalSeconds) / Double(totalGames)
         let minutes = Int(avgSeconds / 60)
         let avgSecondsDelta = Double(totalSecondsDelta) / Double(totalGamesDelta)
-        let minutesDelta = Int(avgSecondsDelta / 60)
+        let minutesDelta: Int = {
+            let value = avgSecondsDelta / 60.0
+            guard value.isFinite else { return 0 }
+            return Int(value)
+        }()
         
         var delta = calcDelta(minutes, minutesDelta)
         let data = deltaErrorCalc(delta: &delta, positiveGood: false)
