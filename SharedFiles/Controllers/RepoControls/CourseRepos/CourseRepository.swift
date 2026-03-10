@@ -91,10 +91,10 @@ final class CourseRepository {
     }
     
     /// Fetches a Course by ID from Firestore
-    func fetchCourse(id: String, completion: @escaping (Course?) -> Void) {
+    func fetchCourse(id: String, mapItem: MapItemDTO? = nil, completion: @escaping (Course?) -> Void) {
         let ref = db.collection(collectionName).document(id)
         
-        ref.getDocument { snapshot, error in
+        ref.getDocument { [self] snapshot, error in
             if let error = error {
                 print("❌ Firestore fetch error: \(error.localizedDescription)")
                 completion(nil)
@@ -102,7 +102,18 @@ final class CourseRepository {
             }
             
             guard let snapshot = snapshot, snapshot.exists else {
-                completion(nil)
+                print("Course with ID \(id) does not exist.")
+                if let mapItem {
+                    createCourseWithMapItem(courseID: id, location: mapItem) { course in
+                        if let course {
+                            completion(course)
+                        } else {
+                            completion(nil)
+                        }
+                    }
+                } else {
+                    completion(nil)
+                }
                 return
             }
             

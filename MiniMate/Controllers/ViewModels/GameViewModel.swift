@@ -721,7 +721,7 @@ final class GameViewModel: ObservableObject, Observable {
                 let courseID = CourseIDGenerator.generateCourseID(from: closestPlace.toDTO())
                 
                 // 3. Fetch the course
-                self.courseRepo.fetchCourse(id: courseID) { course in
+                self.courseRepo.fetchCourse(id: courseID, mapItem: closestPlace.toDTO()) { course in
                     withAnimation {
                         self.course = course
                     }
