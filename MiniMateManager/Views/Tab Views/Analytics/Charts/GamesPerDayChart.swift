@@ -17,56 +17,94 @@ struct GamesPerDayChart: View {
     let lineColor: Color = .purple
     
     var body: some View {
-        Chart {
-            ForEach(data) { item in
-                LineMark(
-                    x: .value("Day", item.date, unit: .day),
-                    y: .value("Games", item.count)
-                )
-                .foregroundStyle(lineColor)
-                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
-                
-                AreaMark(
-                    x: .value("Day", item.date, unit: .day),
-                    y: .value("Games", item.count)
-                )
-                .foregroundStyle(
-                    .linearGradient(
-                        colors: [lineColor.opacity(0.4), .clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+        if data.allSatisfy({ $0.count == 0 }) {
+            VStack(spacing: 10) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text("Not enough data yet")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Text("Games over time will appear here once players start visiting your course.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
             }
-        }
-        .task{
-            data = await VM.getDataForGamesPerDay()
-        }
-        .chartPlotStyle { plot in
-            plot
-                .frame(maxHeight: .infinity, alignment: .top)
-                .padding(.bottom, 8)
-        }
-        .chartYScale(domain: .automatic(includesZero: true))
-        .chartYAxis {
-            AxisMarks(position: .leading, values: .automatic(desiredCount: 5)) { value in
-                AxisGridLine()
-                AxisValueLabel()
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
+            .task{
+                data = await VM.getDataForGamesPerDay()
             }
-        }
-        .chartXAxis {
-            AxisMarks(preset: .aligned, values: getStrideValues(from: data)) { value in
-                AxisGridLine()
-                    .foregroundStyle(.secondary.opacity(0.3))
-                    
-                AxisValueLabel {
-                    if let date = value.as(Date.self) {
-                        Text(date, format: .dateTime.month().day())
+        } else {
+            VStack{
+                HStack(alignment: .center) {
+                    Text("Games Over Time")
+                        .foregroundStyle(.mainOpp)
+                        .font(.system(size: 14, weight: .semibold))
+                    Spacer()
+                    InfoButton(infoText: "Shows the duration of the games over time.")
+                }
+                .padding(.bottom, 16)
+                Chart {
+                    ForEach(data) { item in
+                        LineMark(
+                            x: .value("Day", item.date, unit: .day),
+                            y: .value("Games", item.count)
+                        )
+                        .foregroundStyle(lineColor)
+                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                        
+                        AreaMark(
+                            x: .value("Day", item.date, unit: .day),
+                            y: .value("Games", item.count)
+                        )
+                        .foregroundStyle(
+                            .linearGradient(
+                                colors: [lineColor.opacity(0.4), .clear],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
                     }
                 }
+                .task{
+                    data = await VM.getDataForGamesPerDay()
+                }
+                .chartPlotStyle { plot in
+                    plot
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .padding(.bottom, 8)
+                }
+                .chartYScale(domain: .automatic(includesZero: true))
+                .chartYAxis {
+                    AxisMarks(position: .leading, values: .automatic(desiredCount: 5)) { value in
+                        AxisGridLine()
+                        AxisValueLabel()
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks(preset: .aligned, values: getStrideValues(from: data)) { value in
+                        AxisGridLine()
+                            .foregroundStyle(.secondary.opacity(0.3))
+                        
+                        AxisValueLabel {
+                            if let date = value.as(Date.self) {
+                                Text(date, format: .dateTime.month().day())
+                            }
+                        }
+                    }
+                }
+                .id(VM.rangeDailyDocs.count)
+            }
+            .frame(height: 240)
+            .padding()
+            .background {
+                RoundedRectangle(cornerRadius: 17)
+                    .fill(.subTwo)
             }
         }
-        
     }
     
     func getStrideValues(from data: [PlayerActivity]) -> [Date] {

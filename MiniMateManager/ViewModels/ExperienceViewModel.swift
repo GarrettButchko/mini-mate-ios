@@ -20,15 +20,15 @@ final class ExperienceViewModel: ObservableObject {
     func getHardestHole() -> DataPointObject {
         let avgStrokesPerHole = getHoleCombined()
         
-        let hardestHoleID = avgStrokesPerHole.max(by: { $0.value < $1.value })?.key ?? "Err"
-        return DataPointObject(value: "Hole \(hardestHoleID)", delta: nil, deltaColor: .mainOpp)
+        let hardestHoleID = avgStrokesPerHole.max(by: { $0.value < $1.value })?.key ?? "N/A"
+        return DataPointObject(value: "\(hardestHoleID != "N/A" ? "Hole \(hardestHoleID)" : "N/A")", delta: nil, deltaColor: .mainOpp)
     }
     
     func getEasiestHole() -> DataPointObject {
         let avgStrokesPerHole = getHoleCombined()
         
-        let easiestHoleID = avgStrokesPerHole.min(by: { $0.value < $1.value })?.key ?? "Err"
-        return DataPointObject(value: "Hole \(easiestHoleID)", delta: nil, deltaColor: .mainOpp)
+        let easiestHoleID = avgStrokesPerHole.min(by: { $0.value < $1.value })?.key ?? "N/A"
+        return DataPointObject(value: "\(easiestHoleID != "N/A" ? "Hole \(easiestHoleID)" : "N/A")", delta: nil, deltaColor: .mainOpp)
     }
     
     func getHoleCombined() -> [String: Double] {
@@ -184,7 +184,7 @@ final class ExperienceViewModel: ObservableObject {
         }
         
         let percentage = (Double(underParCount) / Double(totalHolesPlayed)) * 100
-        return DataPointObject(value: String(format: "%.1f%%", percentage), delta: nil, deltaColor: .mainOpp)
+        return DataPointObject(value: percentage != 0 ? String(format: "%.1f%%", percentage) : "N/A", delta: nil, deltaColor: .mainOpp)
     }
     
     /// Calculate percentage of holes completed over par
@@ -219,7 +219,7 @@ final class ExperienceViewModel: ObservableObject {
         }
         
         let percentage = (Double(overParCount) / Double(totalHolesPlayed)) * 100
-        return DataPointObject(value: String(format: "%.1f%%", percentage), delta: nil, deltaColor: .mainOpp)
+        return DataPointObject(value: percentage != 0 ? String(format: "%.1f%%", percentage) : "N/A", delta: nil, deltaColor: .mainOpp)
     }
     
     /// Count total number of holes-in-one

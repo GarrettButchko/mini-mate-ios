@@ -31,9 +31,6 @@ struct AnalyticsView: View {
                         Text("Analytics")
                             .font(.title)
                             .fontWeight(.bold)
-                        
-                        Text(VM.pickedSection == "Day Range" ? VM.selectedSection.rawValue : "Retention")
-                            .font(.subheadline)
                     }
                     
                     
@@ -285,14 +282,39 @@ struct HoleDifficultyCharts: View {
     
     var body: some View {
         // SECTION 1: HARDNESS
-        VStack(spacing: 16) {
-            HoleDifficultyChart(difficultyData: $difficultyData)
-            HoleHardnessPreviewList(difficultyData: $difficultyData)
-        }
-        .padding()
-        .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
-        .task{
-            difficultyData = await VM.getHoleDifficultyData()
+        if !difficultyData.isEmpty {
+            VStack(spacing: 16) {
+                HoleDifficultyChart(difficultyData: $difficultyData)
+                HoleHardnessPreviewList(difficultyData: $difficultyData)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
+            .task{
+                difficultyData = await VM.getHoleDifficultyData()
+            }
+        } else {
+            VStack(spacing: 10) {
+                Image(systemName: "chart.bar.xaxis")
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                
+                Text("Not enough data yet")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Text("Wait for a few more holes to be submitted on this course to unlock hole difficulty stats.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
+            .task{
+                difficultyData = await VM.getHoleDifficultyData()
+            }
         }
     }
 }
@@ -307,16 +329,43 @@ struct HoleDifficultyParCharts: View {
     }
     
     var body: some View {
-        VStack(spacing: 16) {
-            HoleDifficultyParChart(difficultyData: $difficultyData)
-                .frame(height: 100)
-            
-            HolePreviewList(allHoles: $difficultyData)
-        }
-        .padding()
-        .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
-        .task{
-            difficultyData = await VM.getHoleHeatmapForParData(course: course)
+        
+        
+        if !difficultyData.isEmpty {
+            VStack(spacing: 16) {
+                HoleDifficultyParChart(difficultyData: $difficultyData)
+                    .frame(height: 100)
+                
+                HolePreviewList(allHoles: $difficultyData)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
+            .task{
+                difficultyData = await VM.getHoleHeatmapForParData(course: course)
+            }
+        } else {
+            VStack(spacing: 10) {
+                Image(systemName: "chart.bar.xaxis")
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                
+                Text("Not enough data yet")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Text("Wait for a few more holes to be submitted on this course to unlock par performance stats.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
+            .task{
+                difficultyData = await VM.getHoleHeatmapForParData(course: course)
+            }
         }
     }
 }

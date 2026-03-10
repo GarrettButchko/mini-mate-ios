@@ -18,14 +18,16 @@ struct ExpierenceTab: View {
                 
                 VStack(spacing: 8){
                     HStack{
-                        Text("Hole Dificulty")
+                        Text("Hole Difficulty")
                             .font(.title2)
                             .fontWeight(.bold)
                         Spacer()
                         InfoButton(infoText: "Greener = Harder, Less opacity = Easier. Based on average strokes per hole. P.S. if holes are missing they are likely unplayed or have no data yet.")
                     }
                     
+                    
                     HoleDifficultyCharts()
+                        .id(VM.rangeDailyDocs.count)
                     
                     HStack{
                         DataCard(data: VM.getEasiestHole(), title: "Easiest", infoText: "The hole which has the the lowest average strokes per plays", color: .subTwo, cornerRadius: 17)
@@ -54,7 +56,9 @@ struct ExpierenceTab: View {
                         DataCard(data: VM.getMostBeatenPar(), title: "Best Hole", infoText: "Hole where players most frequently beat par.", color: .subTwo, cornerRadius: 17)
                     }
                     
-                    HoleDifficultyParCharts(course: course)
+                    
+                        HoleDifficultyParCharts(course: course)
+                            .id(VM.rangeDailyDocs.count)
                     
                 }
                 .padding()

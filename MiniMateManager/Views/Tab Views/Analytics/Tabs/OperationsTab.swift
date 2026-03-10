@@ -23,25 +23,8 @@ struct OperationsTab: View {
                 }
                 
                 DataCard(data: VM.avgGamesPerDayPrime(), title: "Avg Games Per Day", infoText: "The average number of games played per day.", color: .subTwo, cornerRadius: 17)
-                
-                VStack{
-                    HStack(alignment: .center) {
-                        Text("Games Over Time")
-                            .foregroundStyle(.mainOpp)
-                            .font(.system(size: 14, weight: .semibold))
-                        Spacer()
-                        InfoButton(infoText: "Shows the duration of the games over time.")
-                    }
-                    .padding(.bottom, 16)
-                    GamesPerDayChart()
-                        .id(VM.rangeDailyDocs.count)
-                }
-                .frame(height: 240)
-                .padding()
-                .background {
-                    RoundedRectangle(cornerRadius: 17)
-                        .fill(.subTwo)
-                }
+            
+                GamesPerDayChart()
             }
             .padding()
             .background {
@@ -67,13 +50,8 @@ struct OperationsTab: View {
                     DataCard(data: VM.getBusiestDay(), title: "Busiest Day", infoText: "Based on the number of games played that day.", color: .subTwo, cornerRadius: 17)
                 }
                 
+                
                 BusiestTimesChart()
-                    .padding(.horizontal)
-                    .background {
-                        RoundedRectangle(cornerRadius: 17)
-                            .fill(.subTwo)
-                    }
-                    .id(VM.rangeDailyDocs.count)
             }
             .padding()
             .background {
@@ -101,25 +79,8 @@ struct OperationsTab: View {
                     DataCard(data: VM.getFastestGameTime(), title: "Fastest Game", infoText: "Shortest game duration recorded.", color: .subTwo, cornerRadius: 17)
                     
                     DataCard(data: VM.getSlowestGameTime(), title: "Longest Game", infoText: "Longest game duration recorded.", color: .subTwo, cornerRadius: 17)
-                }
-                
-                VStack{
-                    HStack(alignment: .center) {
-                        Text("Game Duration Over Time")
-                            .foregroundStyle(.mainOpp)
-                            .font(.system(size: 14, weight: .semibold))
-                        Spacer()
-                        InfoButton(infoText: "Shows the duration of the games over time.")
-                    }
-                    .padding(.bottom, 16)
-                    GameDurationTrendChart(VM: VM)
-                        .id(VM.rangeDailyDocs.count)
-                }
-                
-                
-                .frame(height: 200)
-                .padding()
-                .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
+                }   
+                GameDurationTrendChart(VM: VM)
             }
             .padding()
             .background {

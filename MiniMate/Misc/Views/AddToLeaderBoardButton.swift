@@ -20,7 +20,7 @@ struct AddToLeaderBoardButton: View{
     var body: some View {
         if let course = course, !(ProfanityFilter.containsBlockedWord(player.name) && player.incomplete) && !added && course.tier >= 2 && player.email != nil{
             Button{
-                courseLeaderBoardRepo.sumbitScore(courseID: course.id, player: player) { _ in }
+                courseLeaderBoardRepo.submitScore(courseID: course.id, player: player) { _ in }
             } label: {
                 ZStack{
                     RoundedRectangle(cornerRadius: 25)

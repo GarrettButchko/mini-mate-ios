@@ -28,71 +28,100 @@ struct BusiestTimesChart: View {
     let maxDays = 7
     
     var body: some View {
-        GeometryReader { geometry in
-            let cellWidth = (geometry.size.width / CGFloat(maxHours)) * 0.7
-            let cellHeight = (geometry.size.height / CGFloat(maxDays)) * 0.7
-            
-            Chart {
-                ForEach(data) { item in
-                    RectangleMark(
-                        x: .value("Hour", item.hour),
-                        y: .value("Day", item.weekday),
-                        width: .fixed(cellWidth),
-                        height: .fixed(cellHeight)
-                    )
-                    .foregroundStyle(by: .value("Count", item.count))
-                    .cornerRadius(6) // Makes the "pill" shape
-                }
+        
+        if data.allSatisfy({ $0.count == 0 }) {
+            VStack(spacing: 10) {
+                Image(systemName: "clock")
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text("Not enough data yet")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Text("Busiest times data will appear here once players start visiting your course.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
             }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
             .task{
                 data = await VM.prepareChartData()
             }
-            // 1. Color Scale (Light green to Dark green)
-            .chartForegroundStyleScale(
-                range: [
-                    Color.green.opacity(0.16),
-                    Color.green.opacity(0.33),
-                    Color.green.opacity(0.5),
-                    Color.green.opacity(0.66),
-                    Color.green.opacity(0.83),
-                    Color.green
-                ]
-            )
-            // 2. Y-Axis (Days)
-            .chartYAxis {
-                AxisMarks(position: .leading, values: [1, 3, 5, 7]) { value in
-                    AxisValueLabel {
-                        if let dayInt = value.as(Int.self) {
-                            Text(dayLabels[dayInt])
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                                .offset(x: -8)
+        } else {
+            GeometryReader { geometry in
+                let cellWidth = (geometry.size.width / CGFloat(maxHours)) * 0.7
+                let cellHeight = (geometry.size.height / CGFloat(maxDays)) * 0.7
+                
+                Chart {
+                    ForEach(data) { item in
+                        RectangleMark(
+                            x: .value("Hour", item.hour),
+                            y: .value("Day", item.weekday),
+                            width: .fixed(cellWidth),
+                            height: .fixed(cellHeight)
+                        )
+                        .foregroundStyle(by: .value("Count", item.count))
+                        .cornerRadius(6) // Makes the "pill" shape
+                    }
+                }
+                .task{
+                    data = await VM.prepareChartData()
+                }
+                // 1. Color Scale (Light green to Dark green)
+                .chartForegroundStyleScale(
+                    range: [
+                        Color.green.opacity(0.16),
+                        Color.green.opacity(0.33),
+                        Color.green.opacity(0.5),
+                        Color.green.opacity(0.66),
+                        Color.green.opacity(0.83),
+                        Color.green
+                    ]
+                )
+                // 2. Y-Axis (Days)
+                .chartYAxis {
+                    AxisMarks(position: .leading, values: [1, 3, 5, 7]) { value in
+                        AxisValueLabel {
+                            if let dayInt = value.as(Int.self) {
+                                Text(dayLabels[dayInt])
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                    .offset(x: -8)
+                            }
+                        }
+                    }
+                }
+                .chartXAxis {
+                    // 1. ADD THE PRESET HERE
+                    AxisMarks(preset: .aligned, values: [0, 3, 7, 11, 15, 19, 23]) { value in
+                        // 2. Add the Grid Line
+                        AxisGridLine()
+                            .foregroundStyle(.mainOpp.opacity(0.3))
+                        
+                        // 3. Add the Label
+                        AxisValueLabel {
+                            if let hour = value.as(Int.self) {
+                                Text(formatHour(hour))
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                    .offset(y: -16)
+                            }
                         }
                     }
                 }
             }
-            .chartXAxis {
-                // 1. ADD THE PRESET HERE
-                AxisMarks(preset: .aligned, values: [0, 3, 7, 11, 15, 19, 23]) { value in
-                    // 2. Add the Grid Line
-                    AxisGridLine()
-                        .foregroundStyle(.mainOpp.opacity(0.3))
-                    
-                    // 3. Add the Label
-                    AxisValueLabel {
-                        if let hour = value.as(Int.self) {
-                            Text(formatHour(hour))
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                                .offset(y: -16)
-                        }
-                    }
-                }
+            .frame(height: 250)
+            .padding(.trailing, 16)
+            .padding(.top, 32)
+            .padding(.horizontal)
+            .background {
+                RoundedRectangle(cornerRadius: 17)
+                    .fill(.subTwo)
             }
+            .id(VM.rangeDailyDocs.count)
         }
-        .frame(height: 250)
-        .padding(.trailing, 16)
-        .padding(.top, 32)
     }
     
     

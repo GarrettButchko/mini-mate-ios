@@ -27,64 +27,84 @@ struct PlayerTrendChart: View {
     }
 
     var body: some View {
-        Chart {
-            ForEach(data) { item in
-                LineMark(
-                    x: .value("Day", item.date, unit: .day),
-                    y: .value("Players", item.count)
-                )
-                .foregroundStyle(lineColor)
-                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
-                
-                AreaMark(
-                    x: .value("Day", item.date, unit: .day),
-                    y: .value("Players", item.count)
-                )
-                .foregroundStyle(
-                    .linearGradient(
-                        colors: [lineColor.opacity(0.4), .clear],
-                        startPoint: .top,
-                        endPoint: .bottom
+        
+        if data.isEmpty || data.allSatisfy({ $0.count == 0 }) {
+            VStack(spacing: 10) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text("Not enough data yet")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Text("Player trend data will appear here once players start visiting your course.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(RoundedRectangle(cornerRadius: 16).fill(.subTwo))
+        } else {
+            Chart {
+                ForEach(data) { item in
+                    LineMark(
+                        x: .value("Day", item.date, unit: .day),
+                        y: .value("Players", item.count)
                     )
-                )
-            }
-        }
-        .task{
-            data = await VM.getDataForGrowthTrend()
-        }
-        .chartPlotStyle { plot in
-            plot
-                .frame(maxHeight: .infinity, alignment: .top)
-                .padding(.bottom, 8)
-        }
-        .chartYScale(domain: .automatic(includesZero: true))
-        .chartYAxis {
-            AxisMarks(position: .leading, values: .automatic(desiredCount: 5)) { value in
-                AxisGridLine()
-                AxisValueLabel()
-            }
-        }
-        .chartXAxis {
-            // 1. ADD THE PRESET HERE
-            AxisMarks(preset: .aligned, values: getStrideValues(from: data)) { value in
-                // 2. Add the Grid Line
-                AxisGridLine()
-                    .foregroundStyle(.secondary.opacity(0.3))
+                    .foregroundStyle(lineColor)
+                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
                     
-                // 3. Add the Label
-                AxisValueLabel {
-                    if let date = value.as(Date.self) {
-                        Text(date, format: .dateTime.month().day())
+                    AreaMark(
+                        x: .value("Day", item.date, unit: .day),
+                        y: .value("Players", item.count)
+                    )
+                    .foregroundStyle(
+                        .linearGradient(
+                            colors: [lineColor.opacity(0.4), .clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                }
+            }
+            .task{
+                data = await VM.getDataForGrowthTrend()
+            }
+            .chartPlotStyle { plot in
+                plot
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .padding(.bottom, 8)
+            }
+            .chartYScale(domain: .automatic(includesZero: true))
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 5)) { value in
+                    AxisGridLine()
+                    AxisValueLabel()
+                }
+            }
+            .chartXAxis {
+                // 1. ADD THE PRESET HERE
+                AxisMarks(preset: .aligned, values: getStrideValues(from: data)) { value in
+                    // 2. Add the Grid Line
+                    AxisGridLine()
+                        .foregroundStyle(.secondary.opacity(0.3))
+                        
+                    // 3. Add the Label
+                    AxisValueLabel {
+                        if let date = value.as(Date.self) {
+                            Text(date, format: .dateTime.month().day())
+                        }
                     }
                 }
             }
-        }
-        .frame(height: 220)
-        .padding()
-        .padding(.top)
-        .background {
-            RoundedRectangle(cornerRadius: 17)
-                .fill(.subTwo)
+            .frame(height: 220)
+            .padding()
+            .padding(.top)
+            .background {
+                RoundedRectangle(cornerRadius: 17)
+                    .fill(.subTwo)
+            }
         }
     }
     
@@ -123,70 +143,108 @@ struct GameDurationTrendChart: View {
     }
     
     var body: some View {
-        Group{
-            if data.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "chart.line.uptrend.xyaxis")
-                        .font(.largeTitle)
-                        .foregroundStyle(.secondary)
-                    
-                    Text("No duration data available")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
+        
+        if data.allSatisfy({ $0.avgMinutes == 0 }) {
+            VStack(spacing: 10) {
+                Image(systemName: "timer")
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text("Not enough data yet")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Text("Game duration trends will appear here once players start completing games.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
+            .task{
+                data = await VM.getDataForDurationTrend()
+            }
+        } else {
+            VStack{
+                HStack(alignment: .center) {
+                    Text("Game Duration Over Time")
+                        .foregroundStyle(.mainOpp)
+                        .font(.system(size: 14, weight: .semibold))
+                    Spacer()
+                    InfoButton(infoText: "Shows the duration of the games over time.")
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                Chart {
-                    ForEach(data) { item in
-                        LineMark(
-                            x: .value("Day", item.date, unit: .day),
-                            y: .value("Minutes", item.avgMinutes)
-                        )
-                        .foregroundStyle(lineColor)
-                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                        
-                        AreaMark(
-                            x: .value("Day", item.date, unit: .day),
-                            y: .value("Minutes", item.avgMinutes)
-                        )
-                        .foregroundStyle(
-                            .linearGradient(
-                                colors: [lineColor.opacity(0.3), .clear],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                    }
-                }
-                .chartYScale(domain: .automatic(includesZero: true))
-                .chartYAxis {
-                    AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
-                        AxisGridLine()
-                            .foregroundStyle(.secondary.opacity(0.2))
-                        AxisValueLabel {
-                            if let minutes = value.as(Double.self) {
-                                Text("\(Int(minutes))m")
-                                    .font(.caption2)
+                .padding(.bottom, 16)
+                Group{
+                    if data.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                                .font(.largeTitle)
+                                .foregroundStyle(.secondary)
+                            
+                            Text("No duration data available")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        Chart {
+                            ForEach(data) { item in
+                                LineMark(
+                                    x: .value("Day", item.date, unit: .day),
+                                    y: .value("Minutes", item.avgMinutes)
+                                )
+                                .foregroundStyle(lineColor)
+                                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                                
+                                AreaMark(
+                                    x: .value("Day", item.date, unit: .day),
+                                    y: .value("Minutes", item.avgMinutes)
+                                )
+                                .foregroundStyle(
+                                    .linearGradient(
+                                        colors: [lineColor.opacity(0.3), .clear],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
                             }
                         }
-                    }
-                }
-                .chartXAxis {
-                    AxisMarks(preset: .aligned, values: getStrideValues(from: data)) { value in
-                        AxisGridLine()
-                            .foregroundStyle(.secondary.opacity(0.3))
-                        AxisValueLabel {
-                            if let date = value.as(Date.self) {
-                                Text(date, format: .dateTime.month().day())
-                                    .font(.caption2)
+                        
+                        .chartYScale(domain: .automatic(includesZero: true))
+                        .chartYAxis {
+                            AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                                AxisGridLine()
+                                    .foregroundStyle(.secondary.opacity(0.2))
+                                AxisValueLabel {
+                                    if let minutes = value.as(Double.self) {
+                                        Text("\(Int(minutes))m")
+                                            .font(.caption2)
+                                    }
+                                }
+                            }
+                        }
+                        .chartXAxis {
+                            AxisMarks(preset: .aligned, values: getStrideValues(from: data)) { value in
+                                AxisGridLine()
+                                    .foregroundStyle(.secondary.opacity(0.3))
+                                AxisValueLabel {
+                                    if let date = value.as(Date.self) {
+                                        Text(date, format: .dateTime.month().day())
+                                            .font(.caption2)
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-        }
-        .task{
-            data = await VM.getDataForDurationTrend()
+            .frame(height: 200)
+            .padding()
+            .background(RoundedRectangle(cornerRadius: 17).fill(.subTwo))
+            .task{
+                data = await VM.getDataForDurationTrend()
+            }
+            .id(VM.rangeDailyDocs.count) // Force redraw when data changes
         }
     }
     

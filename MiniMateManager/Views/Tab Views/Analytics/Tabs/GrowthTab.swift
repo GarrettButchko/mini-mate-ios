@@ -26,7 +26,27 @@ struct GrowthTab: View {
                     DataCard(data: VM.returningPrime(), title: "Returning", infoText: "Players who had previously visited and played again during the selected date range.", color: .subTwo, cornerRadius: 16)
                 }
                 
-                VisitorDonutChart(returningPerc: VM.returningPercOfTotal(), firstTimePerc: VM.firstTimePercOfTotal())
+                if VM.returningPercOfTotal() == 0 && VM.firstTimePercOfTotal() == 0 {
+                    VStack(spacing: 10) {
+                        Image(systemName: "chart.pie")
+                            .font(.system(size: 28, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Text("Not enough data yet")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        Text("Visit data will appear here once players start coming to your course.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 12)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 16).fill(.subTwo))
+                } else {
+                    VisitorDonutChart(returningPerc: VM.returningPercOfTotal(), firstTimePerc: VM.firstTimePercOfTotal())
+                        .id(VM.rangeDailyDocs.count)
+                }
             }
             .padding()
             .background {
@@ -36,6 +56,7 @@ struct GrowthTab: View {
             }
             
             VStack(spacing: 8){
+
                 HStack{
                     Text("Trend")
                         .font(.title2)
@@ -67,7 +88,7 @@ struct GrowthTab: View {
                         Button("Returning") {
                             withAnimation {
                                 VM.growthChartTopic = .returning
-                            }              
+                            }
                         }
                     } label: {
                         HStack {
@@ -93,10 +114,29 @@ struct GrowthTab: View {
                     }
                 }
                 
-                PlayerTrendChart(VM: VM)
-                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                    .id(VM.growthChartTopic) // Force re-render when topic changes
-                    .id(VM.rangeDailyDocs.count)
+                if VM.rangeDailyDocs.isEmpty {
+                    VStack(spacing: 10) {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.system(size: 28, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Text("Not enough data yet")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        Text("Player trend data will appear here once players start visiting your course.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 12)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 16).fill(.subTwo))
+                } else {
+                    PlayerTrendChart(VM: VM)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        .id(VM.growthChartTopic)
+                        .id(VM.rangeDailyDocs.count)
+                }
             }
             .padding()
             .background {

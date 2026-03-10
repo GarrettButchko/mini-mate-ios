@@ -53,29 +53,31 @@ final class OperationsViewModel: ObservableObject {
     }
     
     func getBusiestHour() -> DataPointObject {
-        
         let fragments: [[String: Int]] = rangeDailyDocs.map(\.hourlyCounts)
-        // 1. Initialize a dict with all hours set to 0
+
+        guard !fragments.isEmpty else {
+            return DataPointObject(value: "N/A", delta: nil, deltaColor: .mainOpp)
+        }
+
+        // Initialize all hours to zero so keys are always present.
         var combinedCounts: [String: Int] = (0...23).reduce(into: [:]) { dict, hour in
             dict["\(hour)"] = 0
         }
-        
-        // 2. Merge your data into the master dict
+
         for fragment in fragments {
             for (hour, count) in fragment {
                 combinedCounts[hour, default: 0] += count
             }
         }
-        
-        var busiestHour: Int = 0
-        
-        if let busiest = combinedCounts.max(by: { $0.value < $1.value }) {
-            busiestHour = Int(busiest.key) ?? 0
+
+        guard let busiest = combinedCounts.max(by: { $0.value < $1.value }), busiest.value > 0 else {
+            return DataPointObject(value: "N/A", delta: nil, deltaColor: .mainOpp)
         }
-        
+
+        let busiestHour = Int(busiest.key) ?? 0
         var suffix = ""
         var displayHour = busiestHour
-        
+
         switch busiestHour {
         case 0:
             displayHour = 12
@@ -88,32 +90,34 @@ final class OperationsViewModel: ObservableObject {
             displayHour = busiestHour - 12
             suffix = "pm"
         default:
-            suffix = "err"
+            return DataPointObject(value: "N/A", delta: nil, deltaColor: .mainOpp)
         }
-        
+
         let valueString = "\(displayHour)\(suffix)"
-        
+
         return DataPointObject(value: valueString, delta: nil, deltaColor: .mainOpp)
     }
-    
+
     func getBusiestDay() -> DataPointObject {
-        
-        // 1. Sum up games played by weekday
+        guard !rangeDailyDocs.isEmpty else {
+            return DataPointObject(value: "N/A", deltaColor: .mainOpp)
+        }
+
+        // Sum up games played by weekday.
         let weeklyVolume = rangeDailyDocs.reduce(into: [Int: Int]()) { dict, doc in
             dict[doc.weekDay, default: 0] += doc.gamesPlayed
         }
-        
-        var valueString: String = "Err"
-        
-        // 2. To find the "Busiest Day" string (e.g., "Sat")
-        if let busiestDayInt = weeklyVolume.max(by: { $0.value < $1.value })?.key {
-            let dayLabels = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-            let busiestDayLabel = dayLabels[busiestDayInt]
-            valueString = busiestDayLabel.capitalized
+
+        guard let busiestDay = weeklyVolume.max(by: { $0.value < $1.value }), busiestDay.value > 0 else {
+            return DataPointObject(value: "N/A", deltaColor: .mainOpp)
         }
-        
-        return DataPointObject(value: valueString, deltaColor: .mainOpp)
-        
+
+        let dayLabels = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        guard (1...7).contains(busiestDay.key) else {
+            return DataPointObject(value: "N/A", deltaColor: .mainOpp)
+        }
+
+        return DataPointObject(value: dayLabels[busiestDay.key], deltaColor: .mainOpp)
     }
     
     func prepareChartData() async -> [HourData] {
