@@ -60,6 +60,7 @@ struct MainView: View {
                             alignment: .leading
                         )
                         .fontWeight(.semibold)
+                        .frame(maxWidth: 200, alignment: .leading)
                     }
                     .background {
                         GeometryReader { proxy in
@@ -81,6 +82,7 @@ struct MainView: View {
                             ProgressView()
                         }
                         .id(URL(string: courseLogo))
+                        .minimumScaleFactor(0.75)
                     }
                 }
                 .frame(maxHeight: titleHeight)

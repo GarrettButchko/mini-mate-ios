@@ -66,13 +66,7 @@ struct GamesPerDayChart: View {
                 }
             }
         }
-        .frame(height: 220)
-        .padding()
-        .padding(.top)
-        .background {
-            RoundedRectangle(cornerRadius: 17)
-                .fill(.subTwo)
-        }
+        
     }
     
     func getStrideValues(from data: [PlayerActivity]) -> [Date] {

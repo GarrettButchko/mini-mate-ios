@@ -19,16 +19,6 @@ struct HoleDifficultyChart: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Bar chart
-            HStack{
-                Text("Hole Dificulty")
-                    .foregroundStyle(.mainOpp)
-                    .font(.system(size: 14, weight: .semibold))
-                Spacer()
-                InfoButton(infoText: "Greener = Harder, Less opacity = Easier. Based on average strokes per hole. P.S. if holes are missing they are likely unplayed or have no data yet.")
-            }
-            .padding(.bottom, 8)
-            
             HStack(spacing: 4) {
                 ForEach(difficultyData) { hole in
                     VStack() {

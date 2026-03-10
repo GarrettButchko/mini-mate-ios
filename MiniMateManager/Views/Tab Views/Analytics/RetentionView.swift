@@ -20,7 +20,7 @@ struct RetentionView: View {
                     loadingState
                         .transition(.opacity)
                 } else {
-                    HStack {
+                    HStack(spacing: 16) {
                         DataCard(
                             data: DataPointObject(value: "\(VM.cachedAvgTimeToReturn)", delta: nil, deltaColor: nil),
                             title: "Avg Days, Return",

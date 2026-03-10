@@ -5,6 +5,7 @@
 //  Created by Garrett Butchko on 2/26/26.
 //
 import SwiftUI
+import MarqueeText
 
 struct DataCard: View {
     var data: DataPointObject
@@ -12,16 +13,22 @@ struct DataCard: View {
     var infoText: String = "No Text Yet"
     var color: Color = .sub
     var cornerRadius: CGFloat = 12
-    var fontStyle: Font = .system(size: 14, weight: .semibold)
+    var fontStyle: UIFont.TextStyle = .subheadline
     
     var body: some View {
         
         VStack(spacing: 8) {
             HStack{
-                Text(title)
-                    .foregroundStyle(.mainOpp)
-                    .font(fontStyle)
-                
+                MarqueeText(
+                    text: title,
+                    font: UIFont.preferredFont(forTextStyle: fontStyle),
+                    leftFade: 16,
+                    rightFade: 16,
+                    startDelay: 2,
+                    alignment: .leading
+                )
+                .foregroundStyle(.mainOpp)
+        
                 Spacer()
                 
                 InfoButton(infoText: infoText)

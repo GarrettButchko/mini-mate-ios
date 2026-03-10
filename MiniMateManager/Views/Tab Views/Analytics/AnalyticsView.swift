@@ -16,7 +16,7 @@ struct AnalyticsView: View {
     
     let anaRepo = AnalyticsRepository()
     
-    @State private var topBarHeight: CGFloat = 0
+    @State private var topBarHeight: CGFloat = 140
     @State private var canManualRefresh = true
     @State private var refreshRotation: Double = 0
     private let refreshCooldown: TimeInterval = 3
@@ -123,53 +123,66 @@ struct AnalyticsView: View {
     }
     var dayRangecontent: some View {
         // Content
-        ScrollView(.vertical) {
-            VStack(spacing: 16){
-                if VM.loadingDocs {
-                    VStack(spacing: 16) {
-                        // Mock Player Data Card
-                        VStack {
-                            RoundedRectangle(cornerRadius: 17).fill(.subTwo).frame(height: 100)
-                            HStack {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                VStack(spacing: 0){
+                    Color.clear
+                        .frame(height: 0)
+                        .id("top")
+                    if VM.loadingDocs {
+                        VStack(spacing: 16) {
+                            // Mock Player Data Card
+                            VStack {
                                 RoundedRectangle(cornerRadius: 17).fill(.subTwo).frame(height: 100)
-                                RoundedRectangle(cornerRadius: 17).fill(.subTwo).frame(height: 100)
+                                HStack {
+                                    RoundedRectangle(cornerRadius: 17).fill(.subTwo).frame(height: 100)
+                                    RoundedRectangle(cornerRadius: 17).fill(.subTwo).frame(height: 100)
+                                }
                             }
-                        }
-                        .skeleton(active: true)
-                        .clipShape(RoundedRectangle(cornerRadius: 17))
-                        
-                        // Mock Chart
-                        RoundedRectangle(cornerRadius: 17)
-                            .fill(.subTwo)
-                            .frame(height: 220)
                             .skeleton(active: true)
                             .clipShape(RoundedRectangle(cornerRadius: 17))
-                    }
-                    .padding()
-                    .background {
-                        RoundedRectangle(cornerRadius: 25)
-                            .fill(.sub)
-                            .cardShadow()
-                    }
-                    .transition(.opacity)
-                } else {
-                    if VM.selectedSection == .growth {
-                        growthStats
-                            .transition(.opacity)
-                    } else if VM.selectedSection == .operations {
-                        operationsStats
-                            .frame(maxWidth: .infinity)
-                            .transition(.opacity)
-                    } else if VM.selectedSection == .experience {
-                        expierenceStats
-                            .frame(maxWidth: .infinity)
-                            .transition(.opacity)
+                            
+                            // Mock Chart
+                            RoundedRectangle(cornerRadius: 17)
+                                .fill(.subTwo)
+                                .frame(height: 220)
+                                .skeleton(active: true)
+                                .clipShape(RoundedRectangle(cornerRadius: 17))
+                        }
+                        .padding()
+                        .background {
+                            RoundedRectangle(cornerRadius: 25)
+                                .fill(.sub)
+                                .cardShadow()
+                        }
+                        .transition(.opacity)
+                    } else {
+                        if VM.selectedSection == .growth {
+                            growthStats
+                                .transition(.opacity)
+                        } else if VM.selectedSection == .operations {
+                            operationsStats
+                                .frame(maxWidth: .infinity)
+                                .transition(.opacity)
+                        } else if VM.selectedSection == .experience {
+                            expierenceStats
+                                .frame(maxWidth: .infinity)
+                                .transition(.opacity)
+                        }
                     }
                 }
             }
+            .contentMargins([.horizontal, .bottom], 16)
+            .contentMargins(.top, topBarHeight)
+            .onChange(of: VM.selectedSection) { _, _ in
+                proxy.scrollTo("top", anchor: .top)
+            }
+            .onChange(of: VM.range) { _, _ in
+                withAnimation {
+                    proxy.scrollTo("top", anchor: .top)
+                }
+            }
         }
-        .contentMargins([.horizontal, .bottom], 16)
-        .contentMargins(.top, topBarHeight + 24)
     }
     
     var growthStats: some View {
@@ -268,13 +281,9 @@ struct AnalyticsView: View {
                     }
                 }
                 
-                if inRange {
-                    PlayerSummaryChart(VM: VM)
-                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                } else {
-                    PlayerTrendChart(VM: VM)
-                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                }
+                PlayerTrendChart(VM: VM)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    .id(VM.growthChartTopic) // Force re-render when topic changes
             }
             .padding()
             .background {
@@ -290,7 +299,7 @@ struct AnalyticsView: View {
             
             VStack(spacing: 8){
                 HStack{
-                    Text("Games Per Day Trend")
+                    Text("Games vs Days")
                         .font(.title2)
                         .fontWeight(.bold)
                     Spacer()
@@ -298,7 +307,23 @@ struct AnalyticsView: View {
                 
                 DataCard(data: VM.avgGamesPerDayPrime(), title: "Avg Games Per Day", infoText: "The average number of games played per day.", color: .subTwo, cornerRadius: 17)
                 
-                GamesPerDayChart()
+                VStack{
+                    HStack(alignment: .center) {
+                        Text("Games Over Time")
+                            .foregroundStyle(.mainOpp)
+                            .font(.system(size: 14, weight: .semibold))
+                        Spacer()
+                        InfoButton(infoText: "Shows the duration of the games over time.")
+                    }
+                    .padding(.bottom, 16)
+                    GamesPerDayChart()
+                }
+                .frame(height: 240)
+                .padding()
+                .background {
+                    RoundedRectangle(cornerRadius: 17)
+                        .fill(.subTwo)
+                }
             }
             .padding()
             .background {
@@ -361,7 +386,7 @@ struct AnalyticsView: View {
                 
                 VStack{
                     HStack(alignment: .center) {
-                        Text("Game Duration Trend")
+                        Text("Game Duration Over Time")
                             .foregroundStyle(.mainOpp)
                             .font(.system(size: 14, weight: .semibold))
                         Spacer()
@@ -393,10 +418,11 @@ struct AnalyticsView: View {
                 
                 VStack(spacing: 8){
                     HStack{
-                        Text("Hole Difficulty")
+                        Text("Hole Dificulty")
                             .font(.title2)
                             .fontWeight(.bold)
                         Spacer()
+                        InfoButton(infoText: "Greener = Harder, Less opacity = Easier. Based on average strokes per hole. P.S. if holes are missing they are likely unplayed or have no data yet.")
                     }
                     
                     HoleDifficultyCharts()
@@ -517,7 +543,11 @@ struct AnalyticsView: View {
                     .ifAvailableGlassEffect()
                     .cardShadow()
                     .task(id: proxy.size) {
-                        topBarHeight = proxy.size.height // Capture the size and monitor changes
+                        await MainActor.run {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                topBarHeight = proxy.size.height + 24
+                            }
+                        }
                     }
             }
         }

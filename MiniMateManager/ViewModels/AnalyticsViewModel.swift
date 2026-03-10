@@ -205,9 +205,6 @@ final class AnalyticsViewModel: ObservableObject {
     @Published var cachedAvgTimeToReturn: Int = 0
     @Published var cached30DayRetention: Double = 0.0
     
-    // Cache hole combined results to avoid repeated expensive calculations
-    @Published var cachedHoleCombined: [String: Double] = [:]
-    
     // Store current course for experience metrics
     @Published var currentCourse: Course?
     
@@ -544,10 +541,6 @@ final class AnalyticsViewModel: ObservableObject {
     }
     
     func getHoleCombined() -> [String: Double] {
-        // Return cached value if available and not stale
-        if !cachedHoleCombined.isEmpty {
-            return cachedHoleCombined
-        }
         
         var combinedTotalStrokes: [String: Int] = [:]
         var combinedPlays: [String: Int] = [:]
@@ -566,15 +559,7 @@ final class AnalyticsViewModel: ObservableObject {
             return dict[hole.key] = Double(hole.value) / Double(combinedPlays[hole.key] ?? 1)
         }
         
-        // Cache the result
-        cachedHoleCombined = avgStrokesPerHole
-        
         return avgStrokesPerHole
-    }
-    
-    /// Invalidate hole combined cache (call when data changes)
-    private func invalidateHoleCombinedCache() {
-        cachedHoleCombined = [:]
     }
     
     func getHoleDifficultyData() async -> [HoleDifficultyData] {
@@ -752,7 +737,7 @@ final class AnalyticsViewModel: ObservableObject {
         }
         
         let percentage = (Double(underParCount) / Double(totalHolesPlayed)) * 100
-        return DataPointObject(value: String(format: "%.1f%%", percentage), delta: nil, deltaColor: .blue)
+        return DataPointObject(value: String(format: "%.1f%%", percentage), delta: nil, deltaColor: .mainOpp)
     }
     
     /// Calculate percentage of holes completed over par
@@ -787,7 +772,7 @@ final class AnalyticsViewModel: ObservableObject {
         }
         
         let percentage = (Double(overParCount) / Double(totalHolesPlayed)) * 100
-        return DataPointObject(value: String(format: "%.1f%%", percentage), delta: nil, deltaColor: .blue)
+        return DataPointObject(value: String(format: "%.1f%%", percentage), delta: nil, deltaColor: .mainOpp)
     }
     
     /// Count total number of holes-in-one
@@ -1018,9 +1003,6 @@ final class AnalyticsViewModel: ObservableObject {
             existingDocs: allDailyDocs
         )
         
-        // Invalidate cache when data changes
-        invalidateHoleCombinedCache()
-        
         await MainActor.run {
             withAnimation {
                 loadingDocs = false
@@ -1042,9 +1024,6 @@ final class AnalyticsViewModel: ObservableObject {
                 range: .last30,
                 existingDocs: []
             )
-            
-            // Invalidate cache when data changes
-            invalidateHoleCombinedCache()
             
             withAnimation {
                 loadingDocs = false
@@ -1112,9 +1091,6 @@ final class AnalyticsViewModel: ObservableObject {
                 range: new,
                 existingDocs: allDailyDocs
             )
-            
-            // Invalidate cache when data changes
-            invalidateHoleCombinedCache()
             
             loadingDocs = false
         }
