@@ -135,9 +135,42 @@ struct MainView: View {
             
             ZStack(alignment: .top){
                 ScrollView{
-                    VStack (spacing: 16){
-                        if analyticsVM.isLoadingHealth {
-                            ProgressView("Analyzing course health...")
+                    ZStack{
+                        VStack (spacing: 16){
+                            if analyticsVM.isLoadingHealth {
+                                ProgressView("Analyzing course health...")
+                                    .frame(height: 375)
+                                    .frame(maxWidth: .infinity)
+                                    .background {
+                                        RoundedRectangle(cornerRadius: 25)
+                                            .subVsColor(makeColor: viewModel.selectedCourse?.scoreCardColor)
+                                            .cardShadow()
+                                    }
+                            } else if let report = analyticsVM.healthReport {
+                                Button{
+                                    showHealthRatingSheet = true
+                                } label: {
+                                    HealthRatingChart(healthReport: report)
+                                        .frame(height: 375)
+                                }
+                                .sheet(isPresented: $showHealthRatingSheet){
+                                    SectionHealthDetailView(healthReport: report)
+                                        .presentationDragIndicator(.visible)
+                                }
+                            } else {
+                                VStack(spacing: 12) {
+                                    Image(systemName: "chart.bar.doc.horizontal")
+                                        .font(.system(size: 48))
+                                        .foregroundStyle(.secondary)
+                                    
+                                    Text("No Health Data Available")
+                                        .font(.headline)
+                                        .foregroundStyle(.secondary)
+                                    
+                                    Text("Analytics data is being collected")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                                 .frame(height: 375)
                                 .frame(maxWidth: .infinity)
                                 .background {
@@ -145,42 +178,26 @@ struct MainView: View {
                                         .subVsColor(makeColor: viewModel.selectedCourse?.scoreCardColor)
                                         .cardShadow()
                                 }
-                        } else if let report = analyticsVM.healthReport {
-                            Button{
-                                showHealthRatingSheet = true
-                            } label: {
-                                HealthRatingChart(healthReport: report)
-                                    .frame(height: 375)
                             }
-                            .sheet(isPresented: $showHealthRatingSheet){
-                                SectionHealthDetailView(healthReport: report)
-                                    .presentationDragIndicator(.visible)
-                            }
-                        } else {
-                            VStack(spacing: 12) {
-                                Image(systemName: "chart.bar.doc.horizontal")
-                                    .font(.system(size: 48))
-                                    .foregroundStyle(.secondary)
-                                
-                                Text("No Health Data Available")
+                        }
+                        .blur(radius: viewModel.selectedCourse?.tier ?? 0 >= 3 ? 0 : 6)
+                        .allowsHitTesting(false)
+                        
+                        if (viewModel.selectedCourse?.tier ?? 0) < 3 {
+                            VStack(spacing: 8) {
+                                Image(systemName: "lock.fill")
+                                    .font(.title)
+                                Text("Upgrade to Tier 3")
                                     .font(.headline)
-                                    .foregroundStyle(.secondary)
-                                
-                                Text("Analytics data is being collected")
+                                Text("Unlock Course Health Analytics")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                            }
-                            .frame(height: 375)
-                            .frame(maxWidth: .infinity)
-                            .background {
-                                RoundedRectangle(cornerRadius: 25)
-                                    .subVsColor(makeColor: viewModel.selectedCourse?.scoreCardColor)
-                                    .cardShadow()
                             }
                         }
                     }
                 }
                 .contentMargins(.top, buttonsViewHeight + 16)
+                
                 
                 
                 HStack(spacing: 14){

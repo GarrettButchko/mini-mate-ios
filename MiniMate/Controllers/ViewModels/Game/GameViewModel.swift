@@ -535,6 +535,7 @@ final class GameViewModel: ObservableObject, Observable {
     }
     
     func dismissGame() {
+        
         guard !game.dismissed else { return }
         
         // Set flag to prevent re-attaching listeners during cleanup

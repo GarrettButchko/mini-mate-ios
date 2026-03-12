@@ -181,7 +181,7 @@ struct StatsView: View {
                                 .sheet(item: $gameReview) {
                                     gameReview = nil
                                 } content: { game in
-                                    GameReviewView(game: game, showBackToStatsButton: true, gameReview: $gameReview)
+                                    GameReviewView(game: game, showBackToStatsButton: true)
                                         .presentationDragIndicator(.visible)
                                 }
                                 .cardShadow()

@@ -42,10 +42,11 @@ struct HostView: View {
             }
             .contentMargins(.top, 100)
             .contentMargins(.bottom, 70)
-            
+            .onTapGesture {
+                VM.resetTimer(gameModel)
+            }
             
             VStack{
-                
                 HStack(alignment: .center, spacing: 10){
                     
                     if isGuest {
@@ -113,9 +114,11 @@ struct HostView: View {
             AddLocalPlayerView(showColor: $VM.showAddLocalPlayer)
         }
         .onAppear {
+            VM.resetTimer(gameModel)
             VM.setUp(gameModel: gameModel, handler: locationHandler)
         }
         .onDisappear {
+            VM.resetTimer(gameModel)
             if !gameModel.gameValue.started && !gameModel.gameValue.dismissed && showHost == false {
                 gameModel.dismissGame()
             }

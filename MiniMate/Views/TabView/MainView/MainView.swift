@@ -654,7 +654,7 @@ struct MainView: View {
             }
             .buttonStyle(.plain)
             .sheet(item: $gameReview) { game in
-                GameReviewView(game: game, showBackToStatsButton: true, gameReview: $gameReview)
+                GameReviewView(game: game, showBackToStatsButton: true)
                     .presentationDragIndicator(.visible)
             }
             .transition(.asymmetric(

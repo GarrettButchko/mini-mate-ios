@@ -24,95 +24,203 @@ struct AnalyticsView: View {
     @State var isRotating: Bool = false
     
     var body: some View {
-        VStack {
-            VStack (spacing: 8){
-                HStack{
-                    VStack(alignment: .leading){
-                        Text("Analytics")
-                            .font(.title)
-                            .fontWeight(.bold)
-                    }
-                    
-                    
+        if let course = courseVM.selectedCourse {
+            if course.tier <= 2 {
+                VStack(spacing: 0) {
                     Spacer()
                     
-                    Button(action: {
-                        withAnimation(){
-                            isRotating = true
-                            triggerAnalyticsRefresh(isAnalytics: VM.pickedSection == "Day Range")
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                                isRotating = false
-                            }
+                    VStack(spacing: 28) {
+                        // Icon with a "Locked" or "Premium" vibe
+                        ZStack {
+                            Circle()
+                                .fill(Color.blue.opacity(0.1))
+                                .frame(width: 120, height: 120)
+                            
+                            Image(systemName: "chart.pie.fill")
+                                .font(.system(size: 60))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.blue, .purple],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                            
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 24))
+                                .padding(8)
+                                .background(Circle().fill(.bg))
+                                .offset(x: 35, y: 35)
+                                .foregroundStyle(.secondary)
                         }
-                    }) {
-                        Image(systemName: "arrow.trianglehead.2.clockwise")
-                            .rotationEffect(.degrees(isRotating ? 360 : 0))
-                            .font(.title2)
-                            .foregroundColor(.blue)
-                            .frame(width: 30, height: 30)
+                        
+                        // Title & Description
+                        VStack(spacing: 12) {
+                            Text("Advanced Analytics")
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .foregroundStyle(.mainOpp)
+                            
+                            Text("Unlock deep insights into player retention, peak hours, and course performance with MiniMate Pro.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 20)
+                        }
+                        
+                        // Tier 3 Feature List
+                        VStack(alignment: .leading, spacing: 18) {
+                            featureItem(icon: "calendar.badge.clock",
+                                        title: "Day Range Analysis",
+                                        description: "Track performance over custom time periods.")
+                            
+                            featureItem(icon: "person.2.wave.2.fill",
+                                        title: "Retention Tracking",
+                                        description: "See how many players return to your course.")
+                            
+                            featureItem(icon: "arrow.down.doc.fill",
+                                        title: "Data Export",
+                                        description: "Download CSV reports for your business records.")
+                        }
+                        .padding(.vertical, 8)
+                        
+                        // Call to Action
+                        VStack(spacing: 16) {
+                            Button {
+                                // Action to open subscription/billing page
+                            } label: {
+                                Text("Upgrade to Tier 3")
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 54)
+                                    .background(Color.blue)
+                                    .cornerRadius(16)
+                                    .shadow(color: .blue.opacity(0.3), radius: 10, y: 5)
+                            }
+                            
+                            Text("Compare Tiers in Settings")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                    .disabled(!canManualRefresh)
-                    .opacity(canManualRefresh ? 1 : 0.45)
+                    .padding(.horizontal, 32)
                     
-
-                    Menu {
-                        Button {
-                            anaRepo.uploadDebugDailyDocs(courseID: courseVM.selectedCourse!.id) { success in
-                                if success{
-                                    Task {
-                                        await VM.onAppearDailyAnalytics(course: courseVM.selectedCourse)
+                    Spacer()
+                }
+            } else {
+                VStack {
+                    VStack (spacing: 8){
+                        HStack{
+                            VStack(alignment: .leading){
+                                Text("Analytics")
+                                    .font(.title)
+                                    .fontWeight(.bold)
+                            }
+                            
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                withAnimation(){
+                                    isRotating = true
+                                    triggerAnalyticsRefresh(isAnalytics: VM.pickedSection == "Day Range")
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                                        isRotating = false
                                     }
                                 }
+                            }) {
+                                Image(systemName: "arrow.trianglehead.2.clockwise")
+                                    .rotationEffect(.degrees(isRotating ? 360 : 0))
+                                    .font(.title2)
+                                    .foregroundColor(.blue)
+                                    .frame(width: 30, height: 30)
                             }
-                        } label: {
-                            Label("Upload Daily Docs", systemImage: "calendar")
-                        }
-                        
-                        Button {
-                            anaRepo.uploadDebugEmails(courseID: courseVM.selectedCourse!.id, count: 100) { success in
-                                if success {
-                                    // Refresh the emails after upload
-                                    Task {
-                                        await VM.onAppearRetention(course: courseVM.selectedCourse)
+                            .disabled(!canManualRefresh)
+                            .opacity(canManualRefresh ? 1 : 0.45)
+                            
+                            
+                            Menu {
+                                Button {
+                                    anaRepo.uploadDebugDailyDocs(courseID: courseVM.selectedCourse!.id) { success in
+                                        if success{
+                                            Task {
+                                                await VM.onAppearDailyAnalytics(course: courseVM.selectedCourse)
+                                            }
+                                        }
                                     }
+                                } label: {
+                                    Label("Upload Daily Docs", systemImage: "calendar")
                                 }
+                                
+                                Button {
+                                    anaRepo.uploadDebugEmails(courseID: courseVM.selectedCourse!.id, count: 100) { success in
+                                        if success {
+                                            // Refresh the emails after upload
+                                            Task {
+                                                await VM.onAppearRetention(course: courseVM.selectedCourse)
+                                            }
+                                        }
+                                    }
+                                } label: {
+                                    Label("Upload 100 Test Emails", systemImage: "envelope.badge.fill")
+                                }
+                            } label: {
+                                Image(systemName: "hammer.fill")
+                                    .foregroundStyle(.secondary)
                             }
-                        } label: {
-                            Label("Upload 100 Test Emails", systemImage: "envelope.badge.fill")
                         }
-                    } label: {
-                        Image(systemName: "hammer.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                
-                Picker("Section", selection: $VM.pickedSection) {
-                    ForEach(VM.pickerSections, id: \.self) {
-                        Text($0)
-                    }
-                }
-                .pickerStyle(.segmented)
-            }
-            .padding([.horizontal, .top])
-            
-            ZStack (alignment: .top){
-                if VM.pickedSection == "Day Range" {
-                    dayRangecontent
-                    topBar
-                } else {
-                    RetentionView()
                         
+                        Picker("Section", selection: $VM.pickedSection) {
+                            ForEach(VM.pickerSections, id: \.self) {
+                                Text($0)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    .padding([.horizontal, .top])
+                    
+                    ZStack (alignment: .top){
+                        if VM.pickedSection == "Day Range" {
+                            dayRangecontent
+                            topBar
+                        } else {
+                            RetentionView()
+                            
+                        }
+                    }
                 }
-            }
-        }
-        .environmentObject(VM)
-        .background(.bg)
-        .onChange(of: VM.range) { old, new in
-            withAnimation{
-                VM.onChange(old: old, new: new, course: courseVM.selectedCourse)
+                .environmentObject(VM)
+                .background(.bg)
+                .onChange(of: VM.range) { old, new in
+                    withAnimation{
+                        VM.onChange(old: old, new: new, course: courseVM.selectedCourse)
+                    }
+                }
             }
         }
     }
+    
+    private func featureItem(icon: String, title: String, description: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundStyle(.blue)
+                .frame(width: 32, height: 32)
+                .background(Circle().fill(.blue.opacity(0.15)))
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.mainOpp)
+                
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+    
     var dayRangecontent: some View {
         // Content
         ScrollViewReader { proxy in

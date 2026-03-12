@@ -144,8 +144,6 @@ struct ScoreCardView: View {
         .padding(.vertical)
     }
     
-    
-    
     /// Player Row
     private var playerHeaderRow: some View {
         // If there’s no host yet, render nothing (or a placeholder)

@@ -8,8 +8,14 @@
 import SwiftUI
 
 struct BouncingBallsView: View {
+    @EnvironmentObject var VM: LeaderBoardViewModel
+    @EnvironmentObject var courseVM: CourseViewModel
+    
     private let containerHeight: CGFloat
+    
     let topThreePlayers: [LeaderboardEntry]
+    
+    @State var showDeleteAlert = false
     
     init(containerWidth: CGFloat = UIScreen.main.bounds.width - 40, containerHeight: CGFloat = 220, topThreePlayers: [LeaderboardEntry] = []) {
         self.containerHeight = containerHeight
@@ -21,7 +27,7 @@ struct BouncingBallsView: View {
             if topThreePlayers.isEmpty {
                 podiumEmptyState
             } else {
-                HStack(alignment: .bottom, spacing: 12) {
+                HStack(alignment: .bottom, spacing: 12){
                     podiumSlot(for: 2)
                     podiumSlot(for: 1)
                     podiumSlot(for: 3)
@@ -56,47 +62,58 @@ struct BouncingBallsView: View {
     }
     
     private func podiumColumn(player: LeaderboardEntry, rank: Int) -> some View {
-        VStack(spacing: 8) {
-            ZStack() {
-                Circle()
-                    .fill(podiumColor(for: rank).opacity(0.16))
-                    .frame(width: bubbleSize(rank: rank), height: bubbleSize(rank: rank))
-                
-                Image("logoOpp")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: bubbleSize(rank: rank) * 0.82, height: bubbleSize(rank: rank) * 0.82)
-            }
-            
-            VStack(spacing: 2) {
-                Text(player.name)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.mainOpp)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.9)
-                
-                Text("\(player.totalStrokes) strokes")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-            }
-            .frame(maxWidth: .infinity)
-            
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(podiumColor(for: rank).opacity(rank == 1 ? 0.26 : 0.18))
-                .overlay {
-                    VStack(spacing: 2) {
-                        Text("#\(rank)")
-                            .font(.system(size: 18, weight: .heavy))
-                            .foregroundStyle(.mainOpp)
-                        Text(rankTitle(for: rank))
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.top, 4)
+        Button {
+            showDeleteAlert = true
+        } label: {
+            VStack(spacing: 8) {
+                ZStack() {
+                    Circle()
+                        .fill(podiumColor(for: rank).opacity(0.16))
+                        .frame(width: bubbleSize(rank: rank), height: bubbleSize(rank: rank))
+                    
+                    Image("logoOpp")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: bubbleSize(rank: rank) * 0.82, height: bubbleSize(rank: rank) * 0.82)
                 }
-                .frame(height: podiumHeight(rank: rank))
+                
+                VStack(spacing: 2) {
+                    Text(player.name)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.mainOpp)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.9)
+                    
+                    Text("\(player.totalStrokes) strokes")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+                .frame(maxWidth: .infinity)
+                
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(podiumColor(for: rank).opacity(rank == 1 ? 0.26 : 0.18))
+                    .overlay {
+                        VStack(spacing: 2) {
+                            Text("#\(rank)")
+                                .font(.system(size: 18, weight: .heavy))
+                                .foregroundStyle(.mainOpp)
+                            Text(rankTitle(for: rank))
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.top, 4)
+                    }
+                    .frame(height: podiumHeight(rank: rank))
+            }
+        }
+        .alert("Delete Player?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                guard let course = courseVM.selectedCourse else { return }
+                VM.deletePlayerEntry(courseID: course.id, playerID: player.id)
+            }
+            Button("Cancel", role: .cancel) {}
         }
     }
     

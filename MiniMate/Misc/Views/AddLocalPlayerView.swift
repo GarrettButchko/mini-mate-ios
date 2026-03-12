@@ -56,7 +56,7 @@ struct AddLocalPlayerView: View {
             buttonRow
                 .padding(.horizontal, 24)
         }
-        .padding([.top], 24)
+        .padding(.top, 24)
         .presentationDetents([.fraction(0.42)])
         .presentationDragIndicator(.visible)
     }
@@ -81,12 +81,15 @@ struct AddLocalPlayerView: View {
             
             if gameVM.getCourse() != nil {
                 Divider()
+                    .frame(height: 1) // Force the height so it can't disappear
+                    .background(Color.mainOpp.opacity(0.2)) // Ensure it's visible
                 TextField("Email", text: $newPlayerEmail)
                     .autocapitalization(.none)   // starts lowercase / no auto-cap
                     .keyboardType(.emailAddress)
             }
         }
-        .padding()
+        .padding(16)
+        .fixedSize(horizontal: false, vertical: true)
         .background(RoundedRectangle(cornerRadius: 30).fill(.mainOpp.opacity(0.15)))
     }
     

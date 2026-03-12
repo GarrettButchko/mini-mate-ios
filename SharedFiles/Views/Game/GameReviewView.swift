@@ -18,10 +18,8 @@ struct GameReviewView: View {
     
     @State private var titleHeight: CGFloat = 0
     
-    @Binding var gameReview: Game?
-    
     // Custom init to assign @StateObject and normal vars
-    init(game: Game, showBackToStatsButton: Bool = false, isInCourseSettings: Bool = false, scrollOffset: CGFloat = 0, uuid: UUID? = nil, showInfoView: Bool = false, gameReview: Binding<Game?> = .constant(nil)) {
+    init(game: Game, showBackToStatsButton: Bool = false, isInCourseSettings: Bool = false, scrollOffset: CGFloat = 0, uuid: UUID? = nil, showInfoView: Bool = false) {
         self.showBackToStatsButton = showBackToStatsButton
         self.isInCourseSettings = isInCourseSettings
         
@@ -30,7 +28,6 @@ struct GameReviewView: View {
         _scrollOffset = State(initialValue: scrollOffset)
         _uuid = State(initialValue: uuid)
         _showInfoView = State(initialValue: showInfoView)
-        _gameReview = gameReview
     }
     
     var body: some View {
@@ -66,7 +63,7 @@ struct GameReviewView: View {
                     VStack(alignment: .leading){
                         Text("Scorecard")
                             .font(.title).fontWeight(.bold)
-                        if let locationName = gameReview?.locationName {
+                        if let locationName = viewModel.game.locationName {
                             Text(locationName)
                                 .font(.subheadline)
                         }
@@ -171,7 +168,7 @@ struct GameReviewView: View {
                     Text("Hole \(i)")
                         .font(.body).fontWeight(.medium)
 
-                    if let pars = viewModel.course?.pars, pars.indices.contains(i - 1) {
+                    if let pars = viewModel.course?.pars, pars.indices.contains(i - 1) && viewModel.course?.customPar == true {
                         Text("Par: \(pars[i - 1])")
                             .font(.caption)
                     }
@@ -188,7 +185,7 @@ struct GameReviewView: View {
             VStack{
                 Text("Total")
                     .font(.title3).fontWeight(.semibold)
-                if let coursePars = viewModel.course?.pars, coursePars.count > 0{
+                if let coursePars = viewModel.course?.pars, coursePars.count > 0 && viewModel.course?.customPar == true{
                     Text("Par: \(coursePars.reduce(0) { $0 + ($1) })")
                         .font(.caption)
                 }
@@ -233,13 +230,8 @@ struct GameReviewView: View {
                     HStack {
                         Button {
                             
-                            #if MINIMATE
-                            gameReview = nil
-                            #endif
-                            
-                            #if !MINIMATE
                             dismiss()
-                            #endif
+                            
                         } label: {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 25)
@@ -286,19 +278,19 @@ struct GameReviewView: View {
                                     switch phase {
                                     case .empty:
                                         ProgressView()
-                                            .frame(height: 60)
+                                            .frame(height: 50)
                                     case .success(let image):
                                         image
                                             .resizable()
-                                            .scaledToFill()
-                                            .frame(height: 60)
+                                            .scaledToFit()
+                                            .frame(height: 50)
                                             .clipShape(RoundedRectangle(cornerRadius: 12))
                                             .clipped()
                                     case .failure:
                                         Image(systemName: "photo")
                                             .resizable()
                                             .scaledToFit()
-                                            .frame(height: 60)
+                                            .frame(height: 50)
                                             .foregroundColor(.gray)
                                             .background(Color.gray.opacity(0.2))
                                             .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -311,6 +303,7 @@ struct GameReviewView: View {
                         }
                         .padding()
                     }
+                    .frame(height: 50)
                 } else if let course = viewModel.course, !course.customAdActive{
                     Text("Google Ad Here (If Not Pro User)")
                         .font(.footnote)

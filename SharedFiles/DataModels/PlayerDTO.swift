@@ -21,7 +21,7 @@ struct PlayerDTO: Codable, Identifiable, Equatable {
 extension PlayerDTO {
     func convertToLBREP() -> LeaderboardEntry? {
         if let email = email {
-            return LeaderboardEntry(id: id, userId: userId, name: name, photoURL: photoURL, totalStrokes: totalStrokes, email: email)
+            return LeaderboardEntry(id: id, userId: userId, name: name, photoURL: photoURL, ballColorDT: ballColorDT, totalStrokes: totalStrokes, email: email)
         } else {
             return nil
         }
@@ -33,6 +33,7 @@ struct LeaderboardEntry: Codable, Identifiable, Equatable {
     var userId: String
     var name: String
     var photoURL: URL?
+    var ballColorDT: String?
     var totalStrokes: Int
     var email: String
 }

@@ -104,7 +104,7 @@ struct RecapView<Content: View>: View {
                     .sheet(item: $gameReview){
                         gameReview = nil
                     } content: { game in
-                        GameReviewView(game: game, gameReview: $gameReview)
+                        GameReviewView(game: game)
                             .presentationDragIndicator(.visible)
                     }
                     content()

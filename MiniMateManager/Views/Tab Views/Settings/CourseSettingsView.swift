@@ -31,15 +31,45 @@ struct CourseSettingsView: View {
                 
                 CourseSectionView(course: course)
                 PasswordSectionView(course: course)
-                AppearanceSectionView()
                 SocialLinksSectionView()
             }
             
-            AdSectionView()
-            ParSettingsSectionView()
+            if let courseTier = courseViewModel.selectedCourse?.tier, courseTier >= 2 {
+                AppearanceSectionView()
+                AdSectionView()
+                LeaderBoardSectionView()
+            }
+            
             ParConfigurationSectionView()
         }
         .contentMargins(.top, 16)
+    }
+}
+
+struct LeaderBoardSectionView: View {
+    @EnvironmentObject var courseViewModel: CourseViewModel
+    
+    var body: some View {
+        if let selectedCourse = courseViewModel.selectedCourse{
+            
+            Toggle("Leaderboard Active:", isOn: courseViewModel.binding(keyPath: \.leaderBoardActive) ?? Binding.constant(false))
+                .toggleStyle(SwitchToggleStyle())
+                .disabled(!selectedCourse.customPar)
+                .onChange(of: selectedCourse.customPar) { _, new in
+                    if new == false{
+                        courseViewModel.selectedCourse?.leaderBoardActive = false
+                        courseViewModel.debouncedSave()
+                    }
+                }
+            
+            if (selectedCourse.leaderBoardActive){
+                Text("Players can now see this course's leaderboard and add their score to it if it follows the rules: no profanity, no incomplete games (no 0's)")
+                    .font(.footnote)
+            } else {
+                Text("To activate this feature, you need 'Custom Pars' to be turned on.")
+                    .font(.footnote)
+            }
+        }
     }
 }
 
@@ -385,7 +415,7 @@ struct AdSectionView: View {
     @EnvironmentObject var courseViewModel: CourseViewModel
     
     var body: some View {
-        if let courseTier = courseViewModel.selectedCourse?.tier, courseTier >= 2 {
+        
             Section("Ad") {
                 
                 
@@ -400,7 +430,7 @@ struct AdSectionView: View {
                     AdImageView()
                 }
             }
-        }
+        
     }
 }
 
@@ -415,16 +445,12 @@ struct AdTitleView: View {
                 Text("Ad Title:")
                 Spacer()
             }
-            
             Spacer()
-            
-            TextEditor(text: courseViewModel.limitedTextBinding(keyPath: \.adTitle, deleteKey: "adTitle", limit: 40))
-                .frame(minHeight: 40, maxHeight: 80)
+            TextField("title", text: courseViewModel.limitedTextBinding(keyPath: \.adTitle, deleteKey: "adTitle", limit: 32))
                 .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .fill(Color(.systemBackground))
-                        .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
+                        .fill(.subTwo)
                 )
         }
     }
@@ -441,13 +467,11 @@ struct AdDescriptionView: View {
                 Spacer()
             }
             Spacer()
-            TextEditor(text: courseViewModel.limitedTextBinding(keyPath: \.adDescription, deleteKey: "adDescription", limit: 80))
-                .frame(minHeight: 60, maxHeight: 120)
+            TextField("description", text: courseViewModel.limitedTextBinding(keyPath: \.adDescription, deleteKey: "adDescription", limit: 40))
                 .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .fill(Color(.systemBackground))
-                        .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
+                        .fill(.subTwo)
                 )
         }
     }
@@ -461,12 +485,15 @@ struct AdLinkView: View {
         HStack {
             Text("Ad Link:")
             Spacer()
-            TextField("Ad Link", text: courseViewModel.optionalBinding(keyPath: \.adLink, deleteKey: "adLink"))
+            TextField("ad link (https://...)", text: courseViewModel.optionalBinding(keyPath: \.adLink, deleteKey: "adLink"))
                 .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 15, style: .continuous)
                         .fill(.subTwo)
                 )
+                .keyboardType(.URL) // This adds the URL-specific keys
+                .autocorrectionDisabled() // Prevents "https" from being "corrected"
+                .textInputAutocapitalization(.never) // Keeps everything lowercase
         }
     }
 }
@@ -530,41 +557,66 @@ struct AdImageView: View {
     }
 }
 
-// MARK: - Par Settings Section
-struct ParSettingsSectionView: View {
-    @EnvironmentObject var viewModel: CourseSettingsViewModel
-    @EnvironmentObject var courseViewModel: CourseViewModel
-    
-    var body: some View {
-        Section("Par Settings") {
-            Toggle("Custom Pars", isOn: courseViewModel.customParBinding())
-            
-            if let customPar = courseViewModel.selectedCourse?.customPar, customPar == true {
-                HStack {
-                    Text("Number Of Holes")
-                    NumberPickerView(selectedNumber: courseViewModel.numHolesBinding(), minNumber: 9, maxNumber: 21)
-                        .frame(height: 60)
-                }
-            }
-        }
-    }
-}
-
 // MARK: - Par Configuration Section
 struct ParConfigurationSectionView: View {
     @EnvironmentObject var viewModel: CourseSettingsViewModel
     @EnvironmentObject var courseViewModel: CourseViewModel
+    let LBRepo = CourseLeaderboardRepository()
+    
+    @State private var showingCustomParAlert = false
+    @State private var pendingToggleValue = false
     
     var body: some View {
-        Section("Par Configuration") {
-            if let pars = courseViewModel.selectedCourse?.pars, pars.count > 0 {
-                // Par Preview
-                VStack(spacing: 12) {
-                    HStack {
-                        Text("Par Preview")
-                        Spacer()
+        if let course = courseViewModel.selectedCourse {
+            Section("Par Configuration") {
+                
+                // We use a local toggle that doesn't hit the ViewModel directly
+                Toggle("Custom Pars", isOn: Binding(
+                    get: { course.customPar },
+                    set: { newValue in
+                        if newValue == false {
+                            // If turning OFF, show warning
+                            pendingToggleValue = newValue
+                            showingCustomParAlert = true
+                        } else {
+                            
+                            courseViewModel.selectedCourse?.pars = Array(repeating: 2, count: 18)
+                            // If turning ON, just do it (or add another alert if desired)
+                            courseViewModel.selectedCourse?.customPar = true
+                        }
+                        courseViewModel.debouncedSave()
                     }
-                    
+                ))
+                .alert("Disable Custom Pars?", isPresented: $showingCustomParAlert) {
+                    Button("Reset", role: .destructive) {
+                        // Call your repository to wipe the leaderboard
+                        // and update the view model
+                        withAnimation(){
+                            courseViewModel.selectedCourse?.customPar = false
+                        }
+                        courseViewModel.debouncedSave()
+                        
+                        // Call your repo here:
+                        LBRepo.deleteAllEntries(courseID: course.id) { _ in }
+                    }
+                    Button("Cancel", role: .cancel) {
+                        pendingToggleValue = true // Keep it on
+                    }
+                } message: {
+                    Text("Turning this off will permanently delete your leaderboard and reset all hole pars to default. This cannot be undone.")
+                }
+                
+                if course.customPar == true {
+                    Text("Warning: Turning this off will delete your leaderboard if you have one.")
+                        .font(.footnote)
+                        .foregroundStyle(.red) // Note: .tint doesn't work on Text, use .foregroundStyle
+                } else {
+                    Text("Turning this on will show your course on the minimate map as a supported course and allow you to set custom pars for each hole. It will also enable the leaderboard feature, allowing players to submit their scores for this course.")
+                        .font(.footnote)
+                }
+            }
+            if let pars = courseViewModel.selectedCourse?.pars, pars.count > 0 && course.customPar {
+                Section("Par Preview") {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             ForEach(Array(pars.enumerated()), id: \.offset) { index, par in
@@ -582,26 +634,37 @@ struct ParConfigurationSectionView: View {
                             }
                         }
                     }
+                    
+                    .padding(.vertical, 8)
                 }
-                .padding(.vertical, 8)
-                
-                // Toggle to show/hide detailed configuration
-                Toggle("Show Configuration", isOn: $viewModel.showParConfiguration)
-                    .toggleStyle(SwitchToggleStyle())
-                
-                // Detailed Par Configuration
-                if viewModel.showParConfiguration {
-                    ForEach(Array(pars.enumerated()), id: \.offset) { index, par in
-                        HStack {
-                            Text("Hole \(index + 1):")
-                            Spacer()
-                            
-                            NumberPickerView(
-                                selectedNumber: courseViewModel.parBinding(index: index),
-                                minNumber: 0,
-                                maxNumber: 10
-                            )
-                            .frame(width: 75)
+                Section{
+                    // Toggle to show/hide detailed configuration
+                    Toggle("Show Configuration", isOn: $viewModel.showParConfiguration)
+                        .toggleStyle(SwitchToggleStyle())
+                }
+                Section{
+                    // Detailed Par Configuration
+                    if viewModel.showParConfiguration {
+                        if let customPar = courseViewModel.selectedCourse?.customPar, customPar == true {
+                            HStack {
+                                Text("Number Of Holes")
+                                NumberPickerView(selectedNumber: courseViewModel.numHolesBinding(), minNumber: 9, maxNumber: 21)
+                                    .frame(height: 60)
+                            }
+                        }
+                        
+                        ForEach(Array(pars.enumerated()), id: \.offset) { index, par in
+                            HStack {
+                                Text("Hole \(index + 1):")
+                                Spacer()
+                                
+                                NumberPickerView(
+                                    selectedNumber: courseViewModel.parBinding(index: index),
+                                    minNumber: 0,
+                                    maxNumber: 10
+                                )
+                                .frame(width: 75)
+                            }
                         }
                     }
                 }

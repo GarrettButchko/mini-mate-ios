@@ -26,6 +26,8 @@ struct Course: Codable, Identifiable, Equatable {
     var longitude: Double
     var isSeasonal: Bool?
     var indoor: Bool?
+    
+    var leaderBoardActive: Bool = false
 
     // admin stuff
     var tier: Int = 1
