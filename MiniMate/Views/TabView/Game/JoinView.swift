@@ -66,9 +66,7 @@ struct JoinView: View {
                     .ignoresSafeArea(edges: .top)
                 )
                 
-                
                 Spacer()
-                
                 
                 Group{
                     if viewModel.inGame {
@@ -169,55 +167,55 @@ struct JoinView: View {
     @ViewBuilder
     private var joinGameCard: some View {
         ScrollView{
-            VStack(spacing: 16) {
-                VStack(spacing: 24) {
-                    // Header
-                    VStack(spacing: 8) {
-                        Text("Enter Game Code")
-                            .font(.system(.title2, design: .rounded))
-                            .fontWeight(.bold)
-                        
-                        Text("Ask the host for the 6-digit code")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
+            
+            VStack(spacing: 24) {
+                // Header
+                VStack(spacing: 8) {
+                    Text("Enter Game Code")
+                        .font(.system(.title2, design: .rounded))
+                        .fontWeight(.bold)
                     
-                    // Input & Scanner
-                    VStack(spacing: 20) {
-                        gameCodeTextField
-                        actionDivider
-                        scanButton
-                    }
-                    
-                    
+                    Text("Ask the host for the 6-digit code")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
-                    .padding(.vertical, 32)
-                    .padding(.horizontal, 20) // standardized inner padding
-                    .background {
-                        RoundedRectangle(cornerRadius: 25, style: .continuous)
-                            .fill(.sub)
-                            .cardShadow()
-                    }
+                
+                // Input & Scanner
+                VStack(spacing: 20) {
+                    gameCodeTextField
+                    actionDivider
+                    scanButton
+                }
                 
                 
-                if !viewModel.message.isEmpty {
-                    Text(viewModel.message)
-                        .font(.footnote)
-                        .foregroundStyle(.red.opacity(0.8))
-                        .transition(.blurReplace)
-                        .multilineTextAlignment(.center)
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.red.opacity(0.2))
-                        )
-                }
             }
-            .frame(minHeight: viewContentHeight, alignment: .center)
+            .padding(.vertical, 32)
+            .padding(.horizontal, 20) // standardized inner padding
+            .background {
+                RoundedRectangle(cornerRadius: 25, style: .continuous)
+                    .fill(.sub)
+                    .cardShadow()
+            }
+            
+            
+            if !viewModel.message.isEmpty {
+                Text(viewModel.message)
+                    .font(.footnote)
+                    .foregroundStyle(.red.opacity(0.8))
+                    .transition(.blurReplace)
+                    .multilineTextAlignment(.center)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(.red.opacity(0.2))
+                    )
+            }
         }
+        .frame(minHeight: viewContentHeight, alignment: .center)
+        
     }
-
+    
     // MARK: - Sub-Components
     private var gameCodeTextField: some View {
         TextField("000000", text: $viewModel.gameCode)

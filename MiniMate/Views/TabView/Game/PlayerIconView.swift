@@ -18,10 +18,10 @@ struct PlayerIconView: View {
                 Button {
                     onTap?()
                 } label: {
-                    PhotoIconView(photoURL: player.photoURL, name: player.name, imageSize: imageSize, background: .ultraThinMaterial)
+                    PhotoIconView(photoURL: player.photoURL, name: player.name, ballColor: player.ballColor, imageSize: imageSize, background: .ultraThinMaterial)
                 }
             } else {
-                PhotoIconView(photoURL: player.photoURL, name: player.name, imageSize: imageSize, background: .ultraThinMaterial)
+                PhotoIconView(photoURL: player.photoURL, name: player.name, ballColor: player.ballColor, imageSize: imageSize, background: .ultraThinMaterial)
             }
         }
         .padding(.horizontal)

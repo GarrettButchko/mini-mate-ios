@@ -66,7 +66,7 @@ struct GameReviewView: View {
                     VStack(alignment: .leading){
                         Text("Scorecard")
                             .font(.title).fontWeight(.bold)
-                        if let locationName = viewModel.course?.name {
+                        if let locationName = gameReview?.locationName {
                             Text(locationName)
                                 .font(.subheadline)
                         }
@@ -138,8 +138,9 @@ struct GameReviewView: View {
                 HStack {
                     ForEach(viewModel.game.players, id: \.self) { player in
                         if player.id != viewModel.game.players[0].id { Divider() }
-                        PhotoIconView(photoURL: player.photoURL, name: player.name, imageSize: 30, background: .ultraThinMaterial)
+                        PhotoIconView(photoURL: player.photoURL, name: player.name, ballColor: player.ballColor, imageSize: 30, background: .ultraThinMaterial)
                             .frame(width: 100, height: 60)
+                        
                     }
                 }
             }

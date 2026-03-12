@@ -390,9 +390,9 @@ struct GameGridView: View {
                                 }
                                 
                                 if sortedPlayers[0] == player {
-                                    PhotoIconView(photoURL: player.photoURL, name: player.name + "🥇", imageSize: 20, background: Color.yellow)
+                                    PhotoIconView(photoURL: player.photoURL, name: player.name + "🥇", ballColor: player.ballColor, imageSize: 20, background: Color.yellow)
                                 } else {
-                                    PhotoIconView(photoURL: player.photoURL, name: player.name, imageSize: 20, background: .ultraThinMaterial)
+                                    PhotoIconView(photoURL: player.photoURL, name: player.name, ballColor: player.ballColor, imageSize: 20, background: .ultraThinMaterial)
                                 }
                                 
                             }
@@ -401,7 +401,7 @@ struct GameGridView: View {
                     .frame(height: 50)
                 } else {
                     if sortedPlayers.count != 0 {
-                        PhotoIconView(photoURL: sortedPlayers[0].photoURL, name: sortedPlayers[0].name, imageSize: 20, background: .ultraThinMaterial)
+                        PhotoIconView(photoURL: sortedPlayers[0].photoURL, name: sortedPlayers[0].name, ballColor: sortedPlayers[0].ballColor, imageSize: 20, background: .ultraThinMaterial)
                     }
                 }
                 

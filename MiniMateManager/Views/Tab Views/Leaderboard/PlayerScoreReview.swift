@@ -68,7 +68,7 @@ struct PlayerScoreReview: View {
             Divider()
             
             Spacer()
-            PhotoIconView(photoURL: player.photoURL, name: player.name, imageSize: 30, background: .ultraThinMaterial)
+            PhotoIconView(photoURL: player.photoURL, name: player.name, ballColor: player.ballColor, imageSize: 30, background: .ultraThinMaterial)
                 .frame(width: 100, height: 60)
             Spacer()
         }

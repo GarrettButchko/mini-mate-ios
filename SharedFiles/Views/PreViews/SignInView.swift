@@ -112,7 +112,7 @@ struct SignInView: View {
                     password: $password,
                     confirmPassword: $confirmPassword,
                     guestGame: $guestGame,
-                    keyboardHeight: keyboard.height,
+                    keyboardHeight: keyboard.keyboardHeight,
                     isTextFieldFocused: $isTextFieldFocused
                 )
                 .transition(.move(edge: .bottom).combined(with: .opacity))

@@ -12,6 +12,7 @@ struct ContentView: View {
     @StateObject var locationHandler = LocationHandler()
     @StateObject private var authModel: AuthViewModel
     @StateObject private var gameModel: GameViewModel
+    @StateObject var hostVM = HostViewModel()
     
     let locFuncs = LocFuncs()
     
@@ -59,10 +60,8 @@ struct ContentView: View {
                     MainTabView(selectedTab: tab)
                 case .welcome:
                     WelcomeView(viewManager: viewManager)
-                    
                 case .scoreCard(let isGuest):
                     ScoreCardView(isGuest: isGuest)
-                    
                 case .ad(let isGuest):
                     InterstitialAdView(adUnitID: "ca-app-pub-8261962597301587/3394145015") {
                         if isGuest {
@@ -76,15 +75,13 @@ struct ContentView: View {
                 case .host:
                     HostView(showHost: $showHost, isGuest: true)
                 }
-            
-                
             }
             .transition(currentTransition)
-            
         }
         .environmentObject(gameModel)
         .environmentObject(authModel)
         .environmentObject(viewManager)
+        .environmentObject(hostVM)
         .animation(.easeInOut(duration: 0.4), value: viewManager.currentView)
         .onChange(of: viewManager.currentView, { oldValue, newValue in
             previousView = viewManager.currentView
@@ -129,6 +126,7 @@ struct MainTabView: View {
     @EnvironmentObject var viewManager: ViewManager
     @EnvironmentObject var authModel: AuthViewModel
     @EnvironmentObject var gameModel: GameViewModel
+    @EnvironmentObject var hostVM: HostViewModel
     //let ad: Ad?
     
     @StateObject var iapManager = IAPManager()
@@ -187,7 +185,7 @@ struct MainTabView: View {
                 // Preload tab content when user switches
                 loadedTabs.insert(newValue)
             }
-            
+
             // Subtle loading overlay - only shows briefly during initial load
             if authModel.isLoadingUser && !initialLoadComplete && authModel.userModel == nil {
                 Color.black.opacity(0.2)

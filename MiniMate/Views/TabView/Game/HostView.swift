@@ -17,7 +17,7 @@ struct HostView: View {
     @EnvironmentObject var authModel: AuthViewModel
     @EnvironmentObject var viewManager: ViewManager
     
-    @StateObject var VM: HostViewModel
+    @EnvironmentObject var VM: HostViewModel
 
     var isGuest: Bool
     
@@ -27,7 +27,6 @@ struct HostView: View {
     ) {
         self._showHost = showHost
         self.isGuest = isGuest
-        _VM = StateObject(wrappedValue: HostViewModel())
     }
     
     var body: some View {
@@ -43,6 +42,7 @@ struct HostView: View {
             }
             .contentMargins(.top, 100)
             .contentMargins(.bottom, 70)
+            
             
             VStack{
                 
@@ -109,7 +109,9 @@ struct HostView: View {
                     
             }
         }
-        .ignoresSafeArea(.keyboard)
+        .sheet(isPresented: $VM.showAddLocalPlayer) {
+            AddLocalPlayerView(showColor: $VM.showAddLocalPlayer)
+        }
         .onAppear {
             VM.setUp(gameModel: gameModel, handler: locationHandler)
         }
@@ -119,38 +121,6 @@ struct HostView: View {
             }
         }
         .contentShape(Rectangle())
-        .onTapGesture {
-            VM.resetTimer(gameModel)
-        }
-        .alert("Add Local Player?", isPresented: $VM.showAddPlayerAlert) {
-            
-            TextField("Name", text: $VM.newPlayerName)
-                .characterLimit($VM.newPlayerName, maxLength: 18)
-            
-            if gameModel.getCourse() != nil {
-                TextField("Email", text: $VM.newPlayerEmail)
-                    .autocapitalization(.none)   // starts lowercase / no auto-cap
-                    .keyboardType(.emailAddress)
-            }
-            
-            Button("Add") {
-                VM.addPlayer(gameModel: gameModel)
-            }
-            .disabled(
-                gameModel.getCourse() != nil
-                ?
-                VM.newPlayerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                VM.newPlayerEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                ProfanityFilter.containsBlockedWord(VM.newPlayerName) ||
-                !VM.newPlayerEmail.isValidEmail
-                :
-                    VM.newPlayerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                ProfanityFilter.containsBlockedWord(VM.newPlayerName)
-            )
-            .tint(.blue)
-            
-            Button("Cancel", role: .cancel) {}
-        }
         .alert("Delete Player?", isPresented: $VM.showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 if let player = VM.playerToDelete {
@@ -250,7 +220,7 @@ struct HostView: View {
                             }
                         }
                         Button(action: {
-                            VM.showAddPlayerAlert = true
+                            VM.showAddLocalPlayer = true
                             VM.resetTimer(gameModel)
                         }) {
                             VStack {

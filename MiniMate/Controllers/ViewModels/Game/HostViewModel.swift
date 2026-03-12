@@ -17,10 +17,11 @@ final class HostViewModel: ObservableObject {
     @Published var playerToDelete: String?
     
     @Published var showTextAndButtons = false
-    @Published var showAddPlayerAlert = false
     @Published var showDeleteAlert = false
-    @Published var newPlayerName = ""
-    @Published var newPlayerEmail = ""
+    
+    @Published var showAddLocalPlayer: Bool = false
+    
+    
     @Published var isRotating = false
     @Published var showLocationButton: Bool = false
     @Published var showQRCode: Bool = false
@@ -75,10 +76,8 @@ final class HostViewModel: ObservableObject {
         timeRemaining = ttl
     }
     
-    func addPlayer(gameModel: GameViewModel) {
-        gameModel.addLocalPlayer(named: newPlayerName, email: newPlayerEmail)
-        newPlayerName = ""
-        newPlayerEmail = ""
+    func addPlayer(_ gameModel: GameViewModel, newPlayerName: String, newPlayerEmail: String, playerBallColor: String? = nil) {
+        gameModel.addLocalPlayer(named: newPlayerName, email: newPlayerEmail, ballColor: playerBallColor)
         resetTimer(gameModel)
     }
     
@@ -127,10 +126,11 @@ final class HostViewModel: ObservableObject {
     }
     
     func exit(gameModel: GameViewModel, handler: LocationHandler){
-        newPlayerEmail = ""
         gameModel.resetCourse()
         showTextAndButtons = false
     }
+    
+    
     
     func setUp(gameModel: GameViewModel, handler: LocationHandler){
         generateQRCode(from: gameModel.gameValue.id)

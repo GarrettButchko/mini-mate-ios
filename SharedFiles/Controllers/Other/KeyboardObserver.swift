@@ -9,25 +9,31 @@ import SwiftUI
 import Combine
 
 final class KeyboardObserver: ObservableObject {
-    @Published var height: CGFloat = 0
-    private var cancellables = Set<AnyCancellable>()
-
+    @Published var keyboardHeight: CGFloat = 0
+    
     init() {
-        let willShowOrChange = NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
-            .merge(with: NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification))
-            .compactMap { $0.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect }
-            .map(\.height)
-
-        let willHide = NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
-            .map { _ in CGFloat(0) }
-
-        willShowOrChange
-            .merge(with: willHide)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] newHeight in
-                DispatchQueue.main.async { self?.height = newHeight }
+        self.listenForKeyboardNotifications()
+    }
+    
+    private func listenForKeyboardNotifications() {
+        NotificationCenter.default.addObserver(forName: UIResponder.keyboardDidShowNotification,
+                                               object: nil,
+                                               queue: .main) { (notification) in
+            guard let userInfo = notification.userInfo,
+                  let keyboardRect = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+            
+            withAnimation(){
+                self.keyboardHeight = keyboardRect.height
             }
-            .store(in: &cancellables)
+        }
+        
+        NotificationCenter.default.addObserver(forName: UIResponder.keyboardDidHideNotification,
+                                               object: nil,
+                                               queue: .main) { (notification) in
+            withAnimation(){
+                self.keyboardHeight = 0
+            }
+        }
     }
 }
 

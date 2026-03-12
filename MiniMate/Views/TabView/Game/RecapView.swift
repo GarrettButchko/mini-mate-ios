@@ -178,12 +178,12 @@ struct PlayerStandingView: View {
             HStack{
                 if place != nil {
                     if onlyPlayer {
-                        PhotoIconView(photoURL: player.photoURL, name: player.name, imageSize: 70, background: .ultraThinMaterial)
+                        PhotoIconView(photoURL: player.photoURL, name: player.name, ballColor: player.ballColor,imageSize: 70, background: .ultraThinMaterial)
                     } else {
-                        PhotoIconView(photoURL: player.photoURL, name: player.name + moji, imageSize: imageSize, background: color)
+                        PhotoIconView(photoURL: player.photoURL, name: player.name + moji, ballColor: player.ballColor, imageSize: imageSize, background: color)
                     }
                 } else {
-                    PhotoIconView(photoURL: player.photoURL, name: player.name, imageSize: imageSize, background: .ultraThinMaterial)
+                    PhotoIconView(photoURL: player.photoURL, name: player.name, ballColor: player.ballColor, imageSize: imageSize, background: .ultraThinMaterial)
                 }
                 
                 Spacer()

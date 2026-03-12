@@ -17,6 +17,7 @@ struct GuestData {
     var id: String
     var email: String?
     var name: String
+    var ballColorDT: String? = nil
 }
 
 @dynamicMemberLookup
@@ -126,6 +127,8 @@ final class GameViewModel: ObservableObject, Observable {
             listenForUpdates()
         }
     }
+    
+   
     
     func setCompletedGame(_ completedGame: Bool) {
         objectWillChange.send() // notify before mutating
@@ -343,14 +346,15 @@ final class GameViewModel: ObservableObject, Observable {
     }
     
     // MARK: Players
-    func addLocalPlayer(named name: String, email: String) {
+    func addLocalPlayer(named name: String, email: String, ballColor: String? = nil) {
         objectWillChange.send()
         let newPlayer = Player(
             userId: generateGameCode(),
             name: name,
             photoURL: nil,
             inGame: true,
-            email: email != "" ? email : nil
+            email: email != "" ? email : nil,
+            ballColorDT: ballColor
         )
         initializeHoles(for: newPlayer)
         withAnimation(){
@@ -367,7 +371,8 @@ final class GameViewModel: ObservableObject, Observable {
                 name: guestData.name,
                 photoURL: nil,
                 inGame: true,
-                email: guestData.email
+                email: guestData.email,
+                ballColorDT: guestData.ballColorDT
             )
             initializeHoles(for: newPlayer)
             withAnimation(){
@@ -385,7 +390,8 @@ final class GameViewModel: ObservableObject, Observable {
                 name: user.name,
                 photoURL: user.photoURL,
                 inGame: true,
-                email: user.email
+                email: user.email,
+                ballColorDT: user.ballColorDT
             )
             initializeHoles(for: newPlayer)
             withAnimation(){
@@ -665,7 +671,8 @@ final class GameViewModel: ObservableObject, Observable {
                     name: player.name,
                     photoURL: player.photoURL,
                     holes: player.holes.map { Hole(number: $0.number, strokes: $0.strokes) },
-                    email: player.email
+                    email: player.email,
+                    ballColorDT: player.ballColorDT
                 )
             },
             locationName: source.locationName,

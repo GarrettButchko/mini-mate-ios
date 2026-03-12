@@ -168,6 +168,7 @@ struct ScoreCardView: View {
                             }
                             PhotoIconView(photoURL: player.photoURL,
                                           name: player.name,
+                                          ballColor: player.ballColor,
                                           imageSize: 30, background: .ultraThinMaterial)
                             .frame(width: 100, height: 60)
                         }

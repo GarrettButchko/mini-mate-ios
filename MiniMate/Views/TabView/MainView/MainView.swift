@@ -620,6 +620,7 @@ struct MainView: View {
                             PhotoIconView(
                                 photoURL: analyzer?.winnerOfLatestGame?.photoURL,
                                 name: (analyzer?.winnerOfLatestGame?.name ?? "N/A") + " 🥇",
+                                ballColor: analyzer?.winnerOfLatestGame?.ballColor,
                                 imageSize: 30,
                                 background: .yellow
                             )

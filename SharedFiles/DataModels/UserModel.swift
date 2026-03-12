@@ -16,6 +16,7 @@ final class UserModel: Identifiable, Equatable {
     var name: String
     var photoURL: URL?
     var email: String?
+    var ballColorDT: String?
     var isPro: Bool = false
     var gameIDs: [String] = []
     var lastUpdated: Date
@@ -28,6 +29,7 @@ final class UserModel: Identifiable, Equatable {
         name: String,
         photoURL: URL? = nil,
         email: String? = nil,
+        ballColorDT: String? = nil,
         isPro: Bool = false,
         gameIDs: [String] = [],
         lastUpdated: Date = .now,
@@ -39,6 +41,7 @@ final class UserModel: Identifiable, Equatable {
         self.name = name
         self.photoURL = photoURL
         self.email = email
+        self.ballColorDT = ballColorDT
         self.isPro = isPro
         self.gameIDs = gameIDs
         self.lastUpdated = lastUpdated
@@ -59,6 +62,7 @@ extension UserModel{
             name: name,
             photoURL: photoURL,
             email: email,
+            ballColorDT: ballColorDT,
             isPro: isPro,
             gameIDs: gameIDs,
             lastUpdated: lastUpdated,
@@ -74,6 +78,7 @@ extension UserModel{
             name: dto.name,
             photoURL: dto.photoURL,
             email: dto.email,
+            ballColorDT: dto.ballColorDT,
             isPro: dto.isPro,
             gameIDs: dto.gameIDs,
             lastUpdated: dto.lastUpdated,

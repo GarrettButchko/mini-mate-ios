@@ -3,9 +3,10 @@ import SwiftUI
 struct PhotoIconView<Background: ShapeStyle>: View {
     let photoURL: URL?
     let name: String
+    let ballColor: Color?
     let imageSize: CGFloat
     var background: Background
-
+    
     var body: some View {
         VStack {
             ZStack {
@@ -18,10 +19,12 @@ struct PhotoIconView<Background: ShapeStyle>: View {
                 AsyncImage(url: photoURL) { phase in
                     switch phase {
                     case .empty:
-                        Image("logoOpp")
+                        Image("logo_svg")
+                            .renderingMode(.template)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: imageSize, height: imageSize)
+                            .foregroundStyle(ballColor != nil ? ballColor! : .mainOpp)
                     case .success(let image):
                         image
                             .resizable()
@@ -29,15 +32,19 @@ struct PhotoIconView<Background: ShapeStyle>: View {
                             .frame(width: imageSize, height: imageSize)
                             .clipShape(Circle()) // keeps the round shape
                     case .failure:
-                        Image("logoOpp")
+                        Image("logo_svg")
+                            .renderingMode(.template)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: imageSize, height: imageSize)
+                            .foregroundStyle(ballColor != nil ? ballColor! : .mainOpp)
                     @unknown default:
-                        Image("logoOpp")
+                        Image("logo_svg")
+                            .renderingMode(.template)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: imageSize, height: imageSize)
+                            .foregroundStyle(ballColor != nil ? ballColor! : .mainOpp)
                     }
                 }
             }
@@ -49,4 +56,3 @@ struct PhotoIconView<Background: ShapeStyle>: View {
         }
     }
 }
-
