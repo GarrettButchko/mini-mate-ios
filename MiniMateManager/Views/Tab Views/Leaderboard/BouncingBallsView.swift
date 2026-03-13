@@ -86,7 +86,7 @@ struct BouncingBallsView: View {
                     
                     Text("\(player.totalStrokes) strokes")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.mainOpp.opacity(0.6))
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                 }
@@ -101,7 +101,7 @@ struct BouncingBallsView: View {
                                 .foregroundStyle(.mainOpp)
                             Text(rankTitle(for: rank))
                                 .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.mainOpp.opacity(0.6))
                         }
                         .padding(.top, 4)
                     }

@@ -35,5 +35,6 @@ class LeaderBoardViewModel: ObservableObject {
     
     func deletePlayerEntry(courseID: String, playerID: String) {
         LBRepo.deleteEntry(courseID: courseID, playerID: playerID){ _ in }
+        allTimeLeaderboard.removeAll { $0.id == playerID }
     }
 }

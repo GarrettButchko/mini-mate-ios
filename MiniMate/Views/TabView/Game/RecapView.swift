@@ -136,11 +136,11 @@ struct PlayerStandingView: View {
     var color: Color {
         switch place {
         case .first:
-            Color.yellow
+            Color.yellow.opacity(0.5)
         case .second:
-            Color.gray
+            Color.gray.opacity(0.5)
         case .third:
-            Color.brown
+            Color.brown.opacity(0.5)
         default:
             Color.clear
         }

@@ -74,7 +74,7 @@ final class CourseLeaderboardRepository {
             return
         }
         
-        let docRef = allTimeEntriesRef(courseID: courseID).document(entry.userId)
+        let docRef = allTimeEntriesRef(courseID: courseID).document(entry.id)
         
         db.runTransaction({ tx, errPtr -> Any? in
             let snap: DocumentSnapshot
@@ -107,13 +107,20 @@ final class CourseLeaderboardRepository {
     
     /// Deletes a specific player's entry from the All-Time leaderboard
     func deleteEntry(courseID: String, playerID: String, completion: @escaping (Bool) -> Void) {
-        allTimeEntriesRef(courseID: courseID)
-            .document(playerID)
-            .delete { error in
-                DispatchQueue.main.async {
-                    completion(error == nil)
-                }
+        let ref = allTimeEntriesRef(courseID: courseID).document(playerID)
+        
+        print("🗑️ Attempting delete at: \(ref.path)")
+        
+        ref.delete { error in
+            if let error = error {
+                print("❌ Delete failed: \(error.localizedDescription)")
+            } else {
+                print("✅ Delete command sent for: \(playerID)")
             }
+            DispatchQueue.main.async {
+                completion(error == nil)
+            }
+        }
     }
     
     // MARK: - Bulk Delete
@@ -147,3 +154,4 @@ final class CourseLeaderboardRepository {
         }
     }
 }
+
