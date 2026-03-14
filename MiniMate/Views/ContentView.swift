@@ -170,7 +170,7 @@ struct MainTabView: View {
                 if NetworkChecker.shared.isConnected {
                     Group {
                         if loadedTabs.contains(2) {
-                            CourseView()
+                            CourseViewContainer()
                         } else {
                             Color.clear.onAppear {
                                 loadedTabs.insert(2)

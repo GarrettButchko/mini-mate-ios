@@ -3,14 +3,6 @@ import _SwiftData_SwiftUI
 import StoreKit
 import MapKit
 
-// MARK: - Height Preference Key
-struct HeightPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
 struct MainView: View {
     @Environment(\.modelContext) private var context
     @EnvironmentObject var locationHandler: LocationHandler

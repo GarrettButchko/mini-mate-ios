@@ -7,16 +7,12 @@ import SwiftUI
 
 struct JoinView: View {
     @Environment(\.modelContext) private var context
-    
+    @StateObject private var viewModel: JoinViewModel
     @EnvironmentObject var viewManager: ViewManager
     
     @Binding var showHost: Bool
     @State private var showScanner = false
-    
-    @StateObject private var viewModel: JoinViewModel
-    
     @State private var viewContentHeight: CGFloat = 0
-    
     @State private var contentMargins: CGFloat = 70
     
     init(

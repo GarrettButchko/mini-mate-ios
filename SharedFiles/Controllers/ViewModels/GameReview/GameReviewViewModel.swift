@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import SwiftUI
 
 @MainActor
 final class GameReviewViewModel: ObservableObject {
@@ -24,6 +25,8 @@ final class GameReviewViewModel: ObservableObject {
 
     func loadCourse() async {
         guard let id = game.courseID else { return }
-        course = await CourseRepository().fetchCourse(id: id)
+        
+            course = await CourseRepository().fetchCourse(id: id)
+        
     }
 }

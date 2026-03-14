@@ -13,17 +13,18 @@ class LocationHandler: NSObject, ObservableObject, Observable, CLLocationManager
     @Published var mapItems: [MKMapItem] = []
     @Published var selectedItem: MKMapItem?
     @Published var userLocation: CLLocationCoordinate2D?
+    @Published var hasLocationAccess: Bool = false
     private let manager = CLLocationManager()
-
-    var hasLocationAccess: Bool {
-        (manager.authorizationStatus == .authorizedAlways
-            || manager.authorizationStatus == .authorizedWhenInUse)
-    }
 
     override init() {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
+
+        // Set initial value based on current status
+        let status = manager.authorizationStatus
+        self.hasLocationAccess = (status == .authorizedWhenInUse || status == .authorizedAlways)
+        
         manager.requestWhenInUseAuthorization()
         manager.startUpdatingLocation()
     }
@@ -34,6 +35,9 @@ class LocationHandler: NSObject, ObservableObject, Observable, CLLocationManager
         _ manager: CLLocationManager,
         didChangeAuthorization status: CLAuthorizationStatus
     ) {
+        // Update the published property whenever authorization changes
+        self.hasLocationAccess = (status == .authorizedWhenInUse || status == .authorizedAlways)
+        
         switch status {
         case .authorizedWhenInUse, .authorizedAlways:
             manager.startUpdatingLocation()
