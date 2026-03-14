@@ -1,61 +1,57 @@
 //
-//  WelcomeViewModel.swift
+//  WelcomePresenter.swift
 //  MiniMate
 //
-//  Created by Garrett Butchko on 12/6/25.
+//  Created by GitHub Copilot on 2026-03-13.
 //
 
-import SwiftUI
-import Combine
+import Foundation
 
-@MainActor
-final class WelcomeViewModel: ObservableObject {
-
-    // MARK: - Published UI State
-    @Published var displayedText = ""
-    @Published var showLoading = false
+class WelcomePresenter {
+    // MARK: - Callbacks for the ViewModel
+    var onTextUpdate: ((String) -> Void)?
+    var onShouldShowLoading: ((Bool) -> Void)?
+    var onReadyToNavigate: (() -> Void)?
 
     // MARK: - Private
     private let fullText: String
     private let typingSpeed = 0.05
     private var animationTriggered = false
 
-    private let viewManager: ViewManager
-
     // MARK: - Init
-    init(viewManager: ViewManager, welcomeText: String) {
-        self.viewManager = viewManager
+    init(welcomeText: String) {
         self.fullText = welcomeText
     }
 
-    // MARK: - Lifecycle
-    func onAppear() {
+    // MARK: - Public API
+    func start() {
         startTypingAnimation()
     }
 
     // MARK: - Typing Animation
     private func startTypingAnimation() {
-        displayedText = ""
+        var currentText = ""
         animationTriggered = false
 
         for (index, character) in fullText.enumerated() {
             DispatchQueue.main.asyncAfter(deadline: .now() + typingSpeed * Double(index)) {
-                self.displayedText.append(character)
+                currentText.append(character)
+                self.onTextUpdate?(currentText)
 
-                if self.displayedText == self.fullText, !self.animationTriggered {
+                if currentText == self.fullText, !self.animationTriggered {
                     self.animationTriggered = true
-                    self.handleCompletion()
+                    self.handleAnimationCompletion()
                 }
             }
         }
     }
 
     // MARK: - Post Animation Logic
-    private func handleCompletion() {
+    private func handleAnimationCompletion() {
         if NetworkChecker.shared.isConnected {
-            navigateToSignIn()
+            onReadyToNavigate?()
         } else {
-            showLoading = true
+            onShouldShowLoading?(true)
             pollUntilInternet()
         }
     }
@@ -63,19 +59,12 @@ final class WelcomeViewModel: ObservableObject {
     // MARK: - Network Polling
     private func pollUntilInternet() {
         if NetworkChecker.shared.isConnected {
-            navigateToSignIn()
+            onShouldShowLoading?(false)
+            onReadyToNavigate?()
         } else {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 self.pollUntilInternet()
             }
         }
     }
-
-    // MARK: - Navigation
-    private func navigateToSignIn() {
-        withAnimation {
-            viewManager.navigateToSignIn()
-        }
-    }
 }
-

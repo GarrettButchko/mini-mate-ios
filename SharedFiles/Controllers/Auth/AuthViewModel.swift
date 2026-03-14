@@ -28,6 +28,8 @@ class AuthViewModel: ObservableObject {
     @Published var authAction: AuthAction?
     @Published var isLoadingUser: Bool = false
     
+    private let authRepository = FirebaseAuthRepository()
+    
     enum AuthAction {
         case deletionSuccess
         case error(String)
@@ -54,65 +56,21 @@ class AuthViewModel: ObservableObject {
     private let loc = LocFuncs()
     
     init() {
-        self.firebaseUser = Auth.auth().currentUser
+        self.firebaseUser = authRepository.currentUser
     }
     
     // MARK: - Firebase Authentication
     
     func refreshUID() {
-        self.firebaseUser = Auth.auth().currentUser
+        self.firebaseUser = authRepository.currentUser
     }
     
-    /// Generates a random alphanumeric nonce of the given length.
-    func randomNonceString(length: Int = 32) -> String {
-        guard length > 0 else {
-            print("❌ Invalid length: \(length), using default 32")
-            return randomNonceString(length: 32)
-        }
-        let charset: [Character] =
-        Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
-        var result = ""
-        var remainingLength = length
-        
-        while remainingLength > 0 {
-            // 16 bytes at a time
-            let randoms = (0..<16).map { _ in UInt8.random(in: 0...255) }
-            randoms.forEach { byte in
-                if remainingLength == 0 { return }
-                if byte < charset.count {
-                    result.append(charset[Int(byte)])
-                    remainingLength -= 1
-                }
-            }
-        }
-        
-        return result
-    }
+    
     
     func refreshVerificationStatus(completion: @escaping (Bool) -> Void) {
-        guard let user = Auth.auth().currentUser else {
-            completion(false)
-            return
-        }
-
-        user.reload { error in
-            if let error = error {
-                print("Reload error:", error.localizedDescription)
-                completion(false)
-            } else {
-                completion(user.isEmailVerified)
-            }
-        }
+        authRepository.refreshVerificationStatus(completion: completion)
     }
 
-    
-    /// Hashes input with SHA256 and returns the hex string.
-    func sha256(_ input: String) -> String {
-        let inputData = Data(input.utf8)
-        let hashed = SHA256.hash(data: inputData)
-        return hashed.compactMap { String(format: "%02x", $0) }.joined()
-    }
-    
     func handleSignInWithAppleRequest(_ request: ASAuthorizationAppleIDRequest) {
         request.requestedScopes = [.fullName, .email]
         let nonce = randomNonceString()
@@ -144,15 +102,15 @@ class AuthViewModel: ObservableObject {
             accessToken: accessToken
         )
         
-        Auth.auth().signIn(with: oauthCred) { [self] authResult, error in
-            if let error = error {
-                return completion(.failure(error), nil, nil)
-            }
-            if let result = authResult {
+        authRepository.signIn(with: oauthCred) { [weak self] result in
+            switch result {
+            case .failure(let error):
+                completion(.failure(error), nil, nil)
+            case .success(let user):
                 DispatchQueue.main.async {
-                    self.firebaseUser = result.user     // <-- REQUIRED
+                    self?.firebaseUser = user
                 }
-                completion(.success(result.user), cred.fullName?.formatted(), cred.user)
+                completion(.success(user), cred.fullName?.formatted(), cred.user)
             }
         }
     }
@@ -186,15 +144,15 @@ class AuthViewModel: ObservableObject {
                 withIDToken: idToken,
                 accessToken: user.accessToken.tokenString
             )
-            Auth.auth().signIn(with: credential) { authResult, error in
-                if let error = error {
-                    return completion(.failure(error))
-                }
-                if let result = authResult {
+            self.authRepository.signIn(with: credential) { [weak self] result in
+                switch result {
+                case .failure(let error):
+                    completion(.failure(error))
+                case .success(let user):
                     DispatchQueue.main.async {
-                        self.firebaseUser = result.user
-                        completion(.success(result.user))
+                        self?.firebaseUser = user
                     }
+                    completion(.success(user))
                 }
             }
         }
@@ -202,80 +160,63 @@ class AuthViewModel: ObservableObject {
     
     /// Creates a new user with email and password
     func createUser(email: String, password: String, completion: @escaping (Result<FirebaseAuth.User, Error>) -> Void) {
-        Auth.auth().createUser(withEmail: email, password: password) { result, error in
-            if let error = error {
-                completion(.failure(error)); return
-            }
-            if let firebaseUser = result {
+        authRepository.createUser(email: email, password: password) { [weak self] result in
+            switch result {
+            case .failure(let error):
+                completion(.failure(error))
+            case .success(let user):
                 DispatchQueue.main.async {
-                    self.firebaseUser = firebaseUser.user
-                    completion(.success(firebaseUser.user))
+                    self?.firebaseUser = user
                 }
-                
+                completion(.success(user))
             }
         }
     }
     
     /// Signs in an existing user with email and password
     func signIn(email: String, password: String, completion: @escaping (Result<FirebaseAuth.User, Error>) -> Void) {
-        Auth.auth().signIn(withEmail: email, password: password) { result, error in
-            if let error = error {
-                completion(.failure(error)); return
-            }
-            if let firebaseUser = result {
+        authRepository.signIn(email: email, password: password) { [weak self] result in
+            switch result {
+            case .failure(let error):
+                completion(.failure(error))
+            case .success(let user):
                 DispatchQueue.main.async {
-                    self.firebaseUser = firebaseUser.user
-                    completion(.success(firebaseUser.user))
+                    self?.firebaseUser = user
                 }
-                
+                completion(.success(user))
             }
         }
     }
     
     /// Signs out the current user
     func logout() {
-        do {
-            try Auth.auth().signOut()
-            DispatchQueue.main.async {
-                self.firebaseUser = nil
-            }
-        } catch {
-            print("❌ Sign-out error: \(error.localizedDescription)")
+        authRepository.logout()
+        DispatchQueue.main.async {
+            self.firebaseUser = nil
         }
     }
     
     /// Deletes the user's account after reauthentication
     func deleteAccount(email: String? = nil, password: String? = nil, credential: AuthCredential? = nil, completion: @escaping (Result<Void, Error>) -> Void) {
-        
-        
+        let finalCredential: AuthCredential?
         if let credential = credential {
-            reauthDelete(credential: credential)
+            finalCredential = credential
+        } else if let email = email, let password = password, !email.isEmpty, !password.isEmpty {
+            finalCredential = EmailAuthProvider.credential(withEmail: email, password: password)
         } else {
-            if let email = email, let password = password, !email.isEmpty && !password.isEmpty{
-                let credential = EmailAuthProvider.credential(withEmail: email, password: password)
-                reauthDelete(credential: credential)
-            }
-            
+            finalCredential = nil
         }
-        
-        func reauthDelete(credential: AuthCredential){
-            guard let user = Auth.auth().currentUser else {
-                completion(.failure(NSError(domain: "AuthViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "No signed-in user"])))
-                return
+
+        guard let cred = finalCredential else {
+            completion(.failure(NSError(domain: "AuthViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing credentials for deletion"])))
+            return
+        }
+
+        authRepository.deleteAccount(credential: cred) { [weak self] result in
+            if case .success = result {
+                DispatchQueue.main.async { self?.firebaseUser = nil }
             }
-            user.reauthenticate(with: credential) { _, error in
-                if let error = error {
-                    completion(.failure(error)); return
-                }
-                user.delete { error in
-                    if let error = error {
-                        completion(.failure(error))
-                    } else {
-                        DispatchQueue.main.async { self.firebaseUser = nil }
-                        completion(.success(()))
-                    }
-                }
-            }
+            completion(result)
         }
     }
     
@@ -310,7 +251,7 @@ class AuthViewModel: ObservableObject {
                 if firebaseUser.isEmailVerified {
                     self.createOrSignInUserAndNavigateToHome(context: context, authModel: authModel, viewManager: viewManager, user: firebaseUser, errorMessage: errorMessage, signInMethod: .email, guestGame: guestGame){}
                 } else {
-                    Auth.auth().currentUser?.sendEmailVerification { error in
+                    self.authRepository.sendEmailVerification { error in
                         DispatchQueue.main.async {
                             if let error = error {
                                 errorMessage.wrappedValue = (message: "Couldn’t send verification email: \(error.localizedDescription)", type: false)
@@ -418,35 +359,17 @@ class AuthViewModel: ObservableObject {
     
     func reauthenticateWithEmail(email: String, password: String, completion: @escaping (Result<AuthCredential, Error>) -> Void) {
         let credential = EmailAuthProvider.credential(withEmail: email, password: password)
-
-        guard let user = Auth.auth().currentUser else {
-            completion(.failure(NSError(domain: "AuthViewModel", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "No signed-in user"
-            ])))
-            return
-        }
-
-        user.reauthenticate(with: credential) { _, error in
-            if let error = error {
-                completion(.failure(error))
-            } else {
+        authRepository.reauthenticate(with: credential) { result in
+            switch result {
+            case .success:
                 completion(.success(credential))
+            case .failure(let error):
+                completion(.failure(error))
             }
         }
     }
     
     func updateUserName(_ name: String) {
         userModel?.name = name
-    }
-
-}
-
-extension String {
-    func sanitizedForFirebaseID() -> String {
-        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-")
-        return self.unicodeScalars
-            .filter { allowed.contains($0) }
-            .map(String.init)
-            .joined()
     }
 }

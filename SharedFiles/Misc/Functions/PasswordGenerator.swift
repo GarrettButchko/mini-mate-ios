@@ -106,15 +106,19 @@ public final class PasswordGenerator {
             return 0
         }
 
-        // Secure modulo-free random
+        // Use rejection sampling to avoid modulo bias
+        let range = UInt32.max - (UInt32.max % UInt32(upperBound))
         var value: UInt32 = 0
-        let result = SecRandomCopyBytes(kSecRandomDefault, 4, &value)
         
-        guard result == errSecSuccess else {
-            print("❌ Secure RNG failed with code: \(result)")
-            return 0
-        }
-
+        repeat {
+            let result = SecRandomCopyBytes(kSecRandomDefault, 4, &value)
+            guard result == errSecSuccess else {
+                print("❌ Secure RNG failed with code: \(result)")
+                // Fallback to a less secure but still random number in case of failure
+                return Int.random(in: 0..<upperBound)
+            }
+        } while value >= range
+        
         return Int(value % UInt32(upperBound))
     }
 }

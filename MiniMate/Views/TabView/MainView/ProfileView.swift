@@ -43,8 +43,8 @@ struct ProfileView: View {
         _viewModel = StateObject(
             wrappedValue: ProfileViewModel(
                 authModel: authModel,
-                userRepo: UserRepository(context: context),
-                localGameRepo: LocalGameRepository(context: context), remoteGameRepo: FirestoreGameRepository(),
+                userRepo: UserRepository(context: context), userRemoteRepo: UserRemoteRepository(),
+                localGameRepo: LocalGameRepository(context: context),
                 viewManager: viewManager
             )
         )

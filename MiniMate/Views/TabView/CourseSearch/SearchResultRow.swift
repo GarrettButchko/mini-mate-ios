@@ -62,7 +62,9 @@ struct SearchResultRow: View {
                             .fill(.purple.opacity(0.3))
                             .frame(width: 24, height: 24)
                         
-                        LogoIcon()
+                        Image("logo_svg")
+                            .resizable()
+                            .renderingMode(.template)
                             .scaledToFit()
                             .foregroundStyle(.mainOpp)
                             .frame(width: 17, height: 17)

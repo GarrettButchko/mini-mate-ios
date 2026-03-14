@@ -39,10 +39,8 @@ final class ProfileViewModel: ObservableObject {
     
     // MARK: - Dependencies
     private let authModel: AuthViewModel
-    private let userRepo: UserRepository
-    private let localGameRepo: LocalGameRepository
-    private let remoteGameRepo: FirestoreGameRepository
     private let viewManager: ViewManager
+    private let profileService: ProfileService
     
     let reauthCoordinator = AppleReauthCoordinator { _ in }
     
@@ -50,15 +48,18 @@ final class ProfileViewModel: ObservableObject {
     init(
         authModel: AuthViewModel,
         userRepo: UserRepository,
+        userRemoteRepo: UserRemoteRepository,
         localGameRepo: LocalGameRepository,
-        remoteGameRepo: FirestoreGameRepository,
-        viewManager: ViewManager,
+        viewManager: ViewManager
     ) {
         self.authModel = authModel
-        self.userRepo = userRepo
-        self.localGameRepo = localGameRepo
-        self.remoteGameRepo = remoteGameRepo
         self.viewManager = viewManager
+        self.profileService = ProfileService(
+            authModel: authModel,
+            userRepo: userRepo,
+            userRemoteRepo: userRemoteRepo,
+            localGameRepo: localGameRepo
+        )
     }
     
     func startAppleReauthAndDelete(isSheetPresent: Binding<Bool>) {
@@ -66,9 +67,9 @@ final class ProfileViewModel: ObservableObject {
         let request  = provider.createRequest()
         request.requestedScopes = []
         
-        let nonce = authModel.randomNonceString()
+        let nonce = randomNonceString()
         authModel.currentNonce = nonce
-        request.nonce = authModel.sha256(nonce)
+        request.nonce = sha256(nonce)
         
         // Install handler
         reauthCoordinator.onAuthorize = { result in
@@ -78,19 +79,11 @@ final class ProfileViewModel: ObservableObject {
                 self.isRed = true
                 
             case .success(let authorization):
-                self.authModel.deleteAppleAccount(using: authorization) { deletionResult in
+                self.profileService.deleteAppleAccount(using: authorization) { deletionResult in
                     switch deletionResult {
                     case .success():
                         isSheetPresent.wrappedValue = false
                         self.viewManager.navigateToWelcome()
-                        
-                        if let userModel = self.authModel.userModel {
-                            let model = UserModel(googleId: userModel.googleId, appleId: userModel.appleId, name: userModel.name, photoURL: nil, email: userModel.email, gameIDs: [], accountType: ["apple"])
-                            
-                            self.cleanupLocalDataAndExit(deleteUnifed: false)
-                            
-                            self.userRepo.saveRemote(id: self.authModel.currentUserIdentifier!, userModel: model) { _ in }
-                        }
                     case .failure(let err):
                         self.botMessage = err.localizedDescription
                         self.isRed = true
@@ -130,11 +123,11 @@ final class ProfileViewModel: ObservableObject {
     }
     
     private func handleDeleteAccount(using credential: AuthCredential, isSheetPresent: Binding<Bool>) {
-        authModel.deleteAccount(credential: credential) { result in
+        profileService.deleteAccount(credential: credential) { result in
             switch result {
             case .success:
                 isSheetPresent.wrappedValue = false
-                self.cleanupLocalDataAndExit()
+                self.viewManager.navigateToWelcome()
             case .failure(let error):
                 self.botMessage = error.localizedDescription
                 self.isRed = true
@@ -142,54 +135,24 @@ final class ProfileViewModel: ObservableObject {
         }
     }
     
-    private func cleanupLocalDataAndExit(deleteUnifed: Bool = true) {
-        guard let userModel = authModel.userModel else { return }
-
-        // ✅ Snapshot ALL value types BEFORE navigation
-        let gameIDs = userModel.gameIDs
-        let userID  = userModel.googleId
-
-        // Now it's safe to leave the context
-        viewManager.navigateToWelcome()
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            self.localGameRepo.deleteAll(ids: gameIDs) { completed in
-                if completed {
-                    print("🗑️ Deleted all local games for user")
-                }
-            }
-            if deleteUnifed {
-                self.userRepo.deleteUnified(id: userID)
-            } else {
-                self.userRepo.deleteLocal(id: userID) { _ in }
-            }
-        }
-    }
-    
     func managePictureChange(newImage: UIImage?) {
-        guard let img = newImage else { return }
-        
-        userRepo.uploadProfilePhoto(id: authModel.currentUserIdentifier!, img) { result in
+        profileService.managePictureChange(newImage: newImage) { result in
             switch result {
             case .success(let url):
                 print("✅ Photo URL:", url)
             case .failure(let error):
-                print("❌ Photo upload failed:", error)
+                self.botMessage = "Photo upload failed: \(error.localizedDescription)"
+                self.isRed = true
             }
         }
     }
     
     func saveName(user: UserModel) {
-        if oldName != name {
-            authModel.updateUserName(name)
-            userRepo.saveRemote(id: authModel.currentUserIdentifier!, userModel: authModel.userModel!) { _ in }
-        }
+        profileService.saveName(newName: name, oldName: oldName)
     }
     
     func passwordReset(user: UserModel) {
-        let targetEmail = user.email ?? "No email"
-        print("Sent email to: \(targetEmail)")
-        Auth.auth().sendPasswordReset(withEmail: targetEmail) { error in
+        profileService.passwordReset(user: user) { error in
             if let error = error {
                 self.botMessage = error.localizedDescription
                 self.isRed = true
@@ -204,16 +167,10 @@ final class ProfileViewModel: ObservableObject {
         withAnimation {
             viewManager.navigateToWelcome()
         }
-        authModel.logout()
+        profileService.logOut()
     }
     
     func deleteAccount(user: UserModel) {
-        if user.accountType.contains("google") {
-            activeDeleteAlert = .google
-        } else if user.accountType.contains("apple") {
-            activeDeleteAlert = .apple
-        } else {
-            activeDeleteAlert = .email
-        }
+        activeDeleteAlert = profileService.getDeleteAlertType(for: user)
     }
 }

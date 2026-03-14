@@ -480,7 +480,7 @@ struct GameRow: View {
                             withAnimation {
                                 user.gameIDs.removeAll(where: { $0 == game.id })
                             }
-                            UserRepository().saveRemote(id: authModel.currentUserIdentifier!, userModel: user) { _ in }
+                            UserRemoteRepository().save(id: authModel.currentUserIdentifier!, userModel: user) { _ in }
                             // Delete the SwiftData object *after* a delay
                             remoteGameRepo.delete(id: game.id) { _ in }
                             

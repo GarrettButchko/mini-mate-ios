@@ -6,16 +6,28 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) var context
+    @Environment(\.modelContext) private var context
+
+    var body: some View {
+        ContentViewInternal(context: context)
+    }
+}
+
+fileprivate struct ContentViewInternal: View {
     @EnvironmentObject var authModel: AuthViewModel
     @EnvironmentObject var viewManager: ViewManager
-    @StateObject var viewModel = CourseViewModel()
+    @StateObject var viewModel: CourseViewModel
     
     let courseRepo = CourseRepository()
     
     @State private var selectedTab = 1
+    
+    init(context: ModelContext) {
+        _viewModel = StateObject(wrappedValue: CourseViewModel(context: context))
+    }
     
     var body: some View {
         ZStack {

@@ -60,9 +60,10 @@ class CourseSettingsViewModel: ObservableObject {
     // MARK: - Image Upload
     
     func uploadLogoImage(_ image: UIImage, course: Binding<Course?>) {
-        guard var updatedCourse = course.wrappedValue else { return }
+        guard var updatedCourse = course.wrappedValue,
+              let imageData = image.pngData() else { return }
         
-        courseRepo.uploadCourseImages(id: updatedCourse.id, image, key: "logoImage") { [weak self] result in
+        courseRepo.uploadCourseImages(id: updatedCourse.id, imageData: imageData, key: "logoImage") { [weak self] result in
             switch result {
             case .success(let url):
                 updatedCourse.logo = url.absoluteString
@@ -73,11 +74,12 @@ class CourseSettingsViewModel: ObservableObject {
             }
         }
     }
-    
+
     func uploadAdImage(_ image: UIImage, course: Binding<Course?>) {
-        guard var updatedCourse = course.wrappedValue else { return }
+        guard var updatedCourse = course.wrappedValue,
+              let imageData = image.pngData() else { return }
         
-        courseRepo.uploadCourseImages(id: updatedCourse.id, image, key: "adImage") { [weak self] result in
+        courseRepo.uploadCourseImages(id: updatedCourse.id, imageData: imageData, key: "adImage") { [weak self] result in
             switch result {
             case .success(let url):
                 updatedCourse.adImage = url.absoluteString

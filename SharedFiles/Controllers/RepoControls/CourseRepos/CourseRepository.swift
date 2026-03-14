@@ -74,13 +74,14 @@ final class CourseRepository {
                     return
                 }
                 
-                do {
-                    let course = try snapshot.data(as: Course.self)
-                    DispatchQueue.main.async {
+                Task { @MainActor in
+                    do {
+                        let course = try snapshot.data(as: Course.self)
                         onUpdate(course)
+                    } catch {
+                        print("❌ Decode error:", error)
+                        onUpdate(nil)
                     }
-                } catch {
-                    print("❌ Decode error:", error)
                 }
             }
     }
@@ -130,6 +131,41 @@ final class CourseRepository {
         }
     }
     
+    func fetchCourse(id: String, completion: @escaping (Course?) -> Void) {
+        db.collection("courses").document(id).getDocument { (document, error) in
+            if let error = error {
+                print("❌ Firestore fetch error: \(error.localizedDescription)")
+                completion(nil)
+                return
+            }
+            
+            if let document = document, document.exists {
+                Task { @MainActor in
+                    do {
+                        let course = try document.data(as: Course.self)
+                        completion(course)
+                    } catch {
+                        print("❌ Firestore decoding error: \(error)")
+                        completion(nil)
+                    }
+                }
+            } else {
+                print("Document does not exist")
+                completion(nil)
+            }
+        }
+    }
+    
+    @MainActor
+    func fetchCourse(id: String) async -> Course? {
+        do {
+            return try await db.collection("courses").document(id).getDocument(as: Course.self)
+        } catch {
+            print("Error fetching course: \(error)")
+            return nil
+        }
+    }
+
     /// Fetches multiple Courses by their document IDs
     func fetchCourses(ids: [String], completion: @escaping ([Course]) -> Void) {
         guard !ids.isEmpty else {
@@ -401,61 +437,24 @@ final class CourseRepository {
         }
     }
     
-    func uploadCourseImages(id: String, _ image: UIImage, key: String, completion: @escaping (Result<URL, Error>) -> Void) {
-        guard let data = image.pngData() else {
-            return completion(.failure(NSError(
-                domain: "AuthViewModel",
-                code: -2,
-                userInfo: [NSLocalizedDescriptionKey: "Image conversion failed"]
-            )))
-        }
-        
+    func uploadCourseImages(id: String, imageData: Data, key: String, completion: @escaping (Result<URL, Error>) -> Void) {
         let ref = Storage.storage()
             .reference()
             .child(id)
             .child("\(key).png")
         
-        // 1️⃣ upload
-        ref.putData(data, metadata: nil) { meta, error in
+        ref.putData(imageData, metadata: nil) { meta, error in
             if let error = error {
                 return completion(.failure(error))
             }
-            // 2️⃣ get download URL
             ref.downloadURL { result in
                 switch result {
                 case .failure(let error):
-                    return completion(.failure(error))
+                    completion(.failure(error))
                 case .success(let url):
-                    // 3️⃣ update Firebase Auth
                     completion(.success(url))
                 }
             }
         }
     }
-}
-
-struct SmallCourse: Identifiable {
-    let id: String
-    let name: String
-}
-
-func makeWeekID(from date: Date = Date()) -> String {
-    var calendar = Calendar(identifier: .iso8601)
-    calendar.firstWeekday = 2 // Monday
-    
-    let weekOfYear = calendar.component(.weekOfYear, from: date)
-    let yearForWeek = calendar.component(.yearForWeekOfYear, from: date)
-    
-    return String(format: "%d-W%02d", yearForWeek, weekOfYear)
-}
-
-func makeDayID(from date: Date = Date()) -> String {
-    var calendar = Calendar(identifier: .iso8601)
-    calendar.timeZone = TimeZone.current
-    
-    let year  = calendar.component(.year, from: date)
-    let month = calendar.component(.month, from: date)
-    let day   = calendar.component(.day, from: date)
-    
-    return String(format: "%04d-%02d-%02d", year, month, day)
 }

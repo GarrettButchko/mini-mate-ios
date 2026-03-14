@@ -631,7 +631,7 @@ final class GameViewModel: ObservableObject, Observable {
                let uid = self.authModel.currentUserIdentifier {
                 userModel.gameIDs.append(finished.id)
                 
-                UserRepository(context: context).saveRemote(id: uid, userModel: userModel) { success in
+                UserRemoteRepository().save(id: uid, userModel: userModel) { success in
                     print(success ? "✅ Updated user model with new game ID" : "❌ Failed to update user model")
                     
                     if !analyticsSuccess {

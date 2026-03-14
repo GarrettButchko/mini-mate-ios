@@ -92,7 +92,9 @@ struct CourseSupportedLocationCard: View {
                     .fill(Color.purple.opacity(0.2))
                     .frame(width: 36, height: 36)
                 
-                LogoIcon()
+                Image("logo_svg")
+                    .resizable()
+                    .renderingMode(.template)
                     .scaledToFit()
                     .foregroundStyle(.mainOpp)
                     .frame(width: 24, height: 24)

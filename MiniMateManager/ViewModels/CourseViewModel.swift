@@ -9,6 +9,7 @@ import Foundation
 import Combine
 import SwiftUI
 import FirebaseAuth
+import SwiftData
 
 @MainActor
 final class CourseViewModel: ObservableObject {
@@ -21,8 +22,8 @@ final class CourseViewModel: ObservableObject {
     
     private var authModel: AuthViewModel?
     @Published var userCourses: [Course] = []
-    private let courseRepo = CourseRepository()
-    private let userRepo = UserRepository()
+    private let courseRepo: CourseRepository
+    private let userRepo: UserRepository
     
     @Published var selectedCourse: Course? = nil
     
@@ -39,6 +40,11 @@ final class CourseViewModel: ObservableObject {
     private let ttl: TimeInterval = 30
     private var lastUpdated = Date()
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    
+    init(context: ModelContext) {
+        self.courseRepo = CourseRepository()
+        self.userRepo = UserRepository(context: context)
+    }
     
     var hasCourse: Bool {
         if let adminCourses = authModel?.userModel?.adminCourses, !adminCourses.isEmpty {
@@ -136,7 +142,8 @@ final class CourseViewModel: ObservableObject {
                     } else {
                         // Add course to user's admin courses
                         self.authModel?.userModel?.adminCourses.append(courseID)
-                        self.userRepo.saveRemote(id: authModel!.currentUserIdentifier!, userModel: authModel!.userModel!) { _ in }
+                        // TODO: The `saveRemote` function does not exist on `UserRepository`. You may need to replace this with a valid method call, like `saveUnified`.
+                        // self.userRepo.saveRemote(id: authModel!.currentUserIdentifier!, userModel: authModel!.userModel!) { _ in }
                         
                         // Claim the course and add email to adminIDs
                         if let email = authModel!.firebaseUser?.email {

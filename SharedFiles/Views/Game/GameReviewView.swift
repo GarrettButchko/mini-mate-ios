@@ -35,7 +35,7 @@ struct GameReviewView: View {
             headerView
                 .padding(.top)
             if !isInCourseSettings {
-                BarChartView(data: viewModel.averageStrokes(), title: "Average Strokes", paddingReview: true)
+                BarChartView(data: viewModel.presenter.averageStrokes(), title: "Average Strokes", paddingReview: true)
                     .frame(height: 140)
                     .background(
                         RoundedRectangle(cornerRadius: 25)
@@ -114,8 +114,8 @@ struct GameReviewView: View {
             Divider()
             totalRow
         }
-        .onAppear {
-            viewModel.loadCourse()
+        .task {
+            await viewModel.loadCourse()
         }
         .background {
             RoundedRectangle(cornerRadius: 25)
@@ -162,7 +162,7 @@ struct GameReviewView: View {
     /// first column with holes and number i.e "hole 1"
     private var holeNumbersColumn: some View {
         VStack {
-            ForEach(1...viewModel.holeCount, id: \.self) { i in
+            ForEach(1...viewModel.presenter.holeCount, id: \.self) { i in
                 if i != 1 { Divider() }
                 VStack {
                     Text("Hole \(i)")
@@ -218,7 +218,7 @@ struct GameReviewView: View {
                             Spacer()
                         }
                         if NetworkChecker.shared.isConnected {
-                            ShareLink(item: viewModel.shareText){
+                            ShareLink(item: viewModel.presenter.shareText){
                                 Image(systemName: "square.and.arrow.up")
                                     .font(.title2)
                             }

@@ -10,21 +10,21 @@ import SwiftUI
 extension Course {
     var scoreCardColor: Color? {
         guard let value = scoreCardColorDT else { return nil }
-        return stringToColor(value)?.opacity(0.4)
+        return Color.fromString(value)?.opacity(0.4)
     }
     
     var courseColors: [Color]? {
         guard let values = courseColorsDT else { return nil }
-        let colors = values.compactMap { stringToColor($0) }
+        let colors = values.compactMap { Color.fromString($0) }
         return colors.isEmpty ? nil : colors
     }
-    
-    // MARK: - Private Helper Methods
-    
+}
+
+extension Color {
     /// Converts a string to a Color. Accepts both named colors and hex values.
     /// - Parameter string: A color name (e.g., "red") or hex value (e.g., "#FF5733" or "FF5733")
     /// - Returns: A Color if conversion is successful, nil otherwise
-    private func stringToColor(_ string: String) -> Color? {
+    static func fromString(_ string: String) -> Color? {
         let lowercased = string.lowercased()
         
         // Check if it's a hex value
@@ -54,7 +54,7 @@ extension Course {
     /// Converts a hex string to a Color
     /// - Parameter hex: Hex string (with or without #, 6 or 8 characters for RGB or RGBA)
     /// - Returns: A Color if hex is valid, nil otherwise
-    private func colorFromHex(_ hex: String) -> Color? {
+    private static func colorFromHex(_ hex: String) -> Color? {
         var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
         hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
         
