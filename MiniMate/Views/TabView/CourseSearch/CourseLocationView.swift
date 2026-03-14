@@ -9,6 +9,119 @@ import SwiftUI
 import MapKit
 import MarqueeText
 
+// MARK: - Course Result View
+struct CourseResultView: View {
+    @EnvironmentObject var locationHandler: LocationHandler
+    @EnvironmentObject var courseViewModel: CourseViewModel
+    @StateObject var viewModel = LookAroundViewModel()
+    
+    @State var titleHeight: CGFloat = 30
+    
+    var body: some View {
+        ZStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    CourseDirectionsButton()
+                    
+                    if let course = courseViewModel.selectedCourse, course.isSupported {
+                        CourseSupportedLocationCard(
+                            course: course,
+                            locationName: locationHandler.selectedItem?.name
+                        )
+                        
+                        if course.socialLinks.count >= 1{
+                            CourseSocialMediaCard(course: course)
+                        }
+                    } else {
+                        CourseClaimButton()
+                    }
+                    
+                    lookAroundSection
+                    
+                    CourseContactInfoCard(selectedItem: locationHandler.selectedItem)
+                    
+                    CourseLocationInfoCard(selectedItem: locationHandler.selectedItem)
+                }
+                .onAppear {
+                    if let selected = locationHandler.selectedItem {
+                        viewModel.fetchScene(for: selected)
+                    }
+                }
+                .onChange(of: locationHandler.selectedItem) { oldItem, newItem in
+                    if let newItem = newItem {
+                        viewModel.fetchScene(for: newItem)
+                    }
+                }
+            }
+            .mask{
+                VStack(spacing: 0) {
+                    // 1. The 40pt fade-in area
+                    LinearGradient(
+                        colors: [.clear, .black],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: titleHeight) // Match the top content margin + padding
+                    
+                    // 2. The rest of the content (fully visible)
+                    Rectangle()
+                        .fill(.black)
+                }
+            }
+                
+            .contentMargins([.horizontal, .bottom], 16)
+            .contentMargins(.top, 62)
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
+            
+            VStack{
+                CourseResultViewHeader()
+                    .padding()
+                    .padding(.bottom, 16)
+                    .background {
+                        GeometryReader { proxy in
+                            Color.clear
+                                .task(id: proxy.size) {
+                                    titleHeight = proxy.size.height // Capture the size and monitor changes
+                                }
+                        }
+                    }
+                Spacer()
+            }
+        }
+    }
+    
+    private var lookAroundSection: some View {
+        Group {
+            switch viewModel.result {
+            case .loading:
+                HStack {
+                    Spacer()
+                    ProgressView("Loading Look Around...")
+                    Spacer()
+                }
+                .frame(height: 100)
+                
+            case .found:
+                LookAroundPreview(scene: $viewModel.scene)
+                    .frame(height: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .cardShadow()
+                
+            case .error(let message):
+                Text(message)
+                    .padding()
+                    .background(.sub)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            case .noSceneFound:
+                EmptyView()
+            case .idle:
+                EmptyView()
+            }
+        }
+    }
+}
+
 // MARK: - Result View Header
 struct CourseResultViewHeader: View {
     @EnvironmentObject var locationHandler: LocationHandler

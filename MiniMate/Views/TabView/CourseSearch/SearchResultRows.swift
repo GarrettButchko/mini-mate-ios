@@ -1,39 +1,13 @@
 //
-//  CourseSearchComponents.swift
+//  SearchResultRow.swift
 //  MiniMate
 //
 //  Created by Garrett Butchko on 2/27/25.
 //
 
 import SwiftUI
+import MarqueeText
 import MapKit
-
-// MARK: - Search Button
-struct CourseSearchButton: View {
-    @EnvironmentObject var courseViewModel: CourseViewModel
-    @EnvironmentObject var locationHandler: LocationHandler
-    
-    var body: some View {
-        Button {
-            courseViewModel.searchNearby(locationHandler: locationHandler)
-        } label: {
-            ZStack {
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(Color.blue)
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.white)
-                    Text("Search for Nearby Courses")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                }
-            }
-        }
-        .frame(height: 50)
-        .transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .blurReplace()))
-        .cardShadow()
-    }
-}
 
 // MARK: - Search Results View
 struct CourseSearchResultsView: View {
@@ -146,114 +120,87 @@ struct CourseSearchResultsView: View {
     }
 }
 
-// MARK: - Course Result View
-struct CourseResultView: View {
+
+
+struct SearchResultRow: View {
+    @EnvironmentObject var VM: CourseViewModel
     @EnvironmentObject var locationHandler: LocationHandler
-    @EnvironmentObject var courseViewModel: CourseViewModel
-    @StateObject var viewModel = LookAroundViewModel()
     
-    @State var titleHeight: CGFloat = 30
+    let item: MKMapItem
+    let userLocation: CLLocationCoordinate2D
+    @State private var isSupported: Bool = false
+    let courseRepo = CourseRepository()
     
     var body: some View {
-        ZStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    CourseDirectionsButton()
-                    
-                    if let course = courseViewModel.selectedCourse, course.isSupported {
-                        CourseSupportedLocationCard(
-                            course: course,
-                            locationName: locationHandler.selectedItem?.name
-                        )
-                        
-                        if course.socialLinks.count >= 1{
-                            CourseSocialMediaCard(course: course)
-                        }
-                    } else {
-                        CourseClaimButton()
-                    }
-                    
-                    lookAroundSection
-                    
-                    CourseContactInfoCard(selectedItem: locationHandler.selectedItem)
-                    
-                    CourseLocationInfoCard(selectedItem: locationHandler.selectedItem)
-                }
-                .onAppear {
-                    if let selected = locationHandler.selectedItem {
-                        viewModel.fetchScene(for: selected)
-                    }
-                }
-                .onChange(of: locationHandler.selectedItem) { oldItem, newItem in
-                    if let newItem = newItem {
-                        viewModel.fetchScene(for: newItem)
-                    }
-                }
+        Button {
+            VM.updatePosition(mapItem: item, locationHandler: locationHandler)
+            if let name = item.name, isSupported {
+                VM.getCourse(name: name)
+            } else {
+                VM.selectedCourse = nil
             }
-            .mask{
-                VStack(spacing: 0) {
-                    // 1. The 40pt fade-in area
-                    LinearGradient(
-                        colors: [.clear, .black],
-                        startPoint: .top,
-                        endPoint: .bottom
+        } label: {
+            HStack{
+                VStack(alignment: .leading) {
+                    
+                    MarqueeText(
+                        text: "\(item.name ?? "Unknown Place")",
+                        font: UIFont.preferredFont(forTextStyle: .headline),
+                        leftFade: 16,
+                        rightFade: 16,
+                        startDelay: 3
                     )
-                    .frame(height: titleHeight) // Match the top content margin + padding
+                    .foregroundStyle(.mainOpp)
                     
-                    // 2. The rest of the content (fully visible)
-                    Rectangle()
-                        .fill(.black)
+                    let offsetLat = userLocation.latitude - 0.015
+                    let distanceInMiles = CLLocation(latitude: offsetLat, longitude: userLocation.longitude)
+                        .distance(from: CLLocation(latitude: item.placemark.coordinate.latitude,
+                                                   longitude: item.placemark.coordinate.longitude)) / 1609.34
+                
+                    MarqueeText(
+                        text: "\(String(format: "%.1f", distanceInMiles)) mi - \(VM.getPostalAddress(from: item))",
+                        font: UIFont.preferredFont(forTextStyle: .subheadline),
+                        leftFade: 16,
+                        rightFade: 16,
+                        startDelay: 4
+                    )
+                    .foregroundStyle(.mainOpp)
+                }
+                .frame(height: 50)
+                Spacer()
+                
+                if isSupported{
+                    ZStack{
+                        Circle()
+                            .fill(.purple.opacity(0.3))
+                            .frame(width: 24, height: 24)
+                        
+                        Image("logo_svg")
+                            .resizable()
+                            .renderingMode(.template)
+                            .scaledToFit()
+                            .foregroundStyle(.mainOpp)
+                            .frame(width: 17, height: 17)
+                    }
                 }
             }
-                
-            .contentMargins([.horizontal, .bottom], 16)
-            .contentMargins(.top, 62)
-            .scrollContentBackground(.hidden)
-            .background(Color.clear)
-            
-            VStack{
-                CourseResultViewHeader()
-                    .padding()
-                    .padding(.bottom, 16)
-                    .background {
-                        GeometryReader { proxy in
-                            Color.clear
-                                .task(id: proxy.size) {
-                                    titleHeight = proxy.size.height // Capture the size and monitor changes
-                                }
-                        }
-                    }
-                Spacer()
-            }
+        }
+        .onAppear(){
+            preloadNameChecks()
+        }
+        .onChange(of: item) { _, _ in
+            preloadNameChecks()
         }
     }
     
-    private var lookAroundSection: some View {
-        Group {
-            switch viewModel.result {
-            case .loading:
-                HStack {
-                    Spacer()
-                    ProgressView("Loading Look Around...")
-                    Spacer()
+    func preloadNameChecks() {
+        if let name = item.name {
+            courseRepo.courseNameExistsAndSupported(name) { exists in
+                if exists {
+                    DispatchQueue.main.async {
+                        isSupported = true
+                    }
                 }
-                .frame(height: 100)
-                
-            case .found:
-                LookAroundPreview(scene: $viewModel.scene)
-                    .frame(height: 200)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .cardShadow()
-                
-            case .error(let message):
-                Text(message)
-                    .padding()
-                    .background(.sub)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-            case .noSceneFound:
-                EmptyView()
-            case .idle:
-                EmptyView()
             }
         }
     }
