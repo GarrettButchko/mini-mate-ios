@@ -51,6 +51,7 @@ struct GameReviewView: View {
             GameInfoView(game: viewModel.game, isSheetPresent: $showInfoView)
         }
         .background(.bg)
+        .animation(.spring, value: viewModel.course?.scoreCardColor)
     }
     
     

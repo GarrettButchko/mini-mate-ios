@@ -15,6 +15,9 @@ struct JoinView: View {
     @State private var viewContentHeight: CGFloat = 0
     @State private var contentMargins: CGFloat = 70
     
+    // Platform-agnostic business logic isolated for KMP
+    private let logic = JoinViewBusinessLogic()
+    
     init(
         authModel: AuthViewModel,
         viewManager: ViewManager,
@@ -104,11 +107,11 @@ struct JoinView: View {
                                     .fill(Color.blue)
                                     .padding(.horizontal)
                             )
-                            .opacity(viewModel.gameCode.count != 6 ? 0.5 : 1)
+                            .opacity(logic.getJoinButtonOpacity(gameCode: viewModel.gameCode))
                             .safeAreaPadding(.bottom, 10)
                             
                         }
-                        .disabled(viewModel.gameCode.isEmpty)
+                        .disabled(logic.isJoinButtonDisabled(gameCode: viewModel.gameCode))
                     }
                 }
                 .padding(.top)
@@ -227,8 +230,7 @@ struct JoinView: View {
             )
             .frame(width: 240)
             .onChange(of: viewModel.gameCode) { _, newValue in
-                let filtered = newValue.uppercased().filter { $0.isLetter || $0.isNumber }
-                viewModel.gameCode = String(filtered.prefix(6))
+                viewModel.gameCode = logic.formatEnteredCode(newValue)
             }
     }
 
@@ -268,7 +270,7 @@ struct JoinView: View {
                 infoRow(title: "Code:", value: viewModel.gameModel.gameValue.id)
                 infoRow(title: "Date:", value: viewModel.gameModel.gameValue.date.formatted(date: .abbreviated, time: .shortened))
                 infoRow(title: "Holes:", value: "\(viewModel.gameModel.gameValue.numberOfHoles)")
-                infoRow(title: "Location:", value: viewModel.gameModel.gameValue.locationName ?? "No Location")
+                infoRow(title: "Location:", value: logic.getLocationName(from: viewModel.gameModel.gameValue.locationName))
             }
         }
     }
@@ -286,9 +288,7 @@ struct JoinView: View {
     private var camView: some View {
         ZStack {
             QRScannerView { scannedCode in
-                let formattedCode = scannedCode
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                    .uppercased()
+                let formattedCode = logic.formatScannedCode(scannedCode)
                 
                 DispatchQueue.main.async {
                     viewModel.gameCode = formattedCode
@@ -347,7 +347,7 @@ struct JoinView: View {
     }
     
     private var playersSection: some View {
-        Section(header: Text("Players: \(viewModel.gameModel.gameValue.players.count)")) {
+        Section(header: Text(logic.getPlayersHeaderText(playerCount: viewModel.gameModel.gameValue.players.count))) {
             ScrollView(.horizontal) {
                 HStack {
                     ForEach(viewModel.gameModel.gameValue.players) { player in

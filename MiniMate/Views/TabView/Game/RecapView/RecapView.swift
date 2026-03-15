@@ -23,11 +23,11 @@ struct RecapView<Content: View>: View {
     
     var isGuest: Bool
     
+    // Platform-agnostic business logic isolated for KMP
+    private let logic = RecapViewBusinessLogic()
+    
     var sortedPlayers: [Player] {
-        guard let game = game else { return [] }
-
-        let players = game.players.sorted { $0.totalStrokes < $1.totalStrokes }
-        return players.isEmpty ? [] : players
+        logic.sortPlayers(from: game)
     }
     
     @State var gameReview: Game? = nil
@@ -76,7 +76,9 @@ struct RecapView<Content: View>: View {
                         
                         
                     } else {
-                        PlayerStandingView(player: sortedPlayers[0], place: .first, course: course, onlyPlayer: true)
+                        if !sortedPlayers.isEmpty {
+                            PlayerStandingView(player: sortedPlayers[0], place: .first, course: course, onlyPlayer: true)
+                        }
                     }
                     
                     if sortedPlayers.count <= 3 {
@@ -121,54 +123,24 @@ struct RecapView<Content: View>: View {
     }
 }
 
-enum PlayerStanding: Equatable {
-    case first
-    case second
-    case third
-}
-
 struct PlayerStandingView: View {
     let player: Player
     let place: PlayerStanding?
     let course: Course?
     let onlyPlayer: Bool
+    
+    private let logic = RecapViewBusinessLogic()
 
     var color: Color {
         switch place {
         case .first:
-            Color.yellow.opacity(0.5)
+            return Color.yellow.opacity(0.5)
         case .second:
-            Color.gray.opacity(0.5)
+            return Color.gray.opacity(0.5)
         case .third:
-            Color.brown.opacity(0.5)
+            return Color.brown.opacity(0.5)
         default:
-            Color.clear
-        }
-    }
-    
-    var moji: String {
-        switch place {
-        case .first:
-            "🥇"
-        case .second:
-            "🥈"
-        case .third:
-            "🥉"
-        default:
-            ""
-        }
-    }
-    
-    var imageSize: CGFloat {
-        switch place {
-        case .first:
-            70
-        case .second:
-            40
-        case .third:
-            40
-        default:
-            30
+            return Color.clear
         }
     }
     
@@ -176,14 +148,22 @@ struct PlayerStandingView: View {
         
         VStack{
             HStack{
-                if place != nil {
-                    if onlyPlayer {
-                        PhotoIconView(photoURL: player.photoURL, name: player.name, ballColor: player.ballColor,imageSize: 70, background: .ultraThinMaterial)
-                    } else {
-                        PhotoIconView(photoURL: player.photoURL, name: player.name + moji, ballColor: player.ballColor, imageSize: imageSize, background: color)
-                    }
+                if place != nil && !onlyPlayer {
+                    PhotoIconView(
+                        photoURL: player.photoURL,
+                        name: logic.formatPlayerName(name: player.name, place: place, onlyPlayer: onlyPlayer),
+                        ballColor: player.ballColor,
+                        imageSize: CGFloat(logic.getImageSize(for: place)),
+                        background: color
+                    )
                 } else {
-                    PhotoIconView(photoURL: player.photoURL, name: player.name, ballColor: player.ballColor, imageSize: imageSize, background: .ultraThinMaterial)
+                    PhotoIconView(
+                        photoURL: player.photoURL,
+                        name: logic.formatPlayerName(name: player.name, place: place, onlyPlayer: onlyPlayer),
+                        ballColor: player.ballColor,
+                        imageSize: CGFloat(logic.getImageSize(for: place)),
+                        background: .ultraThinMaterial
+                    )
                 }
                 
                 Spacer()

@@ -69,7 +69,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Controllers/Auth/AppleReauthCoordinator.swift,
-				Controllers/Auth/AuthViewModel.swift,
 				Controllers/Auth/FirebaseAuthRepository.swift,
 				Controllers/Other/KeyboardObserver.swift,
 				Controllers/Other/LocFuncs.swift,
@@ -82,6 +81,7 @@
 				Controllers/RepoControls/UserRepos/UserLocalRepository.swift,
 				Controllers/RepoControls/UserRepos/UserRemoteRepository.swift,
 				Controllers/RepoControls/UserRepos/UserRepository.swift,
+				Controllers/ViewModels/AuthViewModel.swift,
 				Controllers/ViewModels/GameReview/GameReviewPresenter.swift,
 				Controllers/ViewModels/GameReview/GameReviewViewModel.swift,
 				Controllers/ViewModels/ProfileView/ProfileService.swift,

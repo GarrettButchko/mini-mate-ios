@@ -298,7 +298,6 @@ struct ScoreCardView: View {
                 } label: {
                     HStack{
                         VStack(alignment: .leading, spacing: 8) {
-                            
                             if let adTitle = course.adTitle {
                                 Text(adTitle)
                                     .foregroundStyle(.mainOpp)
@@ -321,19 +320,19 @@ struct ScoreCardView: View {
                                 switch phase {
                                 case .empty:
                                     ProgressView()
-                                        .frame(height: 60)
+                                        .frame(height: 50)
                                 case .success(let image):
                                     image
                                         .resizable()
-                                        .scaledToFill()
-                                        .frame(height: 60)
+                                        .scaledToFit()
+                                        .frame(height: 50)
                                         .clipShape(RoundedRectangle(cornerRadius: 12))
                                         .clipped()
                                 case .failure:
                                     Image(systemName: "photo")
                                         .resizable()
                                         .scaledToFit()
-                                        .frame(height: 60)
+                                        .frame(height: 50)
                                         .foregroundColor(.gray)
                                         .background(Color.gray.opacity(0.2))
                                         .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -346,6 +345,7 @@ struct ScoreCardView: View {
                     }
                     .padding()
                 }
+                .frame(height: 50)
             } else {
                 if NetworkChecker.shared.isConnected && (isGuest || !authModel.userModel!.isPro) {
                     BannerAdView(adUnitID: "ca-app-pub-8261962597301587/6716977198") // Replace with real one later

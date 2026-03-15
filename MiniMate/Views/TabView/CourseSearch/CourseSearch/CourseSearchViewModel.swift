@@ -46,7 +46,9 @@ class CourseSearchViewModel: ObservableObject {
 
         locationHandler.$hasLocationAccess
             .receive(on: DispatchQueue.main)
+            .print("📍 Pipe ")
             .assign(to: &$hasLocationAccess)
+            
             
         // --- Sync from the original CourseViewModel to this ViewModel ---
         
@@ -67,7 +69,9 @@ class CourseSearchViewModel: ObservableObject {
         // When the View updates `selectedMapItem`...
         $selectedMapItem
             .dropFirst()
-            .debounce(for: .milliseconds(100), scheduler: RunLoop.main) // Prevent rapid updates
+            .removeDuplicates() // Prevents the feedback loop.
+            .debounce(for: .milliseconds(100), scheduler: RunLoop.main)
+            
             .sink { [weak self] item in
                 // ...update the original models so subviews see the change.
                 self?.locationHandler.setSelectedItem(item)
@@ -78,7 +82,8 @@ class CourseSearchViewModel: ObservableObject {
         // When the original `locationHandler` updates its selected item...
         locationHandler.$selectedItem
             .receive(on: DispatchQueue.main)
-            //...update this ViewModel's state to keep the UI in sync.
+            .removeDuplicates() // Prevents the feedback loop.
+            
             .assign(to: &$selectedMapItem)
     }
 

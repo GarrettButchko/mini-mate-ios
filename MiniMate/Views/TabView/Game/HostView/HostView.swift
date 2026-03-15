@@ -11,15 +11,16 @@ struct HostView: View {
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject var gameModel: GameViewModel
     @EnvironmentObject var locationHandler: LocationHandler
+    @EnvironmentObject var authModel: AuthViewModel
+    @EnvironmentObject var viewManager: ViewManager
+    @EnvironmentObject var VM: HostViewModel
     
     @Binding var showHost: Bool
     
-    @EnvironmentObject var authModel: AuthViewModel
-    @EnvironmentObject var viewManager: ViewManager
-    
-    @EnvironmentObject var VM: HostViewModel
-
     var isGuest: Bool
+    
+    // Platform-agnostic business logic isolated for KMP
+    private let logic = HostViewBusinessLogic()
     
     init(
         showHost: Binding<Bool>,
@@ -51,8 +52,10 @@ struct HostView: View {
                     
                     if isGuest {
                         Button {
-                            viewManager.navigateToSignIn()
-                            gameModel.dismissGame()
+                            logic.handleGuestBackAction(
+                                dismissGame: { gameModel.dismissGame() },
+                                navigateToSignIn: { viewManager.navigateToSignIn() }
+                            )
                         } label: {
                             Image(systemName: "chevron.left")
                                 .resizable()
@@ -67,7 +70,7 @@ struct HostView: View {
                     
                     Spacer()
                     
-                    Text(gameModel.isOnline ? "Hosting Game" : "Game Setup")
+                    Text(logic.getHeaderTitle(isOnline: gameModel.isOnline))
                         .font(.title)
                         .fontWeight(.bold)
                         .padding(.horizontal)
@@ -119,15 +122,22 @@ struct HostView: View {
         }
         .onDisappear {
             VM.resetTimer(gameModel)
-            if !gameModel.gameValue.started && !gameModel.gameValue.dismissed && showHost == false {
+            
+            let shouldDismiss = logic.shouldDismissGameOnDisappear(
+                isStarted: gameModel.gameValue.started,
+                isDismissed: gameModel.gameValue.dismissed,
+                showHost: showHost
+            )
+            
+            if shouldDismiss {
                 gameModel.dismissGame()
             }
         }
         .contentShape(Rectangle())
         .alert("Delete Player?", isPresented: $VM.showDeleteAlert) {
             Button("Delete", role: .destructive) {
-                if let player = VM.playerToDelete {
-                    gameModel.removePlayer(userId: player)
+                logic.handleDeletePlayer(playerId: VM.playerToDelete) { id in
+                    gameModel.removePlayer(userId: id)
                 }
             }
             Button("Cancel", role: .cancel) {}
@@ -254,17 +264,22 @@ struct HostView: View {
                 )
                 .frame(height: 75)
             }  header: {
-                Text("Players: \(gameModel.gameValue.players.count)")
+                Text(logic.getPlayersHeaderText(playerCount: gameModel.gameValue.players.count))
             }
         }
     }
     
     private var startGameSection: some View {
         Button {
-            VM.startGame(viewManager: viewManager, showHost: $showHost, isGuest: isGuest, gameModel: gameModel)
-            if isGuest{
-                LocalGameRepository(context: context).deleteGuestGame(){ _ in}
-            }
+            logic.handleStartGame(
+                isGuest: isGuest,
+                deleteGuestGame: {
+                    LocalGameRepository(context: context).deleteGuestGame { _ in }
+                },
+                performStart: {
+                    VM.startGame(viewManager: viewManager, showHost: $showHost, isGuest: isGuest, gameModel: gameModel)
+                }
+            )
         } label: {
             HStack{
                 Image(systemName: "play.fill")

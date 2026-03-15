@@ -17,21 +17,21 @@ struct CourseViewContainer: View {
     @EnvironmentObject var viewManager: ViewManager
     @EnvironmentObject var authModel: AuthViewModel
 
-    /// This is the original ViewModel that un-refactored subviews still depend on.
-    /// We create it here so we can pass it to the new `CourseSearchViewModel`
-    /// and also provide it as an EnvironmentObject.
-    @StateObject private var courseViewModel = CourseViewModel()
-
-    var body: some View {
-        // Create the new ViewModel, injecting its dependencies.
-        let searchViewModel = CourseSearchViewModel(
+    @StateObject private var courseViewModel: CourseViewModel
+    @StateObject private var courseSearchViewModel: CourseSearchViewModel
+    
+    init(locationHandler: LocationHandler) {
+        let courseViewModel = CourseViewModel()
+        _courseViewModel = StateObject(wrappedValue: courseViewModel)
+        _courseSearchViewModel = StateObject(wrappedValue: CourseSearchViewModel(
             locationHandler: locationHandler,
             courseViewModel: courseViewModel
-        )
+        ))
+    }
 
-        // The refactored CourseView now takes the new ViewModel.
-        CourseView(viewModel: searchViewModel)
-            // Provide the original view model to subviews like CourseSearchResultsView.
+    var body: some View {
+        CourseView()
+            .environmentObject(courseSearchViewModel)
             .environmentObject(courseViewModel)
     }
 }
@@ -40,12 +40,7 @@ struct CourseViewContainer: View {
 // MARK: - CourseView
 
 struct CourseView: View {
-    @StateObject var viewModel: CourseSearchViewModel
-
-    init(viewModel: CourseSearchViewModel) {
-        _viewModel = StateObject(wrappedValue: viewModel)
-    }
-    
+    @EnvironmentObject var viewModel: CourseSearchViewModel
     var body: some View {
         GeometryReader { geometry in
             if viewModel.hasLocationAccess {

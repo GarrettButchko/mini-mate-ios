@@ -127,6 +127,7 @@ struct MainTabView: View {
     @EnvironmentObject var authModel: AuthViewModel
     @EnvironmentObject var gameModel: GameViewModel
     @EnvironmentObject var hostVM: HostViewModel
+    @EnvironmentObject var locationHandler: LocationHandler
     //let ad: Ad?
     
     @StateObject var iapManager = IAPManager()
@@ -170,7 +171,7 @@ struct MainTabView: View {
                 if NetworkChecker.shared.isConnected {
                     Group {
                         if loadedTabs.contains(2) {
-                            CourseViewContainer()
+                            CourseViewContainer(locationHandler: locationHandler)
                         } else {
                             Color.clear.onAppear {
                                 loadedTabs.insert(2)

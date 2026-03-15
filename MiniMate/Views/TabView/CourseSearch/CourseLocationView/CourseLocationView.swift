@@ -51,7 +51,7 @@ struct CourseResultView: View {
                             CourseClaimButton()
                         }
                         
-                        lookAroundSection
+                        LookAroundView()
                         
                         CourseContactInfoCard()
                         
@@ -76,7 +76,7 @@ struct CourseResultView: View {
                 .background(Color.clear)
                 
                 VStack {
-                    CourseResultViewHeader(viewModel: viewModel)
+                    CourseResultViewHeader()
                         .padding()
                         .padding(.bottom, 16)
                         .background {
@@ -94,8 +94,14 @@ struct CourseResultView: View {
         
     }
     
-    @ViewBuilder
-    private var lookAroundSection: some View {
+    
+}
+
+struct LookAroundView: View {
+    @EnvironmentObject var viewModel: CourseLocationViewModel
+    
+    
+    var body: some View{
         switch viewModel.lookAroundState {
         case .loading:
             HStack {
@@ -128,7 +134,7 @@ struct CourseResultView: View {
 
 // MARK: - Result View Header
 struct CourseResultViewHeader: View {
-    @ObservedObject var viewModel: CourseLocationViewModel
+    @EnvironmentObject var viewModel: CourseLocationViewModel
     
     var body: some View {
         HStack(alignment: .center, spacing: 8) {

@@ -17,15 +17,8 @@ final class HostViewModel: ObservableObject {
     @Published var playerToDelete: String?
     
     @Published var showTextAndButtons = false
-    @Published var showDeleteAlert = false
-    
-    @Published var showAddLocalPlayer: Bool = false
-    
-    
     @Published var isRotating = false
     @Published var showLocationButton: Bool = false
-    @Published var showQRCode: Bool = false
-    
     @Published var qrCodeImage: UIImage? = nil
     
     let courseRepo = CourseRepository()
@@ -36,6 +29,9 @@ final class HostViewModel: ObservableObject {
     private let resetCooldown: TimeInterval = 2.0 // Minimum 1 second between resets
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @Published var showQRCode: Bool = false
+    @Published var showAddLocalPlayer: Bool = false
+    @Published var showDeleteAlert = false
     
     // Custom binding for showTextAndButtons
     var showTextAndButtonsBinding: Binding<Bool> {
