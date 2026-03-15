@@ -22,11 +22,11 @@ class UserStatsAnalyzer {
 
     // MARK: - Basic Stats
     
-    var totalGamesPlayed: Int {
+    func totalGamesPlayed() -> Int {
         games.count
     }
     
-    var totalPlayersFaced: Int {
+    func totalPlayersFaced() -> Int {
         let userIDSet = Set(games.flatMap { $0.players.map { $0.userId } })
         var count = 0
         for id in userIDSet {
@@ -37,39 +37,39 @@ class UserStatsAnalyzer {
         return count
     }
     
-    var totalStrokes: Int {
+    func totalStrokes() -> Int {
         games.flatMap { $0.players }.filter { $0.userId == userID || $0.userId.contains("guest") }.flatMap { $0.holes }.map { $0.strokes }.reduce(0, +)
     }
     
-    var totalHolesPlayed: Int {
+    func totalHolesPlayed() -> Int {
         games.flatMap { $0.players }.filter { $0.userId == userID || $0.userId.contains("guest") }.flatMap { $0.holes }.count
     }
     
-    var averageStrokesPerGame: Double {
-        guard totalGamesPlayed > 0 else { return 0 }
-        return Double(totalStrokes) / Double(totalGamesPlayed)
+    func averageStrokesPerGame() -> Double {
+        guard totalGamesPlayed() > 0 else { return 0 }
+        return Double(totalStrokes()) / Double(totalGamesPlayed())
     }
     
-    var averageStrokesPerHole: Double {
-        guard totalHolesPlayed > 0 else { return 0 }
-        return Double(totalStrokes) / Double(totalHolesPlayed)
+    func averageStrokesPerHole() -> Double {
+        guard totalHolesPlayed() > 0 else { return 0 }
+        return Double(totalStrokes()) / Double(totalHolesPlayed())
     }
     
     // MARK: - Performance Stats
     
-    var bestGameStrokes: Int? {
+    func bestGameStrokes() -> Int? {
         games.compactMap { game in
             game.players.first(where: { $0.userId == userID || $0.userId.contains("guest")})?.holes.map { $0.strokes }.reduce(0, +)
         }.min()
     }
     
-    var worstGameStrokes: Int? {
+    func worstGameStrokes() -> Int? {
         games.compactMap { game in
             game.players.first(where: { $0.userId == userID || $0.userId.contains("guest")})?.holes.map { $0.strokes }.reduce(0, +)
         }.max()
     }
     
-    var holeInOneCount: Int {
+    func holeInOneCount() -> Int {
         games.flatMap { $0.players }
             .filter { $0.userId == userID || $0.userId.contains("guest")}
             .flatMap { $0.holes }
@@ -79,11 +79,11 @@ class UserStatsAnalyzer {
     
     // MARK: - Average Holes Maps
     
-    var averageHoles9: [Hole] {
+    func averageHoles9() -> [Hole] {
         averageHolesMap(numberOfHoles: 9)
     }
     
-    var averageHoles18: [Hole] {
+    func averageHoles18() -> [Hole] {
         averageHolesMap(numberOfHoles: 18)
     }
     
@@ -113,23 +113,23 @@ class UserStatsAnalyzer {
     }
     
     
-    var latestGame: Game? {
+    func latestGame() -> Game? {
         games.sorted(by: { $0.date > $1.date }).first
     }
     
-    var winnerOfLatestGame: Player? {
-        latestGame?.players.sorted(by: { $0.totalStrokes < $1.totalStrokes }).first
+    func winnerOfLatestGame() -> Player? {
+        latestGame()?.players.sorted(by: { $0.totalStrokes < $1.totalStrokes }).first
     }
     
-    var usersScoreOfLatestGame: Int {
-        latestGame?.players.first(where: {$0.userId == userID || $0.userId.contains("guest")})?.totalStrokes ?? 0
+    func usersScoreOfLatestGame() -> Int {
+        latestGame()?.players.first(where: {$0.userId == userID || $0.userId.contains("guest")})?.totalStrokes ?? 0
     }
     
-    var usersHolesOfLatestGame: [Hole] {
-        latestGame?.players.first(where: {$0.userId == userID || $0.userId.contains("guest")})?.holes ?? []
+    func usersHolesOfLatestGame() -> [Hole] {
+        latestGame()?.players.first(where: {$0.userId == userID || $0.userId.contains("guest")})?.holes ?? []
     }
     
-    var hasGames: Bool {
+    func hasGames() -> Bool {
         !games.isEmpty
     }
 }

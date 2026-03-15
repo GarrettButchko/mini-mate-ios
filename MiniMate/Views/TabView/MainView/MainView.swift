@@ -10,8 +10,14 @@ struct MainView: View {
     @Query var allGames: [Game]
     @State private var filteredGames: [Game] = []
     
+    // Platform-agnostic business logic isolated for KMP
+    private let logic = MainViewBusinessLogic()
+    
     var disablePlaying: Bool {
-        authModel.userModel?.isPro == false && (authModel.userModel?.gameIDs.count ?? 0) >= 2
+        logic.isPlayDisabled(
+            isPro: authModel.userModel?.isPro,
+            gameCount: authModel.userModel?.gameIDs.count ?? 0
+        )
     }
     
     @Environment(\.colorScheme) private var colorScheme
@@ -94,7 +100,7 @@ struct MainView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         
-                        Text(authModel.userModel?.name ?? "User")
+                        Text(logic.getGreetingName(name: authModel.userModel?.name))
                             .font(.title2)
                             .fontWeight(.semibold)
                     }
@@ -256,7 +262,7 @@ struct MainView: View {
             Spacer()
             
             ZStack {
-                Text(isOnlineMode ? "Online Options" : "Start a Round")
+                Text(logic.getHeaderTitle(isOnlineMode: isOnlineMode))
                     .id(isOnlineMode)
                     .font(.title)
                     .fontWeight(.bold)
@@ -280,10 +286,7 @@ struct MainView: View {
             .alert("Info", isPresented: $showInfo) {
                 Button("OK") {}
             } message: {
-                Text(isOnlineMode
-                     ? "Host starts a server game. Join connects to an existing one. Multiple devices sync in real time."
-                     : "Quick starts a local game. Online lets you host or join a networked game."
-                )
+                Text(logic.getInfoMessage(isOnlineMode: isOnlineMode))
             }
         }
     }
@@ -391,7 +394,7 @@ struct MainView: View {
                                 showFirstStage = true
                             }
                             
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 7.0) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + logic.proPromotionDisplayDuration) {
                                 if showFirstStage {
                                     withAnimation {
                                         showFirstStage = false
@@ -429,10 +432,8 @@ struct MainView: View {
     }
     
     private func updateFilteredGames() {
-        let ids = Set(userGameIDs)
-        let newGames = allGames.filter { ids.contains($0.id) }
-        filteredGames = newGames
-        refreshAnalyzer(with: newGames)
+        filteredGames = logic.filterUserGames(allGames: allGames, userGameIDs: userGameIDs)
+        refreshAnalyzer(with: filteredGames)
     }
     
     private func refreshAnalyzer(with games: [Game]) {
@@ -562,7 +563,10 @@ struct MainView: View {
     
     var proStopper: some View {
         Group{
-            if !authModel.userModel!.isPro && authModel.userModel!.gameIDs.count >= 2 {
+            if logic.shouldShowProStopper(
+                isPro: authModel.userModel?.isPro,
+                gameCount: authModel.userModel?.gameIDs.count ?? 0
+            ) {
                 Text("You’ve reached the free limit. Upgrade to Pro to store more than 2 games.")
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -594,7 +598,7 @@ struct MainView: View {
     
     @ViewBuilder
     var lastGameStats: some View {
-        if showLastGameStats, let lastGame = analyzer?.latestGame {
+        if showLastGameStats, let lastGame = analyzer?.latestGame() {
             
             Button {
                 gameReview = lastGame
@@ -610,9 +614,9 @@ struct MainView: View {
                         // 2. Only show Winner if it's a multiplayer game
                         if lastGame.players.count > 1 {
                             PhotoIconView(
-                                photoURL: analyzer?.winnerOfLatestGame?.photoURL,
-                                name: (analyzer?.winnerOfLatestGame?.name ?? "N/A") + " 🥇",
-                                ballColor: analyzer?.winnerOfLatestGame?.ballColor,
+                                photoURL: analyzer?.winnerOfLatestGame()?.photoURL,
+                                name: logic.formatWinnerName(name: analyzer?.winnerOfLatestGame()?.name),
+                                ballColor: analyzer?.winnerOfLatestGame()?.ballColor,
                                 imageSize: 30,
                                 background: .yellow
                             )
@@ -626,7 +630,7 @@ struct MainView: View {
                         
                         StatCard(
                             title: "Your Strokes",
-                            value: "\(analyzer?.usersScoreOfLatestGame ?? 0)",
+                            value: "\(analyzer?.usersScoreOfLatestGame() ?? 0)",
                             makeColor: gameModel.getCourse()?.scoreCardColor,
                             cornerRadius: 12,
                             cardHeight: cardHeight,
@@ -634,7 +638,7 @@ struct MainView: View {
                         )
                     }
                     
-                    BarChartView(data: analyzer?.usersHolesOfLatestGame ?? [], title: "Recap of Game")
+                    BarChartView(data: analyzer?.usersHolesOfLatestGame() ?? [], title: "Recap of Game")
                         .frame(height: 150)
                         .background(
                             RoundedRectangle(cornerRadius: 12)

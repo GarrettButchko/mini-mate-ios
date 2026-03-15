@@ -33,6 +33,9 @@ final class HostViewModel: ObservableObject {
     @Published var showAddLocalPlayer: Bool = false
     @Published var showDeleteAlert = false
     
+    // Platform-agnostic business logic isolated for KMP
+    private let logic = HostViewBusinessLogic()
+    
     // Custom binding for showTextAndButtons
     var showTextAndButtonsBinding: Binding<Bool> {
         Binding(
@@ -48,8 +51,7 @@ final class HostViewModel: ObservableObject {
     func tick(showHost: Binding<Bool>, gameModel: GameViewModel) {
         guard gameModel.isOnline else { return }   // ✅ offline = no timer behavior
 
-        let expire = lastUpdated.addingTimeInterval(ttl)
-        timeRemaining = max(0, expire.timeIntervalSinceNow)
+        timeRemaining = logic.calculateTimeRemaining(lastUpdated: lastUpdated, ttl: ttl)
 
         if timeRemaining == 0 {
             showHost.wrappedValue = false
@@ -61,8 +63,7 @@ final class HostViewModel: ObservableObject {
         guard gameModel.isOnline else { return }   // ✅ offline = don't reset timer
         
         // Prevent spam by enforcing cooldown
-        if let lastReset = lastResetTime,
-           Date().timeIntervalSince(lastReset) < resetCooldown {
+        guard logic.canResetTimer(lastResetTime: lastResetTime, cooldown: resetCooldown) else {
             return
         }
         
@@ -95,8 +96,9 @@ final class HostViewModel: ObservableObject {
         courseRepo.courseNameExistsAndSupported(name) { exists in
             if !exists { return }
             
-            self.courseRepo.fetchCourseByName(name) { course in
-                let holes = course?.pars.count ?? 18
+            self.courseRepo.fetchCourseByName(name) { [weak self] course in
+                guard let self = self else { return }
+                let holes = self.logic.determineDefaultHoles(parsCount: course?.pars.count)
                 gameModel.setNumberOfHole(holes)
             }
         }
@@ -145,11 +147,7 @@ final class HostViewModel: ObservableObject {
     }
     
     func timeString() -> String {
-        let seconds = Int(timeRemaining)
-        
-        let minutes = seconds / 60
-        let secs = seconds % 60
-        return String(format: "%d:%02d", minutes, secs)
+        return logic.formatTimeString(seconds: Int(timeRemaining))
     }
     
     func generateQRCode(from string: String) {

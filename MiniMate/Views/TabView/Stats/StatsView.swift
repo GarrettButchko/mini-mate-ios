@@ -90,7 +90,7 @@ struct StatsView: View {
                             ))
                     } else {
                         
-                        if viewModel.analyzer?.hasGames == true {
+                        if viewModel.analyzer?.hasGames() == true {
                             overViewSection
                                 .transition(.asymmetric(
                                     insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -271,15 +271,15 @@ struct StatsView: View {
                 VStack(spacing: 16){
                     SectionStatsView(title: "Basic Stats", spacing: spacing) {
                         HStack(spacing: spacing){
-                            StatCard(title: "Players Faced", value: "\(analyzer.totalPlayersFaced)", infoText: "Number of players other than yourself you played with.")
-                            StatCard(title: "Holes Played", value: "\(analyzer.totalHolesPlayed)", infoText: "Total holes played (including unfinished holes).")
+                            StatCard(title: "Players Faced", value: "\(analyzer.totalPlayersFaced())", infoText: "Number of players other than yourself you played with.")
+                            StatCard(title: "Holes Played", value: "\(analyzer.totalHolesPlayed())", infoText: "Total holes played (including unfinished holes).")
                         }
                         
-                        StatCard(title: "Games Played", value: "\(analyzer.totalGamesPlayed)", infoText: "Total games played.")
+                        StatCard(title: "Games Played", value: "\(analyzer.totalGamesPlayed())", infoText: "Total games played.")
                         
                         HStack(spacing: spacing){
-                            StatCard(title: "Strokes/Game", value: String(format: "%.1f", analyzer.averageStrokesPerGame), infoText: "Average strokes per game.")
-                            StatCard(title: "Strokes/Hole", value: String(format: "%.1f", analyzer.averageStrokesPerHole), infoText: "Average strokes per hole.")
+                            StatCard(title: "Strokes/Game", value: String(format: "%.1f", analyzer.averageStrokesPerGame()), infoText: "Average strokes per game.")
+                            StatCard(title: "Strokes/Hole", value: String(format: "%.1f", analyzer.averageStrokesPerHole()), infoText: "Average strokes per hole.")
                         }
                     }
                     
@@ -298,7 +298,7 @@ struct StatsView: View {
                     }
                     
                     SectionStatsView(title: "Average 18-Hole Game", spacing: spacing){
-                        BarChartView(data: analyzer.averageHoles18, title: "Average Strokes")
+                        BarChartView(data: analyzer.averageHoles18(), title: "Average Strokes")
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
                                     .fill(.subTwo)
@@ -307,14 +307,14 @@ struct StatsView: View {
                     
                     SectionStatsView(title: "Misc Stats", spacing: spacing) {
                         HStack(spacing: spacing){
-                            StatCard(title: "Best Game", value: "\(analyzer.bestGameStrokes ?? 0)", color: .green, infoText: "Lowest total strokes in a game.")
-                            StatCard(title: "Worst Game", value: "\(analyzer.worstGameStrokes ?? 0)", color: .red, infoText: "Highest total strokes in a game.")
+                            StatCard(title: "Best Game", value: "\(analyzer.bestGameStrokes() ?? 0)", color: .green, infoText: "Lowest total strokes in a game.")
+                            StatCard(title: "Worst Game", value: "\(analyzer.worstGameStrokes() ?? 0)", color: .red, infoText: "Highest total strokes in a game.")
                         }
-                        StatCard(title: "Holes-in-One", value: "\(analyzer.holeInOneCount)", infoText: "Number of holes with one stroke.")
+                        StatCard(title: "Holes-in-One", value: "\(analyzer.holeInOneCount())", infoText: "Number of holes with one stroke.")
                     }
                     
                     SectionStatsView(title: "Average 9-Hole Game", spacing: spacing){
-                        BarChartView(data: analyzer.averageHoles9, title: "Average Strokes")
+                        BarChartView(data: analyzer.averageHoles9(), title: "Average Strokes")
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
                                     .fill(.subTwo)

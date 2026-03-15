@@ -20,6 +20,9 @@ final class JoinViewModel: ObservableObject {
     // MARK: - Dependencies
     let gameModel: GameViewModel
     let authModel: AuthViewModel
+    
+    // Platform-agnostic business logic isolated for KMP
+    private let logic = JoinViewBusinessLogic()
 
     // MARK: - Init
     init(
@@ -33,7 +36,7 @@ final class JoinViewModel: ObservableObject {
     // MARK: - Actions
 
     func joinGame() {
-        guard !gameCode.isEmpty else { return }
+        guard logic.canAttemptJoin(gameCode: gameCode) else { return }
 
         gameModel.joinGame(id: gameCode, userId: authModel.userModel!.googleId) { [weak self] success, error in
             guard let self else { return }
@@ -65,11 +68,13 @@ final class JoinViewModel: ObservableObject {
     // MARK: - External State Reactions
 
     func hostDidDismiss(showHost: Bool) {
-        guard
-            !showHost,
-            !gameModel.gameValue.id.isEmpty,
-            !gameModel.gameValue.started
-        else { return }
+        let shouldLeave = logic.shouldLeaveGameOnHostDismiss(
+            showHost: showHost,
+            gameId: gameModel.gameValue.id,
+            hasStarted: gameModel.gameValue.started
+        )
+        
+        guard shouldLeave else { return }
 
         gameModel.leaveGame(userId: gameModel.gameValue.id)
         withAnimation {
@@ -78,13 +83,13 @@ final class JoinViewModel: ObservableObject {
     }
 
     func gameDidStart(_ started: Bool, onNavigate: () -> Void) {
-        if started {
+        if logic.shouldNavigateOnGameStart(hasStarted: started) {
             onNavigate()
         }
     }
 
     func gameDidDismiss(_ dismissed: Bool) {
-        if dismissed {
+        if logic.shouldResetOnGameDismiss(isDismissed: dismissed) {
             gameCode = ""
             withAnimation {
                 inGame = false

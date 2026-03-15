@@ -41,6 +41,9 @@ final class GameViewModel: ObservableObject, Observable {
     private var listenerHandles: [DatabaseHandle] = []
     private var listenerRefs: [DatabaseReference] = []
     
+    // Platform-agnostic business logic isolated for KMP
+    private let logic = GameBusinessLogic()
+    
     // Initialization
     init(game: Game,
          authModel: AuthViewModel,
@@ -116,7 +119,7 @@ final class GameViewModel: ObservableObject, Observable {
         
         // 2) Rebuild players and their holes from remote data
         for remotePlayer in newGame.players {
-            initializeHoles(for: remotePlayer)
+            logic.initializeHoles(for: remotePlayer, totalHoles: game.numberOfHoles)
             // remotePlayer.holes already contains correct strokes
             // Append the fully initialized player
             game.players.append(remotePlayer)
@@ -240,7 +243,7 @@ final class GameViewModel: ObservableObject, Observable {
                   let dto: PlayerDTO = try? snap.data(as: PlayerDTO.self)
             else { return }
             let remote = Player.fromDTO(dto)
-            self.attachHoles(to: remote)
+            self.logic.attachHoles(to: remote, totalHoles: self.game.numberOfHoles)
             if !self.game.players.contains(where: { $0.id == remote.id }) {
                 self.objectWillChange.send()
                 self.game.players.append(remote)
@@ -256,7 +259,7 @@ final class GameViewModel: ObservableObject, Observable {
             let remote = Player.fromDTO(dto)
             if let local = self.game.players.first(where: { $0.id == remote.id }) {
                 self.objectWillChange.send()
-                self.mergePlayer(local: local, remote: remote)
+                self.logic.mergePlayer(local: local, remote: remote)
             }
         }
         listenerHandles.append(changeHandle)
@@ -293,71 +296,19 @@ final class GameViewModel: ObservableObject, Observable {
         listenerRefs.append(playersRef)
     }
     
-    // MARK: - Helpers
-    private func initializeHoles(for player: Player) {
-        guard player.holes.count != game.numberOfHoles else { return }
-        player.holes = []
-        player.holes = (0..<game.numberOfHoles).map {
-            let hole = Hole(number: $0 + 1)
-            hole.player = player
-            return hole
-        }
-    }
-
-    private func attachHoles(to player: Player) {
-        // Preserve existing strokes and ensure player linkage.
-        for hole in player.holes {
-            hole.player = player
-        }
-
-        if player.holes.count < game.numberOfHoles {
-            let existing = Set(player.holes.map(\.number))
-            for n in 1...game.numberOfHoles where !existing.contains(n) {
-                let hole = Hole(number: n)
-                hole.player = player
-                player.holes.append(hole)
-            }
-        }
-
-        player.holes.sort { $0.number < $1.number }
-    }
-
-    private func mergePlayer(local: Player, remote: Player) {
-        local.inGame = remote.inGame
-        local.name = remote.name
-        local.photoURL = remote.photoURL
-        local.email = remote.email
-
-        for remoteHole in remote.holes {
-            if let localHole = local.holes.first(where: { $0.number == remoteHole.number }) {
-                localHole.strokes = remoteHole.strokes
-            } else {
-                let hole = Hole(number: remoteHole.number, strokes: remoteHole.strokes)
-                hole.player = local
-                local.holes.append(hole)
-            }
-        }
-        local.holes.sort { $0.number < $1.number }
-    }
-    
-    private func generateGameCode(length: Int = 6) -> String {
-        let chars = "ABCDEFGHIJKLMNPQRSTUVWXYZ123456789"
-        return String((0..<length).compactMap { _ in chars.randomElement() })
-    }
-    
     // MARK: Players
     func addLocalPlayer(named name: String, email: String, ballColor: String? = nil) {
         objectWillChange.send()
         let newPlayer = Player(
-            userId: generateGameCode(),
+            userId: logic.generateGameCode(),
             name: name,
             photoURL: nil,
             inGame: true,
             email: email != "" ? email : nil,
             ballColorDT: ballColor
         )
-        initializeHoles(for: newPlayer)
-        withAnimation(){
+        logic.initializeHoles(for: newPlayer, totalHoles: game.numberOfHoles)
+        withAnimation {
             game.players.append(newPlayer)
         }
         pushUpdate()
@@ -374,15 +325,15 @@ final class GameViewModel: ObservableObject, Observable {
                 email: guestData.email,
                 ballColorDT: guestData.ballColorDT
             )
-            initializeHoles(for: newPlayer)
-            withAnimation(){
+            logic.initializeHoles(for: newPlayer, totalHoles: game.numberOfHoles)
+            withAnimation {
                 game.players.append(newPlayer)
             }
             pushUpdate()
         } else {
             guard let user = authModel.userModel else { return }
             // don’t add the same user twice
-            guard !game.players.contains(where: { $0.userId == user.googleId }) else { return }
+            guard !logic.isPlayerInGame(players: game.players, userId: user.googleId) else { return }
             
             objectWillChange.send()
             let newPlayer = Player(
@@ -393,8 +344,8 @@ final class GameViewModel: ObservableObject, Observable {
                 email: user.email,
                 ballColorDT: user.ballColorDT
             )
-            initializeHoles(for: newPlayer)
-            withAnimation(){
+            logic.initializeHoles(for: newPlayer, totalHoles: game.numberOfHoles)
+            withAnimation {
                 game.players.append(newPlayer)
             }
             pushUpdate()
@@ -404,7 +355,7 @@ final class GameViewModel: ObservableObject, Observable {
     
     func removePlayer(userId: String) {
         objectWillChange.send()
-        withAnimation(){
+        withAnimation {
             game.players.removeAll { $0.userId == userId }
         }
         pushUpdate()
@@ -414,33 +365,21 @@ final class GameViewModel: ObservableObject, Observable {
         guard onlineGame else { return }
         resetGame()
         resetCourse()
-        liveGameRepo.fetchGame(id: id) { game in
-            if let game = game,
-               !game.dismissed,
-               !game.started,
-               !game.completed,
-               !game.players.contains(where: { $0.userId == userId }) {
-                self.setGame(game)
-                self.addUser()
-                self.listenForUpdates()
-                completion(true, nil)
-            } else {
-                if let game = game {
-                    if game.dismissed == true {
-                        completion(false, "This game has been dismissed by the host.")
-                    } else if game.started == true {
-                        completion(false, "This game has already started.")
-                    } else if game.completed == true {
-                        completion(false, "This game has already been completed.")
-                    } else if game.players.contains(where: { $0.userId == userId }) {
-                        completion(false, "You are already in this game. Use a different account to join")
-                    } else {
-                        completion(false, "Error")
-                    }
-                } else {
-                    completion(false, "Game not found. Please check the code and try again.")
+        liveGameRepo.fetchGame(id: id) { [weak self] game in
+            guard let self = self else { return }
+            
+            let status = self.logic.validateJoinGame(game: game, userId: userId)
+            
+            switch status {
+            case .success:
+                if let validGame = game {
+                    self.setGame(validGame)
+                    self.addUser()
+                    self.listenForUpdates()
+                    completion(true, nil)
                 }
-                
+            case .error(let message):
+                completion(false, message)
             }
         }
     }
@@ -473,49 +412,26 @@ final class GameViewModel: ObservableObject, Observable {
         // Update onlineGame flag FIRST before any resetGame() call
         onlineGame = online
         
-        if let guestData = guestData {
-            guard !game.live else { return }
-            
-            objectWillChange.send()
-            resetGame()
-            
-            game.live = true
-            game.id = generateGameCode()
-            
-            game.hostUserId = guestData.id
-            
-            if let course = course {
-                game.courseID = course.id
-                game.locationName = course.name
-            } else {
-                print("No course set for game")
-            }
-            
+        guard !game.live else { return }
+        objectWillChange.send()
+        resetGame()
+        
+        let hostId = guestData?.id ?? authModel.userModel?.googleId ?? ""
+        logic.setupNewGame(game: game, hostId: hostId, course: course, newId: logic.generateGameCode())
+        
+        if guestData != nil {
             addUser(guestData: guestData)
-            pushUpdate()
         } else {
-            guard !game.live else { return }
-            
-            objectWillChange.send()
-            resetGame()
-            
-            game.live = true
-            game.id = generateGameCode()
-            
-            game.hostUserId = authModel.userModel!.googleId
-            
-            if let course = course {
-                game.courseID = course.id
-                game.locationName = course.name
-            } else {
-                print("No course set for game")
-            }
-            
             addUser()
-            pushUpdate()
-            if online {
-                listenForUpdates()
-            }
+        }
+        
+        if course == nil {
+            print("No course set for game")
+        }
+        
+        pushUpdate()
+        if online && guestData == nil {
+            listenForUpdates()
         }
     }
     
@@ -524,7 +440,7 @@ final class GameViewModel: ObservableObject, Observable {
         
         objectWillChange.send()
         for player in game.players {
-            initializeHoles(for: player)
+            logic.initializeHoles(for: player, totalHoles: game.numberOfHoles)
         }
         game.startTime = Date()
         game.started = true
@@ -571,115 +487,76 @@ final class GameViewModel: ObservableObject, Observable {
         game.endTime = Date()
         game.live = false
         
-        var finished: Game = Game()
-        copyGame(into: &finished, from: game)
-        
+        let finished = logic.createDeepCopy(of: game)
         print(finished)
 
-        let group = DispatchGroup()
-        var saveSuccess = false
-        var analyticsSuccess = true
-
-        // 1) Save game FIRST - only update userModel if this succeeds
-        if !isGuest {
-            group.enter()
-            UnifiedGameRepository(context: context).save(finished) { local, remote in
-                // Only mark as success if at least one save succeeded
-                if local || remote {
-                    print("✅ Saved Game: local=\(local), remote=\(remote)")
-                    saveSuccess = true
-                } else {
-                    print("❌ Game save failed")
-                    saveSuccess = false
+        Task { @MainActor in
+            var saveSuccess = false
+            var analyticsSuccess = true
+            
+            // 1) Save game FIRST
+            if !isGuest {
+                saveSuccess = await withCheckedContinuation { continuation in
+                    UnifiedGameRepository(context: context).save(finished) { local, remote in
+                        print("✅ Saved Game: local=\(local), remote=\(remote)")
+                        continuation.resume(returning: local || remote)
+                    }
                 }
-                group.leave()
+            } else {
+                saveSuccess = await withCheckedContinuation { continuation in
+                    LocalGameRepository(context: context).save(finished) { success in
+                        print(success ? "✅ Saved Guest Game" : "❌ Failed to save guest game")
+                        continuation.resume(returning: success)
+                    }
+                }
             }
-        } else {
-            group.enter()
-            LocalGameRepository(context: context).save(finished) { success in
-                saveSuccess = success
-                print(success ? "✅ Saved Guest Game" : "❌ Failed to save guest game")
-                group.leave()
-            }
-        }
-
-        // 2) Only run analytics if game was saved successfully
-        if let currentUserId = authModel.userModel?.googleId,
-           currentUserId == finished.hostUserId || isGuest {
-            group.enter()
-            print("running analytics")
-            processAnalytics(finishedGame: finished) { success in
-                analyticsSuccess = success
-                print(success ? "✅ Analytics processed" : "❌ Analytics failed")
-                group.leave()
-            }
-        }
-
-        // 3) Save user model ONLY after game is confirmed saved
-        group.notify(queue: .main) {
+            
             guard saveSuccess else {
                 print("⚠️ Skipping user save - game save failed")
-                self.objectWillChange.send()
-                self.hasLoaded = false
-                self.resetCourse()
-                self.resetGame()
+                self.resetGameState()
                 return
             }
 
-            // Now append the ID and save the updated userModel
+            // 2) Run analytics ONLY if game was saved successfully
+            if let currentUserId = authModel.userModel?.googleId,
+               currentUserId == finished.hostUserId || isGuest {
+                print("running analytics")
+                analyticsSuccess = await withCheckedContinuation { continuation in
+                    processAnalytics(finishedGame: finished) { success in
+                        print(success ? "✅ Analytics processed" : "❌ Analytics failed")
+                        continuation.resume(returning: success)
+                    }
+                }
+            }
+
+            // 3) Save user model ONLY after game is confirmed saved
             if let userModel = self.authModel.userModel,
                let uid = self.authModel.currentUserIdentifier {
                 userModel.gameIDs.append(finished.id)
                 
-                UserRemoteRepository().save(id: uid, userModel: userModel) { success in
-                    print(success ? "✅ Updated user model with new game ID" : "❌ Failed to update user model")
-                    
-                    if !analyticsSuccess {
-                        print("⚠️ Analytics encountered issues, but game was saved")
+                let userSaveSuccess = await withCheckedContinuation { continuation in
+                    UserRemoteRepository().save(id: uid, userModel: userModel) { success in
+                        continuation.resume(returning: success)
                     }
-                    
-                    self.objectWillChange.send()
-                    self.hasLoaded = false
-                    self.resetCourse()
-                    self.resetGame()
+                }
+                
+                print(userSaveSuccess ? "✅ Updated user model with new game ID" : "❌ Failed to update user model")
+                if !analyticsSuccess {
+                    print("⚠️ Analytics encountered issues, but game was saved")
                 }
             } else {
                 print("❌ Unable to save user model - missing userModel or currentUserIdentifier")
-                self.objectWillChange.send()
-                self.hasLoaded = false
-                self.resetCourse()
-                self.resetGame()
             }
+            
+            self.resetGameState()
         }
     }
     
-    func copyGame(into target: inout Game, from source: Game) {
-        target = Game(
-            id: source.id,
-            hostUserId: source.hostUserId,
-            date: source.date,
-            completed: source.completed,
-            numberOfHoles: source.numberOfHoles,
-            started: source.started,
-            dismissed: source.dismissed,
-            live: source.live,
-            lastUpdated: source.lastUpdated,
-            courseID: source.courseID,
-            players: source.players.map { player in
-                Player(
-                    id: player.id,
-                    userId: player.userId,
-                    name: player.name,
-                    photoURL: player.photoURL,
-                    holes: player.holes.map { Hole(number: $0.number, strokes: $0.strokes) },
-                    email: player.email,
-                    ballColorDT: player.ballColorDT
-                )
-            },
-            locationName: source.locationName,
-            startTime: source.startTime,
-            endTime: source.endTime
-        )
+    private func resetGameState() {
+        self.objectWillChange.send()
+        self.hasLoaded = false
+        self.resetCourse()
+        self.resetGame()
     }
 
 
@@ -713,31 +590,35 @@ final class GameViewModel: ObservableObject, Observable {
     func findClosestLocationAndLoadCourse(locationHandler: LocationHandler) async {
         guard !hasLoaded else { return }
 
-        // 1. Wait for location without blocking the UI
-        while locationHandler.userLocation == nil {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s sleep
+        // 1. Wait for location reactively without busy-waiting loop
+        if locationHandler.userLocation == nil {
+            for await location in locationHandler.$userLocation.values {
+                if location != nil { break }
+            }
         }
 
         // 2. Perform the heavy MapKit search
-        await withCheckedContinuation { continuation in
-            locationHandler.findClosestMiniGolf { closestPlace in
-                guard let closestPlace = closestPlace else {
-                    continuation.resume()
-                    return
-                }
-
-                let courseID = CourseIDGenerator.generateCourseID(from: closestPlace.toDTO())
-                
-                // 3. Fetch the course
-                self.courseRepo.fetchCourse(id: courseID, mapItem: closestPlace.toDTO()) { course in
-                    withAnimation {
-                        self.course = course
-                    }
-                    self.hasLoaded = true
-                    continuation.resume()
-                }
+        let closestPlace = await withCheckedContinuation { continuation in
+            locationHandler.findClosestMiniGolf { place in
+                continuation.resume(returning: place)
             }
         }
+        
+        guard let closestPlace = closestPlace else { return }
+        
+        let courseID = CourseIDGenerator.generateCourseID(from: closestPlace.toDTO())
+        
+        // 3. Fetch the course
+        let fetchedCourse = await withCheckedContinuation { continuation in
+            self.courseRepo.fetchCourse(id: courseID, mapItem: closestPlace.toDTO()) { course in
+                continuation.resume(returning: course)
+            }
+        }
+        
+        withAnimation {
+            self.course = fetchedCourse
+        }
+        self.hasLoaded = true
     }
 
     
@@ -750,13 +631,13 @@ final class GameViewModel: ObservableObject, Observable {
     }
     
     func searchNearby(handler: LocationHandler, isLoading: Binding<Bool>) {
-        withAnimation() {
+        withAnimation {
             isLoading.wrappedValue = true
         }
         setHasLoaded(false)
         Task {
             await findClosestLocationAndLoadCourse(locationHandler: handler)
-            withAnimation() {
+            withAnimation {
                 isLoading.wrappedValue = false
             }
         }

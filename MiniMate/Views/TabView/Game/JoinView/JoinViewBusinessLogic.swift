@@ -1,6 +1,8 @@
 // JoinViewBusinessLogic.swift
 // MiniMate
 
+import Foundation
+
 /// A platform-agnostic class designed to be easily migrated to a Kotlin Multiplatform shared module.
 /// It contains pure business, validation, and presentation logic for joining a game.
 class JoinViewBusinessLogic {
@@ -38,5 +40,27 @@ class JoinViewBusinessLogic {
     /// Formats the players section header
     func getPlayersHeaderText(playerCount: Int) -> String {
         return "Players: \(playerCount)"
+    }
+    
+    // MARK: - ViewModel State Logic
+    
+    /// Validates if a join attempt should proceed based on the game code
+    func canAttemptJoin(gameCode: String) -> Bool {
+        return !gameCode.isEmpty
+    }
+    
+    /// Determines if a joined player should be removed when the view's host state changes
+    func shouldLeaveGameOnHostDismiss(showHost: Bool, gameId: String, hasStarted: Bool) -> Bool {
+        return !showHost && !gameId.isEmpty && !hasStarted
+    }
+    
+    /// Validates if navigation should occur based on the game's started status
+    func shouldNavigateOnGameStart(hasStarted: Bool) -> Bool {
+        return hasStarted
+    }
+    
+    /// Validates if the local state should be reset because the game was dismissed
+    func shouldResetOnGameDismiss(isDismissed: Bool) -> Bool {
+        return isDismissed
     }
 }
