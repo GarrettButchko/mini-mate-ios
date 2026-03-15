@@ -28,6 +28,8 @@ struct ScoreCardView: View {
     
     @State private var titleHeight: CGFloat = 0
     
+    private let logic = ScoreCardBusinessLogic()
+    
     var isGuest: Bool
     
     var body: some View {
@@ -364,11 +366,12 @@ struct ScoreCardView: View {
     }
     
     private func endGame(game: Game, isGuest: Bool = false) {
-        guard !hasUploaded else { return }
-        
-        // 1️⃣ finish-and-persist before we pop the view
-        gameModel.finishAndPersistGame(game: game, in: context, isGuest: isGuest)
-        hasUploaded = true
+        logic.processEndGame(hasUploaded: hasUploaded) {
+            // finish-and-persist before we pop the view
+            gameModel.finishAndPersistGame(game: game, in: context, isGuest: isGuest)
+        } markAsUploaded: {
+            hasUploaded = true
+        }
     }
 }
 

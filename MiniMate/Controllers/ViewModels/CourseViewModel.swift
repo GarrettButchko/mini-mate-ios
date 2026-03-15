@@ -25,11 +25,9 @@ final class CourseViewModel: ObservableObject {
         self.courseRepo = courseRepo
     }
     
-    func getCourse(name: String) {
-        courseRepo.fetchCourseByName(name) { [weak self] course in
-            Task { @MainActor in
-                self?.selectedCourse = course
-            }
+    func setCourse(course: Course?) {
+        if let course {
+            selectedCourse = course
         }
     }
 

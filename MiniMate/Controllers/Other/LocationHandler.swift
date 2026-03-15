@@ -14,6 +14,9 @@ class LocationHandler: NSObject, ObservableObject, Observable, CLLocationManager
     @Published var selectedItem: MKMapItem?
     @Published var userLocation: CLLocationCoordinate2D?
     @Published var hasLocationAccess: Bool = false
+    
+    private var currentSearch: MKLocalSearch?
+    
     private let manager = CLLocationManager()
 
     override init() {
@@ -53,8 +56,8 @@ class LocationHandler: NSObject, ObservableObject, Observable, CLLocationManager
         didUpdateLocations locations: [CLLocation]
     ) {
         guard let location = locations.last else { return }
-        DispatchQueue.main.async {
-            self.userLocation = location.coordinate
+        DispatchQueue.main.async { [weak self] in
+            self?.userLocation = location.coordinate
         }
     }
 
@@ -93,13 +96,20 @@ class LocationHandler: NSObject, ObservableObject, Observable, CLLocationManager
         in region: MKCoordinateRegion,
         completion: @escaping (Bool) -> Void
     ) {
+        // 1. Cancel the previous search if it's still running
+        currentSearch?.cancel()
+        
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = "mini golf"
         request.region = region
         request.pointOfInterestFilter = .init(including: [.miniGolf])
-
+        
+        // 2. Store the new search
         let search = MKLocalSearch(request: request)
-        search.start { response, error in
+        self.currentSearch = search
+        
+        search.start { [weak self] response, error in
+            guard let self = self else { return }
             if let error = error {
                 print("Error during search: \(error.localizedDescription)")
                 DispatchQueue.main.async { completion(false) }
@@ -139,6 +149,8 @@ class LocationHandler: NSObject, ObservableObject, Observable, CLLocationManager
                 }
                 completion(true)
             }
+            
+            self.currentSearch = nil
         }
     }
     
@@ -166,7 +178,8 @@ class LocationHandler: NSObject, ObservableObject, Observable, CLLocationManager
             span: span
         )
 
-        performSearch(in: region) { success in
+        performSearch(in: region) { [weak self] success in
+            guard let self = self else { return }
             let newPosition = success ? self.updateCameraPosition(nil) : nil
             completion(success, newPosition)
         }
@@ -188,8 +201,7 @@ class LocationHandler: NSObject, ObservableObject, Observable, CLLocationManager
 
         let search = MKLocalSearch(request: request)
         search.start { response, error in
-            guard error == nil, let items = response?.mapItems, !items.isEmpty
-            else {
+            guard error == nil, let items = response?.mapItems, !items.isEmpty else {
                 completion(nil)
                 return
             }

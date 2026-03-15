@@ -17,22 +17,36 @@ struct CourseViewContainer: View {
     @EnvironmentObject var viewManager: ViewManager
     @EnvironmentObject var authModel: AuthViewModel
 
-    @StateObject private var courseViewModel: CourseViewModel
-    @StateObject private var courseSearchViewModel: CourseSearchViewModel
+    @StateObject private var container: ViewModelContainer
     
+    @MainActor
     init(locationHandler: LocationHandler) {
-        let courseViewModel = CourseViewModel()
-        _courseViewModel = StateObject(wrappedValue: courseViewModel)
-        _courseSearchViewModel = StateObject(wrappedValue: CourseSearchViewModel(
-            locationHandler: locationHandler,
-            courseViewModel: courseViewModel
-        ))
+        // The StateObject initializer uses an @autoclosure, meaning the 
+        // ViewModelContainer will only be allocated exactly once per view lifecycle,
+        // preventing the memory spike.
+        _container = StateObject(wrappedValue: ViewModelContainer(locationHandler: locationHandler))
     }
 
     var body: some View {
         CourseView()
-            .environmentObject(courseSearchViewModel)
-            .environmentObject(courseViewModel)
+            .environmentObject(container.courseSearchViewModel)
+            .environmentObject(container.courseViewModel)
+    }
+    
+    // A private container to ensure ViewModels are tightly coupled but only created once.
+    @MainActor
+    final class ViewModelContainer: ObservableObject {
+        let courseViewModel: CourseViewModel
+        let courseSearchViewModel: CourseSearchViewModel
+        
+        init(locationHandler: LocationHandler) {
+            let courseVM = CourseViewModel()
+            self.courseViewModel = courseVM
+            self.courseSearchViewModel = CourseSearchViewModel(
+                locationHandler: locationHandler,
+                courseViewModel: courseVM
+            )
+        }
     }
 }
 

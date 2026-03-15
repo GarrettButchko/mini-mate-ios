@@ -104,4 +104,15 @@ extension MKMapItem {
             )
         }
     }
+    
+    func toCourse(isSupported: Bool = false) -> Course {
+        Course(
+            id: CourseIDGenerator.generateCourseID(from: self.toDTO()),
+            name: self.name!,
+            password: PasswordGenerator.generate(.strong()),
+            latitude: self.placemark.coordinate.latitude,
+            longitude: self.placemark.coordinate.longitude,
+            isSupported: isSupported
+        )
+    }
 }

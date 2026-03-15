@@ -16,6 +16,9 @@ struct CourseSearchResultsView: View {
     @State private var showRetryButton = false
     @State var titleHeight: CGFloat = 30
     
+    // Platform-agnostic business logic isolated for KMP
+    private let logic = SearchResultBusinessLogic()
+    
     var body: some View {
         ZStack {
             if courseViewModel.isLoadingCourses || locationHandler.mapItems.isEmpty {
@@ -42,7 +45,7 @@ struct CourseSearchResultsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .onAppear {
                     showRetryButton = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + logic.retryButtonDelay) {
                         withAnimation(){
                             showRetryButton = true
                         }
@@ -126,25 +129,36 @@ struct SearchResultRow: View {
     @EnvironmentObject var VM: CourseViewModel
     @EnvironmentObject var locationHandler: LocationHandler
     
-    let item: MKMapItem
-    let userLocation: CLLocationCoordinate2D
     @State private var isSupported: Bool = false
+    
+    let item: MKMapItem
+    
+    let userLocation: CLLocationCoordinate2D
     let courseRepo = CourseRepository()
+    
+    @State var fetchedCourse: Course? = nil
+    
+    // Platform-agnostic business logic isolated for KMP
+    private let logic = SearchResultBusinessLogic()
+    
+    var course: Course {
+        if let fetchedCourse {
+            return fetchedCourse
+        } else {
+           return item.toCourse(isSupported: isSupported)
+        }
+    }
     
     var body: some View {
         Button {
             VM.updatePosition(mapItem: item, locationHandler: locationHandler)
-            if let name = item.name, isSupported {
-                VM.getCourse(name: name)
-            } else {
-                VM.selectedCourse = nil
-            }
+            VM.setCourse(course: course)
         } label: {
             HStack{
                 VStack(alignment: .leading) {
                     
                     MarqueeText(
-                        text: "\(item.name ?? "Unknown Place")",
+                        text: "\(course.name)",
                         font: UIFont.preferredFont(forTextStyle: .headline),
                         leftFade: 16,
                         rightFade: 16,
@@ -152,13 +166,17 @@ struct SearchResultRow: View {
                     )
                     .foregroundStyle(.mainOpp)
                     
-                    let offsetLat = userLocation.latitude - 0.015
-                    let distanceInMiles = CLLocation(latitude: offsetLat, longitude: userLocation.longitude)
+                    let offsetLat = logic.getOffsetLatitude(baseLatitude: userLocation.latitude)
+                    
+                    let distanceInMeters = CLLocation(latitude: offsetLat, longitude: userLocation.longitude)
                         .distance(from: CLLocation(latitude: item.placemark.coordinate.latitude,
-                                                   longitude: item.placemark.coordinate.longitude)) / 1609.34
+                                                   longitude: item.placemark.coordinate.longitude))
+                    
+                    let distanceInMiles = logic.metersToMiles(meters: distanceInMeters)
+                    let address = VM.getPostalAddress(from: item)
                 
                     MarqueeText(
-                        text: "\(String(format: "%.1f", distanceInMiles)) mi - \(VM.getPostalAddress(from: item))",
+                        text: logic.buildSubtitle(distanceInMiles: distanceInMiles, address: address),
                         font: UIFont.preferredFont(forTextStyle: .subheadline),
                         leftFade: 16,
                         rightFade: 16,
@@ -169,7 +187,7 @@ struct SearchResultRow: View {
                 .frame(height: 50)
                 Spacer()
                 
-                if isSupported{
+                if course.isSupported{
                     ZStack{
                         Circle()
                             .fill(.purple.opacity(0.3))
@@ -195,10 +213,14 @@ struct SearchResultRow: View {
     
     func preloadNameChecks() {
         if let name = item.name {
-            courseRepo.courseNameExistsAndSupported(name) { exists in
-                if exists {
-                    DispatchQueue.main.async {
-                        isSupported = true
+            // Push work to a detached background task
+            Task.detached(priority: .userInitiated) {
+                await courseRepo.fetchCourseByName(name) { course in
+                    if let course = course {
+                        // SwiftUI state updates must occur on the main thread
+                        Task { @MainActor in
+                            fetchedCourse = course
+                        }
                     }
                 }
             }

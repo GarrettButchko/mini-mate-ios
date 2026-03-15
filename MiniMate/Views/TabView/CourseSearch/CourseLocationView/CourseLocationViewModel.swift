@@ -9,15 +9,7 @@ import SwiftUI
 import MapKit
 import Combine
 
-/// An enum representing the state of the Look Around feature.
-/// This is platform-agnostic and could be part of a shared KMP module.
-enum LookAroundState: Equatable {
-    case idle
-    case loading
-    case available
-    case unavailable
-    case error(String)
-}
+
 
 @MainActor
 class CourseLocationViewModel: ObservableObject {
@@ -29,14 +21,13 @@ class CourseLocationViewModel: ObservableObject {
     @Published private(set) var websiteURL: URL?
     @Published private(set) var course: Course?
     
-    @Published private(set) var lookAroundScene: MKLookAroundScene?
-    @Published private(set) var lookAroundState: LookAroundState = .idle
-    
     @Published private(set) var isLoading: Bool = false
+    
+    private var lookAroundTask: Task<Void, Never>?
 
     // MARK: - Dependencies
     private let locationHandler: LocationHandler
-    private let courseViewModel: CourseViewModel
+    let courseViewModel: CourseViewModel
     private let courseRepository: CourseRepository
     private var cancellables = Set<AnyCancellable>()
 
@@ -112,35 +103,7 @@ class CourseLocationViewModel: ObservableObject {
         // while the new data is being fetched.
         self.course = nil
 
-        
         isLoading = true
-        // --- Asynchronous Data Fetching ---
-        // Fetch course details by name to ensure data is in sync.
-        // This avoids the race condition of relying on another view model.
-        courseRepository.fetchCourseByName(name) { [weak self] fetchedCourse in
-            self?.course = fetchedCourse
-            self?.isLoading = false
-        }
-
-        // --- Platform-Specific Action ---
-        // This triggers a platform-native API call.
-        fetchLookAroundScene(for: mapItem)
-    }
-    
-    func fetchCourse() {
-        guard let mapItem = locationHandler.selectedItem, let name = mapItem.name else {
-            clearState()
-            return
-        }
-        
-        isLoading = true
-        // --- Asynchronous Data Fetching ---
-        // Fetch course details by name to ensure data is in sync.
-        // This avoids the race condition of relying on another view model.
-        courseRepository.fetchCourseByName(name) { [weak self] fetchedCourse in
-            self?.course = fetchedCourse
-            self?.isLoading = false
-        }
     }
     
     private func clearState() {
@@ -150,30 +113,5 @@ class CourseLocationViewModel: ObservableObject {
         phoneNumberURL = nil
         websiteURL = nil
         course = nil
-        lookAroundScene = nil
-        lookAroundState = .idle
-    }
-    
-    // MARK: - Private Platform-Specific Implementation
-    
-    private func fetchLookAroundScene(for mapItem: MKMapItem) {
-        self.lookAroundState = .loading
-        self.lookAroundScene = nil
-        
-        let request = MKLookAroundSceneRequest(mapItem: mapItem)
-
-        Task {
-            do {
-                let sceneResult = try await request.scene
-                if let sceneResult {
-                    self.lookAroundScene = sceneResult
-                    self.lookAroundState = .available
-                } else {
-                    self.lookAroundState = .unavailable
-                }
-            } catch {
-                self.lookAroundState = .error(error.localizedDescription)
-            }
-        }
     }
 }

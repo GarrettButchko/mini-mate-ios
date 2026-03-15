@@ -38,7 +38,7 @@ struct CourseResultView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         CourseDirectionsButton()
                         
-                        if let course = viewModel.course, course.isSupported {
+                        if let course = viewModel.courseViewModel.selectedCourse, course.isSupported {
                             CourseSupportedLocationCard(
                                 course: course,
                                 locationName: viewModel.courseName
@@ -50,8 +50,6 @@ struct CourseResultView: View {
                         } else {
                             CourseClaimButton()
                         }
-                        
-                        LookAroundView()
                         
                         CourseContactInfoCard()
                         
@@ -91,44 +89,9 @@ struct CourseResultView: View {
                 }
             }
             .environmentObject(viewModel)
-        
-    }
-    
-    
-}
-
-struct LookAroundView: View {
-    @EnvironmentObject var viewModel: CourseLocationViewModel
-    
-    
-    var body: some View{
-        switch viewModel.lookAroundState {
-        case .loading:
-            HStack {
-                Spacer()
-                ProgressView("Loading Look Around...")
-                Spacer()
+            .onDisappear(){
+                viewModel.close()
             }
-            .frame(height: 100)
-            
-        case .available:
-            // The scene binding is derived from the viewModel's published property.
-            LookAroundPreview(scene: Binding(
-                get: { viewModel.lookAroundScene },
-                set: { _ in }
-            ))
-            .frame(height: 200)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .cardShadow()
-            
-        case .error(let message):
-            Text(message)
-                .padding()
-                .background(.secondary)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-        case .unavailable, .idle:
-            EmptyView()
-        }
     }
 }
 
