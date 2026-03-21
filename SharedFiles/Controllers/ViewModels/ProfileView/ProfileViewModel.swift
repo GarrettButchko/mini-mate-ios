@@ -38,10 +38,14 @@ final class ProfileViewModel: ObservableObject {
     var oldName: String? = nil
     
     // MARK: - Dependencies
-    private let authModel: AuthViewModel
-    private let viewManager: ViewManager
-    private let profileService: ProfileService
+    let authModel: AuthViewModel
+    let viewManager: ViewManager
+    let userRepo: UserRepository
+    let userRemoteRepo: UserRemoteRepository
+    let localGameRepo: LocalGameRepository
+    let authRepository = FirebaseAuthRepository()
     
+    // Note: Stored properties must remain in the main class declaration in Swift.
     let reauthCoordinator = AppleReauthCoordinator { _ in }
     
     // MARK: - Init
@@ -53,50 +57,13 @@ final class ProfileViewModel: ObservableObject {
         viewManager: ViewManager
     ) {
         self.authModel = authModel
+        self.userRepo = userRepo
+        self.userRemoteRepo = userRemoteRepo
+        self.localGameRepo = localGameRepo
         self.viewManager = viewManager
-        self.profileService = ProfileService(
-            authModel: authModel,
-            userRepo: userRepo,
-            userRemoteRepo: userRemoteRepo,
-            localGameRepo: localGameRepo
-        )
     }
     
-    func startAppleReauthAndDelete(isSheetPresent: Binding<Bool>) {
-        let provider = ASAuthorizationAppleIDProvider()
-        let request  = provider.createRequest()
-        request.requestedScopes = []
-        
-        let nonce = randomNonceString()
-        authModel.currentNonce = nonce
-        request.nonce = sha256(nonce)
-        
-        // Install handler
-        reauthCoordinator.onAuthorize = { result in
-            switch result {
-            case .failure(let err):
-                self.botMessage = err.localizedDescription
-                self.isRed = true
-                
-            case .success(let authorization):
-                self.profileService.deleteAppleAccount(using: authorization) { deletionResult in
-                    switch deletionResult {
-                    case .success():
-                        isSheetPresent.wrappedValue = false
-                        self.viewManager.navigateToWelcome()
-                    case .failure(let err):
-                        self.botMessage = err.localizedDescription
-                        self.isRed = true
-                    }
-                }
-            }
-        }
-        
-        let controller = ASAuthorizationController(authorizationRequests: [request])
-        controller.delegate = reauthCoordinator
-        controller.presentationContextProvider = reauthCoordinator
-        controller.performRequests()
-    }
+    // MARK: - Core Logic (Kotlin Multiplatform Candidates)
     
     func googleReauthAndDelete(isSheetPresent: Binding<Bool>) {
         authModel.reauthenticateWithGoogle { reauthResult in
@@ -122,10 +89,11 @@ final class ProfileViewModel: ObservableObject {
         }
     }
     
-    private func handleDeleteAccount(using credential: AuthCredential, isSheetPresent: Binding<Bool>) {
-        profileService.deleteAccount(credential: credential) { result in
+    func handleDeleteAccount(using credential: AuthCredential, isSheetPresent: Binding<Bool>) {
+        authRepository.deleteAccount(credential: credential) { result in
             switch result {
             case .success:
+                self.cleanupLocalData()
                 isSheetPresent.wrappedValue = false
                 self.viewManager.navigateToWelcome()
             case .failure(let error):
@@ -135,24 +103,36 @@ final class ProfileViewModel: ObservableObject {
         }
     }
     
-    func managePictureChange(newImage: UIImage?) {
-        profileService.managePictureChange(newImage: newImage) { result in
-            switch result {
-            case .success(let url):
-                print("✅ Photo URL:", url)
-            case .failure(let error):
-                self.botMessage = "Photo upload failed: \(error.localizedDescription)"
-                self.isRed = true
+    func cleanupLocalData() {
+        guard let userModel = authModel.userModel else { return }
+        let gameIDs = userModel.gameIDs
+        let userID = userModel.googleId
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            self.localGameRepo.deleteAll(ids: gameIDs) { completed in
+                if completed {
+                    print("🗑️ Deleted all local games for user")
+                }
             }
+            self.userRepo.deleteUnified(id: userID)
         }
     }
     
     func saveName(user: UserModel) {
-        profileService.saveName(newName: name, oldName: oldName)
+        if oldName != name, let userModel = authModel.userModel, let userId = authModel.currentUserIdentifier {
+            authModel.updateUserName(name)
+            userRemoteRepo.save(id: userId, userModel: userModel) { _ in }
+        }
     }
     
     func passwordReset(user: UserModel) {
-        profileService.passwordReset(user: user) { error in
+        guard let targetEmail = user.email else {
+            self.botMessage = "User has no email"
+            self.isRed = true
+            return
+        }
+        
+        authRepository.sendPasswordReset(withEmail: targetEmail) { error in
             if let error = error {
                 self.botMessage = error.localizedDescription
                 self.isRed = true
@@ -167,10 +147,20 @@ final class ProfileViewModel: ObservableObject {
         withAnimation {
             viewManager.navigateToWelcome()
         }
-        profileService.logOut()
+        authModel.logout()
+    }
+    
+    func getDeleteAlertType(for user: UserModel) -> DeleteAlertType {
+        if user.accountType.contains("google") {
+            return .google
+        } else if user.accountType.contains("apple") {
+            return .apple
+        } else {
+            return .email
+        }
     }
     
     func deleteAccount(user: UserModel) {
-        activeDeleteAlert = profileService.getDeleteAlertType(for: user)
+        activeDeleteAlert = getDeleteAlertType(for: user)
     }
 }

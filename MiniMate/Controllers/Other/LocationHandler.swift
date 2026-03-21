@@ -32,58 +32,11 @@ class LocationHandler: NSObject, ObservableObject, Observable, CLLocationManager
         manager.startUpdatingLocation()
     }
 
-    // MARK: - CLLocationManagerDelegate
-
-    func locationManager(
-        _ manager: CLLocationManager,
-        didChangeAuthorization status: CLAuthorizationStatus
-    ) {
-        // Update the published property whenever authorization changes
-        self.hasLocationAccess = (status == .authorizedWhenInUse || status == .authorizedAlways)
-        
-        switch status {
-        case .authorizedWhenInUse, .authorizedAlways:
-            manager.startUpdatingLocation()
-        case .denied, .restricted:
-            print("Location access denied/restricted")
-        default:
-            break
-        }
-    }
-
-    func locationManager(
-        _ manager: CLLocationManager,
-        didUpdateLocations locations: [CLLocation]
-    ) {
-        guard let location = locations.last else { return }
-        DispatchQueue.main.async { [weak self] in
-            self?.userLocation = location.coordinate
-        }
-    }
-
-    func locationManager(
-        _ manager: CLLocationManager,
-        didFailWithError error: Error
-    ) {
-        print("Location manager failed: \(error.localizedDescription)")
-    }
-
     // MARK: - Bindings
     func bindingForSelectedItem() -> Binding<MKMapItem?> {
         Binding(
             get: { self.selectedItem },
             set: { self.selectedItem = $0 }
-        )
-    }
-
-    func bindingForSelectedItemID() -> Binding<String?> {
-        Binding(
-            get: { self.selectedItem?.idString },
-            set: { newID in
-                self.selectedItem = self.mapItems.first(where: {
-                    $0.idString == newID
-                })
-            }
         )
     }
 
@@ -268,6 +221,7 @@ class LocationHandler: NSObject, ObservableObject, Observable, CLLocationManager
 
         return cameraPosition
     }
+    
 
     private func computeBoundingRegion(
         from items: [MKMapItem],

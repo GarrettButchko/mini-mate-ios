@@ -20,6 +20,11 @@ struct GuestData {
     var ballColorDT: String? = nil
 }
 
+enum JoinGameStatus {
+    case success
+    case error(String)
+}
+
 @dynamicMemberLookup
 final class GameViewModel: ObservableObject, Observable {
     
@@ -40,9 +45,6 @@ final class GameViewModel: ObservableObject, Observable {
     private var authModel: AuthViewModel
     private var listenerHandles: [DatabaseHandle] = []
     private var listenerRefs: [DatabaseReference] = []
-    
-    // Platform-agnostic business logic isolated for KMP
-    private let logic = GameBusinessLogic()
     
     // Initialization
     init(game: Game,
@@ -88,10 +90,6 @@ final class GameViewModel: ObservableObject, Observable {
     
     var isOnline: Bool { onlineGame }
     
-    var isInGame: Bool {
-        !gameValue.id.isEmpty
-    }
-    
     // Public Actions
     func resetGame() {
         setGame(Game(), listen: false)
@@ -119,7 +117,7 @@ final class GameViewModel: ObservableObject, Observable {
         
         // 2) Rebuild players and their holes from remote data
         for remotePlayer in newGame.players {
-            logic.initializeHoles(for: remotePlayer, totalHoles: game.numberOfHoles)
+            initializeHoles(for: remotePlayer, totalHoles: game.numberOfHoles)
             // remotePlayer.holes already contains correct strokes
             // Append the fully initialized player
             game.players.append(remotePlayer)
@@ -197,6 +195,7 @@ final class GameViewModel: ObservableObject, Observable {
             guard let self = self else { return }
             if snap.key == "players" { return }
             self.objectWillChange.send()
+            
             switch snap.key {
             case "id":
                 self.game.id = snap.value as? String ?? self.game.id
@@ -231,6 +230,7 @@ final class GameViewModel: ObservableObject, Observable {
             default:
                 break
             }
+            
         }
         listenerHandles.append(rootHandle)
         listenerRefs.append(ref)
@@ -243,7 +243,7 @@ final class GameViewModel: ObservableObject, Observable {
                   let dto: PlayerDTO = try? snap.data(as: PlayerDTO.self)
             else { return }
             let remote = Player.fromDTO(dto)
-            self.logic.attachHoles(to: remote, totalHoles: self.game.numberOfHoles)
+            self.attachHoles(to: remote, totalHoles: self.game.numberOfHoles)
             if !self.game.players.contains(where: { $0.id == remote.id }) {
                 self.objectWillChange.send()
                 self.game.players.append(remote)
@@ -259,7 +259,7 @@ final class GameViewModel: ObservableObject, Observable {
             let remote = Player.fromDTO(dto)
             if let local = self.game.players.first(where: { $0.id == remote.id }) {
                 self.objectWillChange.send()
-                self.logic.mergePlayer(local: local, remote: remote)
+                self.mergePlayer(local: local, remote: remote)
             }
         }
         listenerHandles.append(changeHandle)
@@ -300,14 +300,14 @@ final class GameViewModel: ObservableObject, Observable {
     func addLocalPlayer(named name: String, email: String, ballColor: String? = nil) {
         objectWillChange.send()
         let newPlayer = Player(
-            userId: logic.generateGameCode(),
+            userId: generateGameCode(),
             name: name,
             photoURL: nil,
             inGame: true,
             email: email != "" ? email : nil,
             ballColorDT: ballColor
         )
-        logic.initializeHoles(for: newPlayer, totalHoles: game.numberOfHoles)
+        initializeHoles(for: newPlayer, totalHoles: game.numberOfHoles)
         withAnimation {
             game.players.append(newPlayer)
         }
@@ -325,7 +325,7 @@ final class GameViewModel: ObservableObject, Observable {
                 email: guestData.email,
                 ballColorDT: guestData.ballColorDT
             )
-            logic.initializeHoles(for: newPlayer, totalHoles: game.numberOfHoles)
+            initializeHoles(for: newPlayer, totalHoles: game.numberOfHoles)
             withAnimation {
                 game.players.append(newPlayer)
             }
@@ -333,7 +333,7 @@ final class GameViewModel: ObservableObject, Observable {
         } else {
             guard let user = authModel.userModel else { return }
             // don’t add the same user twice
-            guard !logic.isPlayerInGame(players: game.players, userId: user.googleId) else { return }
+            guard !isPlayerInGame(players: game.players, userId: user.googleId) else { return }
             
             objectWillChange.send()
             let newPlayer = Player(
@@ -344,7 +344,7 @@ final class GameViewModel: ObservableObject, Observable {
                 email: user.email,
                 ballColorDT: user.ballColorDT
             )
-            logic.initializeHoles(for: newPlayer, totalHoles: game.numberOfHoles)
+            initializeHoles(for: newPlayer, totalHoles: game.numberOfHoles)
             withAnimation {
                 game.players.append(newPlayer)
             }
@@ -368,7 +368,7 @@ final class GameViewModel: ObservableObject, Observable {
         liveGameRepo.fetchGame(id: id) { [weak self] game in
             guard let self = self else { return }
             
-            let status = self.logic.validateJoinGame(game: game, userId: userId)
+            let status = validateJoinGame(game: game, userId: userId)
             
             switch status {
             case .success:
@@ -417,7 +417,7 @@ final class GameViewModel: ObservableObject, Observable {
         resetGame()
         
         let hostId = guestData?.id ?? authModel.userModel?.googleId ?? ""
-        logic.setupNewGame(game: game, hostId: hostId, course: course, newId: logic.generateGameCode())
+        setupNewGame(game: game, hostId: hostId, course: course, newId: generateGameCode())
         
         if guestData != nil {
             addUser(guestData: guestData)
@@ -440,7 +440,7 @@ final class GameViewModel: ObservableObject, Observable {
         
         objectWillChange.send()
         for player in game.players {
-            logic.initializeHoles(for: player, totalHoles: game.numberOfHoles)
+            initializeHoles(for: player, totalHoles: game.numberOfHoles)
         }
         game.startTime = Date()
         game.started = true
@@ -487,7 +487,7 @@ final class GameViewModel: ObservableObject, Observable {
         game.endTime = Date()
         game.live = false
         
-        let finished = logic.createDeepCopy(of: game)
+        let finished = createDeepCopy(of: game)
         print(finished)
 
         Task { @MainActor in
@@ -654,6 +654,133 @@ final class GameViewModel: ObservableObject, Observable {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             isRotating.wrappedValue = false
         }
+    }
+    
+    /// Generates a random alphanumeric game code of a specified length
+    func generateGameCode(length: Int = 6) -> String {
+        let chars = "ABCDEFGHIJKLMNPQRSTUVWXYZ123456789"
+        return String((0..<length).compactMap { _ in chars.randomElement() })
+    }
+    
+    /// Prepares a new game state for creation
+    func setupNewGame(game: Game, hostId: String, course: Course?, newId: String) {
+        game.live = true
+        game.id = newId
+        game.hostUserId = hostId
+        
+        if let course = course {
+            game.courseID = course.id
+            game.locationName = course.name
+        }
+    }
+    
+    // MARK: - Player & Hole Management
+    
+    /// Initializes holes for a player if they don't already match the game's total holes
+    func initializeHoles(for player: Player, totalHoles: Int) {
+        guard player.holes.count != totalHoles else { return }
+        player.holes = []
+        player.holes = (0..<totalHoles).map {
+            let hole = Hole(number: $0 + 1)
+            hole.player = player
+            return hole
+        }
+    }
+    
+    /// Attaches existing holes and generates missing holes to match the total required
+    func attachHoles(to player: Player, totalHoles: Int) {
+        // Preserve existing strokes and ensure player linkage.
+        for hole in player.holes {
+            hole.player = player
+        }
+
+        if player.holes.count < totalHoles {
+            let existing = Set(player.holes.map(\.number))
+            for n in 1...totalHoles where !existing.contains(n) {
+                let hole = Hole(number: n)
+                hole.player = player
+                player.holes.append(hole)
+            }
+        }
+
+        player.holes.sort { $0.number < $1.number }
+    }
+    
+    /// Merges remote player data into the local player model
+    func mergePlayer(local: Player, remote: Player) {
+        local.inGame = remote.inGame
+        local.name = remote.name
+        local.photoURL = remote.photoURL
+        local.email = remote.email
+
+        for remoteHole in remote.holes {
+            if let localHole = local.holes.first(where: { $0.number == remoteHole.number }) {
+                localHole.strokes = remoteHole.strokes
+            } else {
+                let hole = Hole(number: remoteHole.number, strokes: remoteHole.strokes)
+                hole.player = local
+                local.holes.append(hole)
+            }
+        }
+        local.holes.sort { $0.number < $1.number }
+    }
+    
+    /// Checks if a player exists in the game by their user ID
+    func isPlayerInGame(players: [Player], userId: String) -> Bool {
+        return players.contains(where: { $0.userId == userId })
+    }
+    
+    // MARK: - Validation
+    
+    /// Validates whether a user is allowed to join the requested game
+    func validateJoinGame(game: Game?, userId: String) -> JoinGameStatus {
+        guard let game = game else {
+            return .error("Game not found. Please check the code and try again.")
+        }
+        
+        if game.dismissed {
+            return .error("This game has been dismissed by the host.")
+        } else if game.started {
+            return .error("This game has already started.")
+        } else if game.completed {
+            return .error("This game has already been completed.")
+        } else if isPlayerInGame(players: game.players, userId: userId) {
+            return .error("You are already in this game. Use a different account to join")
+        } else {
+            return .success
+        }
+    }
+    
+    // MARK: - Deep Copy
+    
+    /// Creates a deep copy of a Game object for persistence
+    func createDeepCopy(of source: Game) -> Game {
+        return Game(
+            id: source.id,
+            hostUserId: source.hostUserId,
+            date: source.date,
+            completed: source.completed,
+            numberOfHoles: source.numberOfHoles,
+            started: source.started,
+            dismissed: source.dismissed,
+            live: source.live,
+            lastUpdated: source.lastUpdated,
+            courseID: source.courseID,
+            players: source.players.map { player in
+                Player(
+                    id: player.id,
+                    userId: player.userId,
+                    name: player.name,
+                    photoURL: player.photoURL,
+                    holes: player.holes.map { Hole(number: $0.number, strokes: $0.strokes) },
+                    email: player.email,
+                    ballColorDT: player.ballColorDT
+                )
+            },
+            locationName: source.locationName,
+            startTime: source.startTime,
+            endTime: source.endTime
+        )
     }
     
     func getHasLoaded() -> Bool { hasLoaded }

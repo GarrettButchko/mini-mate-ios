@@ -131,41 +131,6 @@ final class CourseRepository {
         }
     }
     
-    func fetchCourse(id: String, completion: @escaping (Course?) -> Void) {
-        db.collection("courses").document(id).getDocument { (document, error) in
-            if let error = error {
-                print("❌ Firestore fetch error: \(error.localizedDescription)")
-                completion(nil)
-                return
-            }
-            
-            if let document = document, document.exists {
-                Task { @MainActor in
-                    do {
-                        let course = try document.data(as: Course.self)
-                        completion(course)
-                    } catch {
-                        print("❌ Firestore decoding error: \(error)")
-                        completion(nil)
-                    }
-                }
-            } else {
-                print("Document does not exist")
-                completion(nil)
-            }
-        }
-    }
-    
-    @MainActor
-    func fetchCourse(id: String) async -> Course? {
-        do {
-            return try await db.collection("courses").document(id).getDocument(as: Course.self)
-        } catch {
-            print("Error fetching course: \(error)")
-            return nil
-        }
-    }
-
     /// Fetches multiple Courses by their document IDs
     func fetchCourses(ids: [String], completion: @escaping ([Course]) -> Void) {
         guard !ids.isEmpty else {
@@ -358,10 +323,6 @@ final class CourseRepository {
         email
             .lowercased()
             .replacingOccurrences(of: ".", with: ",")
-    }
-    
-    func emailFromKey(_ key: String) -> String {
-        key.replacingOccurrences(of: ",", with: ".")
     }
     
     

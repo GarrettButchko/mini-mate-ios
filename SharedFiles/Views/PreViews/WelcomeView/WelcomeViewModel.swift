@@ -17,30 +17,60 @@ final class WelcomeViewModel: ObservableObject {
 
     // MARK: - Private
     private let viewManager: ViewManager
-    private let presenter: WelcomePresenter
+    private let fullText: String
+    private let typingSpeed = 0.05
+    private var animationTriggered = false
 
     // MARK: - Init
     init(viewManager: ViewManager, welcomeText: String) {
         self.viewManager = viewManager
-        self.presenter = WelcomePresenter(welcomeText: welcomeText)
-        setupBindings()
+        self.fullText = welcomeText
     }
 
     // MARK: - Lifecycle
     func onAppear() {
-        presenter.start()
+        startTypingAnimation()
     }
 
-    // MARK: - Bindings
-    private func setupBindings() {
-        presenter.onTextUpdate = { [weak self] newText in
-            self?.displayedText = newText
+    // MARK: - Typing Animation
+    private func startTypingAnimation() {
+        var currentText = ""
+        animationTriggered = false
+
+        for (index, character) in fullText.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + typingSpeed * Double(index)) { [weak self] in
+                guard let self = self else { return }
+                
+                currentText.append(character)
+                self.displayedText = currentText
+
+                if currentText == self.fullText, !self.animationTriggered {
+                    self.animationTriggered = true
+                    self.handleAnimationCompletion()
+                }
+            }
         }
-        presenter.onShouldShowLoading = { [weak self] shouldShow in
-            self?.showLoading = shouldShow
+    }
+
+    // MARK: - Post Animation Logic
+    private func handleAnimationCompletion() {
+        if NetworkChecker.shared.isConnected {
+            navigateToSignIn()
+        } else {
+            showLoading = true
+            pollUntilInternet()
         }
-        presenter.onReadyToNavigate = { [weak self] in
-            self?.navigateToSignIn()
+    }
+
+    // MARK: - Network Polling
+    private func pollUntilInternet() {
+        if NetworkChecker.shared.isConnected {
+            showLoading = false
+            navigateToSignIn()
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                self?.pollUntilInternet()
+            }
         }
     }
 

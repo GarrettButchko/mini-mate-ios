@@ -8,39 +8,6 @@
 import MapKit
 import Contacts
 
-extension MapItemDTO {
-    func dtoToMapItem() -> MKMapItem {
-        
-        if #available(iOS 26.0, *) {
-            
-            let location = CLLocation(latitude: self.coordinate.latitude, longitude: self.coordinate.longitude)
-            
-            var address: MKAddress? = nil
-            
-            if let fullAddress = self.address?.fullAddress {
-                address = MKAddress(fullAddress: fullAddress, shortAddress: self.address?.shortAddress)
-            }
-            
-            let item = MKMapItem(location: location, address: address)
-            item.name = self.name
-            item.phoneNumber = self.phoneNumber
-            item.url = self.url != nil ? URL(string: self.url!) : nil
-            
-            return item
-        } else {
-            
-            let placemark = MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: self.coordinate.latitude, longitude: self.coordinate.longitude))
-            
-            let item = MKMapItem(placemark: placemark)
-            item.name = self.name
-            item.phoneNumber = self.phoneNumber
-            item.url = self.url != nil ? URL(string: self.url!) : nil
-            
-            return item
-        }
-    }
-}
-
 extension MKMapItem {
     
     
@@ -51,8 +18,6 @@ extension MKMapItem {
             "\(placemark.coordinate.latitude)-\(placemark.coordinate.longitude)-\(name ?? "")"
         }
     }
-    
-    
     
     var newAddress: AddressDTO? {
         if #available(iOS 26.0, *), let address = self.address {

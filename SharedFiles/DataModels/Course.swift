@@ -96,38 +96,8 @@ struct CourseEmail: Codable, Equatable {
 }
 
 extension DailyDoc {
-    var avgRoundTimeseconds: Double {
-        Double(totalRoundSeconds) / Double(gamesPlayed)
-    }
-    
     var totalCount: Int { newPlayers + returningPlayers }
     
-    // MARK: - Init / dayID update
-    
-
-    mutating func setDayID(_ newValue: String) {
-        dayID = newValue
-        weekID = Self.isoWeekID(from: newValue) ?? ""
-    }
-
-    // MARK: - Increment (local / in-memory)
-    mutating func incrementHour(_ hour: Int, by amount: Int = 1) {
-        guard (0..<24).contains(hour), amount != 0 else { return }
-        let key = String(hour)
-        hourlyCounts[key, default: 0] += amount
-    }
-
-    // MARK: - Convenience for UI (map -> 24 array)
-    func hourlyArray() -> [Int] {
-        var arr = Array(repeating: 0, count: 24)
-        for (k, v) in hourlyCounts {
-            if let h = Int(k), (0..<24).contains(h) {
-                arr[h] = v
-            }
-        }
-        return arr
-    }
-
     // MARK: - ISO week (cached formatter)
     private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()

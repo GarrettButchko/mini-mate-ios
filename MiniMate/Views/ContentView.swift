@@ -14,8 +14,6 @@ struct ContentView: View {
     @StateObject private var gameModel: GameViewModel
     @StateObject var hostVM = HostViewModel()
     
-    let locFuncs = LocFuncs()
-    
     //@State var ad: Ad? = nil
     
     @State private var selectedTab = 1

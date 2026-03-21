@@ -15,7 +15,6 @@ struct GameReviewView: View {
     @State private var scrollOffset: CGFloat
     @State private var uuid: UUID?
     @State private var showInfoView: Bool
-    
     @State private var titleHeight: CGFloat = 0
     
     // Custom init to assign @StateObject and normal vars
@@ -35,7 +34,7 @@ struct GameReviewView: View {
             headerView
                 .padding(.top)
             if !isInCourseSettings {
-                BarChartView(data: viewModel.presenter.averageStrokes(), title: "Average Strokes", paddingReview: true)
+                BarChartView(data: viewModel.averageStrokes(), title: "Average Strokes", paddingReview: true)
                     .frame(height: 140)
                     .background(
                         RoundedRectangle(cornerRadius: 25)
@@ -163,7 +162,7 @@ struct GameReviewView: View {
     /// first column with holes and number i.e "hole 1"
     private var holeNumbersColumn: some View {
         VStack {
-            ForEach(1...viewModel.presenter.holeCount, id: \.self) { i in
+            ForEach(1...viewModel.holeCount, id: \.self) { i in
                 if i != 1 { Divider() }
                 VStack {
                     Text("Hole \(i)")
@@ -219,7 +218,7 @@ struct GameReviewView: View {
                             Spacer()
                         }
                         if NetworkChecker.shared.isConnected {
-                            ShareLink(item: viewModel.presenter.shareText){
+                            ShareLink(item: viewModel.shareText){
                                 Image(systemName: "square.and.arrow.up")
                                     .font(.title2)
                             }
