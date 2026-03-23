@@ -153,8 +153,6 @@ struct AddLocalPlayerView: View {
         }
     }
     
-    // MARK: - Logic
-    
     private func dismiss() {
         showColor = false
     }

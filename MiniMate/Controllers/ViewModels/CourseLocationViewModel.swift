@@ -74,7 +74,6 @@ class CourseLocationViewModel: ObservableObject {
     }
     
     func claimCourse() {
-        // This would eventually open a URL, a platform-specific action
         print("Claim course button tapped.")
     }
     
@@ -98,9 +97,7 @@ class CourseLocationViewModel: ObservableObject {
             phoneNumberURL = nil
         }
         websiteURL = mapItem.url
-        
-        // Immediately clear the old course data to prevent showing stale information
-        // while the new data is being fetched.
+    
         self.course = nil
 
         isLoading = true

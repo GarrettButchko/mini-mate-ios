@@ -98,24 +98,26 @@
 				"DataModels/User+UserModel+UI.swift",
 				DataModels/UserDTO.swift,
 				DataModels/UserModel.swift,
-				Misc/CardShadowModifier.swift,
-				Misc/CharacterLimitModifier.swift,
 				Misc/Functions/CryptoUtils.swift,
 				Misc/Functions/DateUtils.swift,
 				Misc/Functions/PasswordGenerator.swift,
 				Misc/Functions/ProfanityFilter.swift,
-				Misc/isAvaliableGlassEffect.swift,
-				Misc/PhotoPicker.swift,
-				Misc/ScannerCornerShape.swift,
-				Misc/SynchronizedScrollViews.swift,
 				Misc/Views/BarChartView.swift,
+				Misc/Views/CardShadowModifier.swift,
+				Misc/Views/CharacterLimitModifier.swift,
+				Misc/Views/isAvaliableGlassEffect.swift,
 				Misc/Views/NumberPickerView.swift,
 				Misc/Views/PhotoIconView.swift,
+				Misc/Views/PhotoPicker.swift,
 				Misc/Views/RollingNumberText.swift,
+				Misc/Views/ScannerCornerShape.swift,
 				Misc/Views/SearchBarView.swift,
+				Misc/Views/SynchronizedScrollViews.swift,
 				Misc/Views/UserInfoRow.swift,
+				ProfileView.swift,
 				Protocals/AppNavigationManaging.swift,
 				"Shared-Assets.xcassets",
+				SwipeableRowModifier.swift,
 				Views/Game/GameInfoView.swift,
 				Views/Game/GameInfoViewModel.swift,
 				Views/Game/GameReview/GameReviewView.swift,
@@ -128,14 +130,6 @@
 			);
 			target = 21E19BB12EE4A3CE005C1193 /* MiniMate Manager */;
 		};
-		215B389D2F42B09F0007677F /* Exceptions for "MiniMate" folder in "MiniMate Manager" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Views/TabView/MainView/ProfileView.swift,
-				Views/TabView/Stats/SwipeableRowModifier.swift,
-			);
-			target = 21E19BB12EE4A3CE005C1193 /* MiniMate Manager */;
-		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -143,7 +137,6 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				211D233B2D55707100558873 /* Exceptions for "MiniMate" folder in "MiniMate" target */,
-				215B389D2F42B09F0007677F /* Exceptions for "MiniMate" folder in "MiniMate Manager" target */,
 			);
 			path = MiniMate;
 			sourceTree = "<group>";

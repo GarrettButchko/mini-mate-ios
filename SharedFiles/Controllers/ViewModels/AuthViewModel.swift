@@ -270,7 +270,9 @@ class AuthViewModel: ObservableObject {
     
     // Both
     func createOrSignInUserAndNavigateToHome(context: ModelContext, authModel: AuthViewModel, viewManager: AppNavigationManaging, user: User, name: String? = nil, errorMessage: Binding<(message: String?, type: Bool)>, signInMethod: SignInMethod? = nil, appleId: String? = nil, navToHome: Bool = true, guestGame: Binding<Game?>, completion: @escaping(() -> Void)) {
+        
         errorMessage.wrappedValue = (message: nil, type: false)
+        
         let repo = UserRepository(context: context)
         repo.loadOrCreateUser(id: user.uid, firebaseUser: user, name: name, authModel: authModel, signInMethod: signInMethod, guestGame: guestGame.wrappedValue) { done1, done2, creation  in
             if navToHome && done2{
@@ -288,15 +290,28 @@ class AuthViewModel: ObservableObject {
     }
     
     // Both
-    func signInUIManage(email: Binding<String>, password: Binding<String>, confirmPassword: Binding<String>, isTextFieldFocused: FocusState<SignInView.Field?>.Binding, authModel: AuthViewModel, errorMessage: Binding<(message: String?, type: Bool)>, showSignUp: Binding<Bool>, context: ModelContext, viewManager: ViewManager, guestGame: Binding<Game?>) {
+    func signInUIManage(email: Binding<String>,
+                        password: Binding<String>,
+                        confirmPassword: Binding<String>,
+                        isTextFieldFocused: FocusState<SignInView.Field?>.Binding,
+                        authModel: AuthViewModel,
+                        errorMessage: Binding<(message: String?, type: Bool)>,
+                        showSignUp: Binding<Bool>,
+                        context: ModelContext,
+                        viewManager: ViewManager,
+                        guestGame: Binding<Game?>) {
+        
         authModel.signIn(email: email.wrappedValue, password: password.wrappedValue) { result in
             switch result {
             case .failure(_):
+                
                 withAnimation(){
                     showSignUp.wrappedValue = true
                 }
                 errorMessage.wrappedValue = (message: "No User Found Please Sign Up", type: false)
+                
             case .success(let firebaseUser):
+                
                 if firebaseUser.isEmailVerified {
                     self.createOrSignInUserAndNavigateToHome(context: context, authModel: authModel, viewManager: viewManager, user: firebaseUser, errorMessage: errorMessage, signInMethod: .email, guestGame: guestGame){}
                 } else {
@@ -315,6 +330,7 @@ class AuthViewModel: ObservableObject {
                         }
                     }
                 }
+                
             }
         }
     }

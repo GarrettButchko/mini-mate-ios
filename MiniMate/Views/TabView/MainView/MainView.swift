@@ -536,7 +536,7 @@ struct MainView: View {
                         // Exit Button
                         Button(action: {
                             withAnimation {
-                                gameModel.exit(handler: locationHandler)
+                                gameModel.exit()
                             }
                         }) {
                             Image(systemName: "xmark")

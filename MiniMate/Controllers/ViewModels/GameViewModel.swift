@@ -643,7 +643,7 @@ final class GameViewModel: ObservableObject, Observable {
         }
     }
     
-    func exit(handler: LocationHandler){
+    func exit(){
         resetCourse()
     }
     

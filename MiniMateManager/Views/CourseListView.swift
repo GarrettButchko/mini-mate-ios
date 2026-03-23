@@ -36,7 +36,6 @@ struct CourseListView: View {
                 }
             }
             .animation(.bouncy, value: viewModel.hasCourse)
-            
             .onReceive(viewModel.timer) { _ in
                 viewModel.tick()
             }
