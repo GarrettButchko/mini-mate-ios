@@ -21,6 +21,7 @@ enum SignInMethod: String {
 }
 
 /// ViewModel that manages Firebase Authentication and app-specific user data
+@MainActor
 class AuthViewModel: ObservableObject {
     /// The currently authenticated Firebase user
     @Published var firebaseUser: FirebaseAuth.User?
@@ -29,14 +30,8 @@ class AuthViewModel: ObservableObject {
     
     private let authRepository = FirebaseAuthRepository()
 
-    func setUserModel(_ user: UserModel) {
-        if Thread.isMainThread {
-            self.userModel = user
-        } else {
-            DispatchQueue.main.async { [weak self] in
-                self?.userModel = user
-            }
-        }
+    func setUserModel(_ user: UserModel?) {
+        self.userModel = user
     }
     
     var currentNonce: String?
@@ -95,7 +90,7 @@ class AuthViewModel: ObservableObject {
             case .failure(let error):
                 completion(.failure(error), nil, nil)
             case .success(let user):
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self?.firebaseUser = user
                 }
                 completion(.success(user), cred.fullName?.formatted(), cred.user)
@@ -138,7 +133,7 @@ class AuthViewModel: ObservableObject {
                 case .failure(let error):
                     completion(.failure(error))
                 case .success(let user):
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         self?.firebaseUser = user
                     }
                     completion(.success(user))
@@ -226,7 +221,7 @@ class AuthViewModel: ObservableObject {
             case .failure(let error):
                 completion(.failure(error))
             case .success(let user):
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self?.firebaseUser = user
                 }
                 completion(.success(user))
@@ -238,9 +233,8 @@ class AuthViewModel: ObservableObject {
     /// Signs out the current user
     func logout() {
         authRepository.logout()
-        DispatchQueue.main.async {
-            self.firebaseUser = nil
-        }
+        firebaseUser = nil
+        userModel = nil
     }
     
     // Both
@@ -262,7 +256,10 @@ class AuthViewModel: ObservableObject {
 
         authRepository.deleteAccount(credential: cred) { [weak self] result in
             if case .success = result {
-                DispatchQueue.main.async { self?.firebaseUser = nil }
+                Task { @MainActor in
+                    self?.firebaseUser = nil
+                    self?.userModel = nil
+                }
             }
             completion(result)
         }
@@ -316,7 +313,7 @@ class AuthViewModel: ObservableObject {
                     self.createOrSignInUserAndNavigateToHome(context: context, authModel: authModel, viewManager: viewManager, user: firebaseUser, errorMessage: errorMessage, signInMethod: .email, guestGame: guestGame){}
                 } else {
                     self.authRepository.sendEmailVerification { error in
-                        DispatchQueue.main.async {
+                        Task { @MainActor in
                             if let error = error {
                                 errorMessage.wrappedValue = (message: "Couldn’t send verification email: \(error.localizedDescription)", type: false)
                             } else {
